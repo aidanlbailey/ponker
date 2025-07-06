@@ -40,7 +40,16 @@ body {
   text-align: center;
 }
 
-.add-chip-type-btn {
+.top-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.add-chip-type-btn, .presets-toggle-btn, .clipboard-btn {
   padding: 0.5rem 1rem;
   background: linear-gradient(145deg, #646cff, #5a5fcf);
   color: white;
@@ -50,15 +59,128 @@ body {
   font-size: 1rem;
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.1s;
-  margin-bottom: 2rem;
+  white-space: nowrap;
 }
 
-.add-chip-type-btn:hover {
+.clipboard-btn {
+  background: linear-gradient(145deg, #17a2b8, #138496);
+}
+
+.add-chip-type-btn:hover, .presets-toggle-btn:hover, .clipboard-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(100, 108, 255, 0.3);
 }
 
-.add-chip-type-btn:active {
+.clipboard-btn:hover {
+  box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+}
+
+.add-chip-type-btn:active, .presets-toggle-btn:active, .clipboard-btn:active {
+  transform: translateY(0);
+}
+
+.presets-panel {
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.presets-panel h3 {
+  color: #ffffff;
+  margin: 0 0 1rem 0;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.preset-card {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: background-color 0.2s;
+}
+
+.preset-card:hover {
+  background: #333;
+}
+
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.preset-header h4 {
+  color: #ffffff;
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.preset-author {
+  color: #888;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.preset-description {
+  color: #ccc;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.preset-chips-preview {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.preset-chip-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.preset-chip-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: inline-block;
+}
+
+.load-preset-btn {
+  background: linear-gradient(145deg, #28a745, #218838);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.load-preset-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.load-preset-btn:active {
   transform: translateY(0);
 }
 
