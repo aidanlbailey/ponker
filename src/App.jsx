@@ -227,7 +227,7 @@ function App() {
             className={`chip-section ${addingChip === chipId ? 'adding' : ''} ${removingChip === chipId ? 'removing' : ''}`}
           >
             <div className="chip-header">
-              <span className="chip-name">${chip.value}</span>
+              <span className="chip-name">${(chip.value * chip.count).toFixed(2)}</span>
               {Object.keys(chips).length > 1 && (
                 <button 
                   className="delete-chip-btn"
