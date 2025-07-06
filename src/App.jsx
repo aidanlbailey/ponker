@@ -3,26 +3,39 @@ import './App.css'
 
 // Haptic feedback utility function
 const triggerHaptic = (type = 'light') => {
-  if (navigator.vibrate) {
-    // Different vibration patterns for different feedback types
-    switch (type) {
-      case 'light':
-        navigator.vibrate(10)
-        break
-      case 'medium':
-        navigator.vibrate(25)
-        break
-      case 'heavy':
-        navigator.vibrate([50, 20, 50])
-        break
-      case 'success':
-        navigator.vibrate([100, 50, 100])
-        break
-      case 'error':
-        navigator.vibrate([200, 100, 200, 100, 200])
-        break
-      default:
-        navigator.vibrate(10)
+  // Check for vibration support and ensure we're in a secure context
+  if ('vibrate' in navigator && window.isSecureContext) {
+    try {
+      // Different vibration patterns for different feedback types
+      switch (type) {
+        case 'light':
+          navigator.vibrate(15)
+          break
+        case 'medium':
+          navigator.vibrate(30)
+          break
+        case 'heavy':
+          navigator.vibrate([60, 30, 60])
+          break
+        case 'success':
+          navigator.vibrate([100, 50, 100])
+          break
+        case 'error':
+          navigator.vibrate([200, 100, 200, 100, 200])
+          break
+        default:
+          navigator.vibrate(15)
+      }
+    } catch (error) {
+      // Silently fail if vibration is not supported or blocked
+      console.log('Vibration not supported or blocked:', error)
+    }
+  } else if ('vibrate' in navigator) {
+    // Fallback for non-secure contexts
+    try {
+      navigator.vibrate(type === 'heavy' ? 50 : type === 'medium' ? 25 : 10)
+    } catch (error) {
+      console.log('Vibration fallback failed:', error)
     }
   }
 }
@@ -59,7 +72,7 @@ function App() {
     setAnimatingChips(prev => ({ ...prev, [chipId]: animationType }))
     setTimeout(() => {
       setAnimatingChips(prev => ({ ...prev, [chipId]: null }))
-    }, animationType === 'bouncing' ? 400 : 300)
+    }, animationType === 'bouncing' ? 200 : 150)
   }
 
   const updateChipValue = (chipId, value) => {
