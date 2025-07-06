@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
@@ -9,6 +9,9 @@ function App() {
   })
 
   const [presetsOpen, setPresetsOpen] = useState(false)
+  const [animatingChips, setAnimatingChips] = useState({})
+  const [addingChip, setAddingChip] = useState(null)
+  const [removingChip, setRemovingChip] = useState(null)
 
   const presets = [
     {
@@ -23,6 +26,14 @@ function App() {
       }
     }
   ]
+
+  // Helper function to trigger chip animations
+  const triggerChipAnimation = (chipId, animationType) => {
+    setAnimatingChips(prev => ({ ...prev, [chipId]: animationType }))
+    setTimeout(() => {
+      setAnimatingChips(prev => ({ ...prev, [chipId]: null }))
+    }, animationType === 'bouncing' ? 400 : 300)
+  }
 
   const updateChipValue = (chipId, value) => {
     setChips(prev => ({
@@ -48,6 +59,7 @@ function App() {
       ...prev,
       [chipId]: { ...prev[chipId], count: prev[chipId].count + 1 }
     }))
+    triggerChipAnimation(chipId, 'bouncing')
   }
 
   const removeChip = (chipId) => {
@@ -55,10 +67,13 @@ function App() {
       ...prev,
       [chipId]: { ...prev[chipId], count: Math.max(0, prev[chipId].count - 1) }
     }))
+    triggerChipAnimation(chipId, 'pulsing')
   }
 
   const addNewChipType = () => {
     const chipId = `chip_${Date.now()}`
+    setAddingChip(chipId)
+    
     setChips(prev => ({
       ...prev,
       [chipId]: {
@@ -67,15 +82,22 @@ function App() {
         color: '#ff6b6b'
       }
     }))
+    
+    setTimeout(() => setAddingChip(null), 500)
   }
 
   const deleteChipType = (chipId) => {
     if (Object.keys(chips).length > 1) {
-      setChips(prev => {
-        const newChips = { ...prev }
-        delete newChips[chipId]
-        return newChips
-      })
+      setRemovingChip(chipId)
+      
+      setTimeout(() => {
+        setChips(prev => {
+          const newChips = { ...prev }
+          delete newChips[chipId]
+          return newChips
+        })
+        setRemovingChip(null)
+      }, 300)
     }
   }
 
@@ -200,7 +222,10 @@ function App() {
       
       <div className="chip-container">
         {Object.entries(chips).map(([chipId, chip]) => (
-          <div key={chipId} className="chip-section">
+          <div 
+            key={chipId} 
+            className={`chip-section ${addingChip === chipId ? 'adding' : ''} ${removingChip === chipId ? 'removing' : ''}`}
+          >
             <div className="chip-header">
               <span className="chip-name">${chip.value}</span>
               {Object.keys(chips).length > 1 && (
@@ -215,7 +240,7 @@ function App() {
             </div>
             
             <div 
-              className="chip"
+              className={`chip ${animatingChips[chipId] || ''}`}
               style={{ 
                 background: `linear-gradient(145deg, ${chip.color}, ${chip.color}dd)`,
                 color: getContrastColor(chip.color),
@@ -244,7 +269,9 @@ function App() {
                 ))}
               </div>
               
-              <span className="chip-count">{chip.count}</span>
+              <span className={`chip-count ${animatingChips[chipId] === 'bouncing' || animatingChips[chipId] === 'pulsing' ? 'changing' : ''}`}>
+                {chip.count}
+              </span>
               
               {/* Overlay color input that covers the entire chip */}
               <input
