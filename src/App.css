@@ -97,15 +97,76 @@ body {
   animation: slideIn 0.5s ease-out;
 }
 
-.title {
-  font-size: 4rem;
-  font-weight: bold;
-  color: #ffffff;
-  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.3);
-  letter-spacing: 0.1em;
-  margin: 0 0 2rem 0;
+.title-section {
   text-align: center;
+  margin-bottom: 2rem;
   animation: slideIn 0.6s ease-out;
+}
+
+.title {
+  font-size: 5rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2),
+    0 0 30px rgba(255, 255, 255, 0.1),
+    3px 3px 6px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.15em;
+  margin: 0;
+  background: linear-gradient(145deg, #ffffff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+}
+
+.title::before {
+  content: 'PONKER';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, #646cff, #5a5fcf);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  z-index: -1;
+  transform: translate(2px, 2px);
+  opacity: 0.3;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: #888;
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+  letter-spacing: 0.05em;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Mobile responsive title adjustments */
+@media (max-width: 768px) {
+  .title {
+    font-size: 4rem;
+  }
+  
+  .subtitle {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 3rem;
+    letter-spacing: 0.1em;
+  }
+  
+  .subtitle {
+    font-size: 0.9rem;
+  }
 }
 
 .top-controls {

@@ -166,7 +166,10 @@ function App() {
 
   return (
     <div className="app">
-      <h1 className="title">PONKER</h1>
+      <div className="title-section">
+        <h1 className="title">PONKER</h1>
+        <p className="subtitle">by aidan bailey</p>
+      </div>
       
       <div className="top-controls">
         <button onClick={addNewChipType} className="add-chip-type-btn">
