@@ -38,6 +38,7 @@ function App() {
   const [animatingChips, setAnimatingChips] = useState({})
   const [addingChip, setAddingChip] = useState(null)
   const [removingChip, setRemovingChip] = useState(null)
+  const [showTotalValue, setShowTotalValue] = useState(true)
 
   const presets = [
     {
@@ -146,6 +147,11 @@ function App() {
     triggerHaptic('light')
   }
 
+  const toggleTotalValue = () => {
+    setShowTotalValue(!showTotalValue)
+    triggerHaptic('light')
+  }
+
   const copyToClipboard = async () => {
     const chipData = Object.entries(chips).map(([chipId, chip]) => {
       return `${chipId}: ${chip.count} chips @ $${chip.value.toFixed(2)} each (${chip.color})`
@@ -224,6 +230,10 @@ function App() {
         <button onClick={loadFromClipboard} className="clipboard-btn">
           📥 Paste
         </button>
+        
+        <button onClick={toggleTotalValue} className="total-toggle-btn">
+          {showTotalValue ? '👁️ Hide Values' : '👁️ Show Values'}
+        </button>
       </div>
 
       {presetsOpen && (
@@ -267,7 +277,9 @@ function App() {
             className={`chip-section ${addingChip === chipId ? 'adding' : ''} ${removingChip === chipId ? 'removing' : ''}`}
           >
             <div className="chip-header">
-              <span className="chip-name">${(chip.value * chip.count).toFixed(2)}</span>
+              {showTotalValue && (
+                <span className="chip-name">${(chip.value * chip.count).toFixed(2)}</span>
+              )}
               {Object.keys(chips).length > 1 && (
                 <button 
                   className="delete-chip-btn"
@@ -367,9 +379,11 @@ function App() {
         ))}
       </div>
       
-      <div className="total-value">
-        Total Value: ${getTotalValue().toFixed(2)}
-      </div>
+      {showTotalValue && (
+        <div className="total-value">
+          Total Value: ${getTotalValue().toFixed(2)}
+        </div>
+      )}
     </div>
   )
 }
