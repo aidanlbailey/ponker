@@ -8,6 +8,22 @@ function App() {
     black: { count: 0, value: 10, color: '#333333' }
   })
 
+  const [presetsOpen, setPresetsOpen] = useState(false)
+
+  const presets = [
+    {
+      id: 'gmoney-pennypoker',
+      name: 'GMoney PennyPoker',
+      author: 'Aidan',
+      description: 'Low stakes penny poker setup',
+      chips: {
+        blue: { count: 0, value: 0.05, color: '#4a90e2' },
+        green: { count: 0, value: 0.10, color: '#5cb85c' },
+        black: { count: 0, value: 0.25, color: '#333333' }
+      }
+    }
+  ]
+
   const updateChipValue = (chipId, value) => {
     setChips(prev => ({
       ...prev,
@@ -67,13 +83,120 @@ function App() {
     return Object.values(chips).reduce((total, chip) => total + (chip.count * chip.value), 0)
   }
 
+  const loadPreset = (preset) => {
+    setChips(preset.chips)
+    setPresetsOpen(false)
+  }
+
+  const togglePresets = () => {
+    setPresetsOpen(!presetsOpen)
+  }
+
+  const copyToClipboard = async () => {
+    const chipData = Object.entries(chips).map(([chipId, chip]) => {
+      return `${chipId}: ${chip.count} chips @ $${chip.value.toFixed(2)} each (${chip.color})`
+    }).join('\n')
+    
+    const totalValue = getTotalValue()
+    const exportText = `PONKER Chip Data:\n\n${chipData}\n\nTotal Value: $${totalValue.toFixed(2)}\n\nExported: ${new Date().toLocaleString()}`
+    
+    try {
+      await navigator.clipboard.writeText(exportText)
+      alert('Chip data copied to clipboard!')
+    } catch (err) {
+      console.error('Failed to copy: ', err)
+      alert('Failed to copy to clipboard')
+    }
+  }
+
+  const loadFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      
+      // Simple parsing - look for lines that match the pattern
+      const lines = text.split('\n')
+      const newChips = {}
+      
+      for (const line of lines) {
+        // Match pattern: "chipId: count chips @ $value each (color)"
+        const match = line.match(/^(\w+):\s*(\d+)\s*chips\s*@\s*\$?([\d.]+)\s*each\s*\(([^)]+)\)/)
+        if (match) {
+          const [, chipId, count, value, color] = match
+          newChips[chipId] = {
+            count: parseInt(count),
+            value: parseFloat(value),
+            color: color.startsWith('#') ? color : '#' + color.replace('#', '')
+          }
+        }
+      }
+      
+      if (Object.keys(newChips).length > 0) {
+        setChips(newChips)
+        alert(`Loaded ${Object.keys(newChips).length} chip types from clipboard!`)
+      } else {
+        alert('No valid chip data found in clipboard')
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard: ', err)
+      alert('Failed to read from clipboard')
+    }
+  }
+
   return (
     <div className="app">
       <h1 className="title">PONKER</h1>
       
-      <button onClick={addNewChipType} className="add-chip-type-btn">
-        + Chip
-      </button>
+      <div className="top-controls">
+        <button onClick={addNewChipType} className="add-chip-type-btn">
+          + Chip
+        </button>
+        
+        <button onClick={togglePresets} className="presets-toggle-btn">
+          {presetsOpen ? '← Presets' : 'Presets →'}
+        </button>
+        
+        <button onClick={copyToClipboard} className="clipboard-btn">
+          📋 Copy
+        </button>
+        
+        <button onClick={loadFromClipboard} className="clipboard-btn">
+          📥 Paste
+        </button>
+      </div>
+
+      {presetsOpen && (
+        <div className="presets-panel">
+          <h3>Chip Presets</h3>
+          <div className="presets-list">
+            {presets.map(preset => (
+              <div key={preset.id} className="preset-card">
+                <div className="preset-header">
+                  <h4>{preset.name}</h4>
+                  <span className="preset-author">by {preset.author}</span>
+                </div>
+                <p className="preset-description">{preset.description}</p>
+                <div className="preset-chips-preview">
+                  {Object.entries(preset.chips).map(([chipId, chip]) => (
+                    <span key={chipId} className="preset-chip-info">
+                      <span 
+                        className="preset-chip-color" 
+                        style={{ backgroundColor: chip.color }}
+                      ></span>
+                      ${chip.value.toFixed(2)}
+                    </span>
+                  ))}
+                </div>
+                <button 
+                  className="load-preset-btn"
+                  onClick={() => loadPreset(preset)}
+                >
+                  Load Preset
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       <div className="chip-container">
         {Object.entries(chips).map(([chipId, chip]) => (
