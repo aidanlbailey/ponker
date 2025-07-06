@@ -100,7 +100,29 @@ function App() {
               }}
               title="Click to change color"
             >
+              {/* Edge rectangles for authentic poker chip look */}
+              <div className="chip-spots">
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="chip-spot"
+                    style={{
+                      position: 'absolute',
+                      width: '16px',
+                      height: '8px',
+                      borderRadius: '2px',
+                      backgroundColor: getContrastColor(chip.color),
+                      opacity: 0.7,
+                      top: '50%',
+                      left: '50%',
+                      transform: `translate(-50%, -50%) rotate(${i * 45}deg) translateY(-48px)`
+                    }}
+                  />
+                ))}
+              </div>
+              
               <span className="chip-count">{chip.count}</span>
+              
               {/* Overlay color input that covers the entire chip */}
               <input
                 type="color"
