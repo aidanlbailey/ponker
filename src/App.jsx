@@ -1,6 +1,32 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
+// Haptic feedback utility function
+const triggerHaptic = (type = 'light') => {
+  if (navigator.vibrate) {
+    // Different vibration patterns for different feedback types
+    switch (type) {
+      case 'light':
+        navigator.vibrate(10)
+        break
+      case 'medium':
+        navigator.vibrate(25)
+        break
+      case 'heavy':
+        navigator.vibrate([50, 20, 50])
+        break
+      case 'success':
+        navigator.vibrate([100, 50, 100])
+        break
+      case 'error':
+        navigator.vibrate([200, 100, 200, 100, 200])
+        break
+      default:
+        navigator.vibrate(10)
+    }
+  }
+}
+
 function App() {
   const [chips, setChips] = useState({
     blue: { count: 0, value: 1, color: '#4a90e2' },
@@ -60,6 +86,7 @@ function App() {
       [chipId]: { ...prev[chipId], count: prev[chipId].count + 1 }
     }))
     triggerChipAnimation(chipId, 'bouncing')
+    triggerHaptic('light')
   }
 
   const removeChip = (chipId) => {
@@ -68,6 +95,7 @@ function App() {
       [chipId]: { ...prev[chipId], count: Math.max(0, prev[chipId].count - 1) }
     }))
     triggerChipAnimation(chipId, 'pulsing')
+    triggerHaptic('light')
   }
 
   const addNewChipType = () => {
@@ -84,6 +112,7 @@ function App() {
     }))
     
     setTimeout(() => setAddingChip(null), 500)
+    triggerHaptic('medium')
   }
 
   const deleteChipType = (chipId) => {
@@ -98,6 +127,7 @@ function App() {
         })
         setRemovingChip(null)
       }, 300)
+      triggerHaptic('heavy')
     }
   }
 
@@ -108,10 +138,12 @@ function App() {
   const loadPreset = (preset) => {
     setChips(preset.chips)
     setPresetsOpen(false)
+    triggerHaptic('success')
   }
 
   const togglePresets = () => {
     setPresetsOpen(!presetsOpen)
+    triggerHaptic('light')
   }
 
   const copyToClipboard = async () => {
@@ -125,9 +157,11 @@ function App() {
     try {
       await navigator.clipboard.writeText(exportText)
       alert('Chip data copied to clipboard!')
+      triggerHaptic('success')
     } catch (err) {
       console.error('Failed to copy: ', err)
       alert('Failed to copy to clipboard')
+      triggerHaptic('error')
     }
   }
 
@@ -155,12 +189,15 @@ function App() {
       if (Object.keys(newChips).length > 0) {
         setChips(newChips)
         alert(`Loaded ${Object.keys(newChips).length} chip types from clipboard!`)
+        triggerHaptic('success')
       } else {
         alert('No valid chip data found in clipboard')
+        triggerHaptic('error')
       }
     } catch (err) {
       console.error('Failed to read clipboard: ', err)
       alert('Failed to read from clipboard')
+      triggerHaptic('error')
     }
   }
 
@@ -280,7 +317,10 @@ function App() {
               <input
                 type="color"
                 value={chip.color}
-                onChange={(e) => updateChipColor(chipId, e.target.value)}
+                onChange={(e) => {
+                  updateChipColor(chipId, e.target.value)
+                  triggerHaptic('light')
+                }}
                 style={{
                   position: 'absolute',
                   top: 0,
