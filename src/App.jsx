@@ -8,12 +8,6 @@ function App() {
     black: { count: 0, value: 10, color: '#333333' }
   })
 
-  const [colorPickerState, setColorPickerState] = useState({
-    isOpen: false,
-    chipId: null,
-    position: { x: 0, y: 0 }
-  })
-
   const updateChipValue = (chipId, value) => {
     setChips(prev => ({
       ...prev,
@@ -29,27 +23,8 @@ function App() {
   }
 
   const handleChipClick = (chipId, event) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const x = rect.right + 20 // Position to the right of the chip
-    const y = rect.top + rect.height / 2
-    
-    setColorPickerState({
-      isOpen: true,
-      chipId,
-      position: { x, y }
-    })
-    
-    // Automatically trigger the color picker
-    setTimeout(() => {
-      const colorInput = document.getElementById(`hidden-color-${chipId}`)
-      if (colorInput) {
-        colorInput.click()
-      }
-    }, 0)
-  }
-
-  const closeColorPicker = () => {
-    setColorPickerState({ isOpen: false, chipId: null, position: { x: 0, y: 0 } })
+    // Stop the event from bubbling up
+    event.stopPropagation()
   }
 
   const addChip = (chipId) => {
@@ -120,28 +95,31 @@ function App() {
               className="chip"
               style={{ 
                 background: `linear-gradient(145deg, ${chip.color}, ${chip.color}dd)`,
-                color: getContrastColor(chip.color)
+                color: getContrastColor(chip.color),
+                position: 'relative'
               }}
-              onClick={(e) => handleChipClick(chipId, e)}
               title="Click to change color"
             >
               <span className="chip-count">{chip.count}</span>
+              {/* Overlay color input that covers the entire chip */}
+              <input
+                type="color"
+                value={chip.color}
+                onChange={(e) => updateChipColor(chipId, e.target.value)}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRadius: '50%'
+                }}
+                title="Click to change color"
+              />
             </div>
-            
-            {/* Hidden color input for each chip */}
-            <input
-              id={`hidden-color-${chipId}`}
-              type="color"
-              value={chip.color}
-              onChange={(e) => updateChipColor(chipId, e.target.value)}
-              style={{ 
-                position: 'absolute',
-                left: colorPickerState.chipId === chipId ? `${colorPickerState.position.x}px` : '-9999px',
-                top: colorPickerState.chipId === chipId ? `${colorPickerState.position.y}px` : '-9999px',
-                opacity: 0,
-                pointerEvents: 'none'
-              }}
-            />
             
             <div className="chip-controls">
               <div className="control-row">
