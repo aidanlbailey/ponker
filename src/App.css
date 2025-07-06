@@ -179,7 +179,7 @@ body {
   animation: slideIn 0.7s ease-out;
 }
 
-.add-chip-type-btn, .presets-toggle-btn, .clipboard-btn {
+.add-chip-type-btn, .presets-toggle-btn, .clipboard-btn, .total-toggle-btn {
   padding: 0.5rem 1rem;
   background: linear-gradient(145deg, #646cff, #5a5fcf);
   color: white;
@@ -196,7 +196,11 @@ body {
   background: linear-gradient(145deg, #17a2b8, #138496);
 }
 
-.add-chip-type-btn:hover, .presets-toggle-btn:hover, .clipboard-btn:hover {
+.total-toggle-btn {
+  background: linear-gradient(145deg, #fd7e14, #e8590c);
+}
+
+.add-chip-type-btn:hover, .presets-toggle-btn:hover, .clipboard-btn:hover, .total-toggle-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(100, 108, 255, 0.3);
 }
@@ -205,7 +209,11 @@ body {
   box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
 }
 
-.add-chip-type-btn:active, .presets-toggle-btn:active, .clipboard-btn:active {
+.total-toggle-btn:hover {
+  box-shadow: 0 4px 8px rgba(253, 126, 20, 0.3);
+}
+
+.add-chip-type-btn:active, .presets-toggle-btn:active, .clipboard-btn:active, .total-toggle-btn:active {
   animation: buttonPress 0.1s ease;
 }
 
