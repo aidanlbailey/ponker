@@ -1,3 +1,69 @@
+/* Keyframe animations for satisfying interactions */
+@keyframes chipBounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes chipPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes chipAdd {
+  0% { 
+    transform: scale(0) rotate(0deg); 
+    opacity: 0;
+  }
+  50% { 
+    transform: scale(1.3) rotate(180deg); 
+    opacity: 0.8;
+  }
+  100% { 
+    transform: scale(1) rotate(360deg); 
+    opacity: 1;
+  }
+}
+
+@keyframes chipRemove {
+  0% { 
+    transform: scale(1) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: scale(0) rotate(-180deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes countChange {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+
+
+@keyframes slideIn {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes buttonPress {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
 body {
   background-color: #000000;
   color: #ffffff;
@@ -28,6 +94,7 @@ body {
   max-width: 1200px;
   padding: 2rem;
   background-color: #000000;
+  animation: slideIn 0.5s ease-out;
 }
 
 .title {
@@ -38,6 +105,7 @@ body {
   letter-spacing: 0.1em;
   margin: 0 0 2rem 0;
   text-align: center;
+  animation: slideIn 0.6s ease-out;
 }
 
 .top-controls {
@@ -47,6 +115,7 @@ body {
   align-items: center;
   flex-wrap: wrap;
   justify-content: center;
+  animation: slideIn 0.7s ease-out;
 }
 
 .add-chip-type-btn, .presets-toggle-btn, .clipboard-btn {
@@ -58,7 +127,7 @@ body {
   font-weight: bold;
   font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
@@ -76,7 +145,7 @@ body {
 }
 
 .add-chip-type-btn:active, .presets-toggle-btn:active, .clipboard-btn:active {
-  transform: translateY(0);
+  animation: buttonPress 0.1s ease;
 }
 
 .presets-panel {
@@ -88,6 +157,8 @@ body {
   width: 100%;
   max-width: 800px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.4s ease-out;
+  transition: all 0.3s ease;
 }
 
 .presets-panel h3 {
@@ -108,11 +179,14 @@ body {
   border: 1px solid #444;
   border-radius: 8px;
   padding: 1rem;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  animation: slideIn 0.3s ease-out;
 }
 
 .preset-card:hover {
   background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
 }
 
 .preset-header {
@@ -162,6 +236,11 @@ body {
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.3);
   display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.preset-chip-color:hover {
+  transform: scale(1.2);
 }
 
 .load-preset-btn {
@@ -172,7 +251,7 @@ body {
   padding: 0.5rem 1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: all 0.2s ease;
 }
 
 .load-preset-btn:hover {
@@ -181,17 +260,33 @@ body {
 }
 
 .load-preset-btn:active {
-  transform: translateY(0);
+  animation: buttonPress 0.1s ease;
 }
 
 .chip-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 2rem;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  justify-items: center;
   align-items: center;
   width: 100%;
+}
+
+/* Ensure minimum 2 columns on mobile */
+@media (max-width: 768px) {
+  .chip-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* For very small screens, still maintain 2 columns but with smaller gaps */
+@media (max-width: 480px) {
+  .chip-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
 }
 
 .chip-section {
@@ -200,6 +295,16 @@ body {
   align-items: center;
   gap: 1rem;
   min-width: 150px;
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Animation classes for dynamic chip actions */
+.chip-section.adding {
+  animation: chipAdd 0.5s ease-out;
+}
+
+.chip-section.removing {
+  animation: chipRemove 0.3s ease-in;
 }
 
 .chip-header {
@@ -225,7 +330,7 @@ body {
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: bold;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: all 0.2s ease;
 }
 
 .delete-chip-btn:hover {
@@ -234,7 +339,7 @@ body {
 }
 
 .delete-chip-btn:active {
-  transform: translateY(0);
+  animation: buttonPress 0.1s ease;
 }
 
 .chip {
@@ -248,7 +353,7 @@ body {
   font-weight: bold;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
   
@@ -268,6 +373,19 @@ body {
     0 12px 24px rgba(0, 0, 0, 0.4);
 }
 
+.chip:active {
+  animation: chipPulse 0.2s ease;
+}
+
+/* Animation classes for chip interactions */
+.chip.bouncing {
+  animation: chipBounce 0.4s ease;
+}
+
+.chip.pulsing {
+  animation: chipPulse 0.3s ease;
+}
+
 .chip::before {
   content: '';
   position: absolute;
@@ -279,6 +397,12 @@ body {
   border-radius: 50%;
   border: 2px dashed rgba(255, 255, 255, 0.6);
   pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.chip:hover::before {
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translate(-50%, -50%) scale(1.1);
 }
 
 .chip::after {
@@ -292,6 +416,12 @@ body {
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.4);
   pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.chip:hover::after {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%) scale(1.1);
 }
 
 .chip-count {
@@ -302,6 +432,12 @@ body {
     -1px -1px 2px rgba(255, 255, 255, 0.3);
   z-index: 10;
   position: relative;
+  transition: all 0.2s ease;
+}
+
+/* Animation class for count changes */
+.chip-count.changing {
+  animation: countChange 0.5s ease;
 }
 
 .chip-controls {
@@ -333,6 +469,7 @@ body {
   text-align: center;
   background-color: #1a1a1a;
   color: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .color-input {
@@ -342,11 +479,18 @@ body {
   border-radius: 4px;
   cursor: pointer;
   background-color: #1a1a1a;
+  transition: all 0.2s ease;
+}
+
+.color-input:hover {
+  transform: scale(1.1);
+  border-color: #777;
 }
 
 .value-input:focus, .color-input:focus, .chip-value-input:focus {
   outline: none;
   border-color: #646cff;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .chip-buttons {
@@ -362,7 +506,7 @@ body {
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: all 0.2s ease;
 }
 
 .add-btn {
@@ -386,7 +530,7 @@ body {
 }
 
 .add-btn:active, .remove-btn:active {
-  transform: translateY(0);
+  animation: buttonPress 0.1s ease;
 }
 
 .total-value {
