@@ -16,7 +16,7 @@ This is a personal project I developed to further familiarize myself with AI cod
 - **Vibration API** - Haptic feedback for mobile devices
 
 ## Main Features
-PONKER currently has a single main feature: the chip counting interface. You can create "chips," assign them a value and color, and then increment a counter on each chip that multiplies with the chip's value to find a total value for the stack. The stack values are then combined into a total value displayed at the bottom of the screen.
+PONKER currently has a single main feature: the chip counting interface. You can create chip types assign them a value and color, and then increment a counter on each chip that multiplies with the chip's value to find a total value for the stack. The stack values are then combined into a total value displayed at the bottom of the screen.
 
 ## How to Use
 
@@ -24,8 +24,8 @@ PONKER currently has a single main feature: the chip counting interface. You can
 1. **Open PONKER** in your web browser
 2. **Choose a preset** (optional) - Click the Menu (☰) → "Chip Presets" to load standard chip configurations:
    - **Standard Casino**: Traditional poker chip values ($1, $5, $10, $25, $100+)
-   - **GMoney PennyPoker**: Low stakes setup (5¢, 10¢, 25¢)
-   - **BMH "PettyPoker"**: Ultra-low stakes (1¢, 5¢, 10¢, 25¢)
+   - **GMoney PennyPoker**: Low stakes setup (5¢, 10¢, 25¢) (Friend group preset)
+   - **BMH "PettyPoker"**: Ultra-low stakes (1¢, 5¢, 10¢, 25¢) (Friend group preset)
 
 ### Managing Your Chips
 
@@ -63,7 +63,7 @@ PONKER currently has a single main feature: the chip counting interface. You can
 ### Running Locally
 ```bash
 # Clone the repository
-git clone [repository-url]
+git clone https://github.com/aidanlbailey/ponker
 cd ponker
 
 # Install dependencies
@@ -103,5 +103,5 @@ Created by Aidan Bailey
 
 ---
 
-**Version**: 1.whateverthefuck  
+**Version**: Beta
 **Built with**: React & Vite
