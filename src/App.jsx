@@ -1,45 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
-// Haptic feedback utility function
-const triggerHaptic = (type = 'light') => {
-  // Check for vibration support and ensure we're in a secure context
-  if ('vibrate' in navigator && window.isSecureContext) {
-    try {
-      // Different vibration patterns for different feedback types
-      switch (type) {
-        case 'light':
-          navigator.vibrate(15)
-          break
-        case 'medium':
-          navigator.vibrate(30)
-          break
-        case 'heavy':
-          navigator.vibrate([60, 30, 60])
-          break
-        case 'success':
-          navigator.vibrate([100, 50, 100])
-          break
-        case 'error':
-          navigator.vibrate([200, 100, 200, 100, 200])
-          break
-        default:
-          navigator.vibrate(15)
-      }
-    } catch (error) {
-      // Silently fail if vibration is not supported or blocked
-      console.log('Vibration not supported or blocked:', error)
-    }
-  } else if ('vibrate' in navigator) {
-    // Fallback for non-secure contexts
-    try {
-      navigator.vibrate(type === 'heavy' ? 50 : type === 'medium' ? 25 : 10)
-    } catch (error) {
-      console.log('Vibration fallback failed:', error)
-    }
-  }
-}
-
 function App() {
   const [chips, setChips] = useState({
     blue: { count: 0, value: 1, color: '#4a90e2' },
@@ -47,11 +8,28 @@ function App() {
     black: { count: 0, value: 10, color: '#333333' }
   })
 
+  // Generate random rotation values once and store them
+  const [titleRotations] = useState(() => {
+    return "PONKER".split('').map(() => ({
+      start: (Math.random() - 0.5) * 6, // Random between -3 and 3 (more subtle)
+      end: (Math.random() - 0.5) * 12 // Random between -6 and 6 (more subtle)
+    }))
+  })
+
   const [presetsOpen, setPresetsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [animatingChips, setAnimatingChips] = useState({})
   const [addingChip, setAddingChip] = useState(null)
   const [removingChip, setRemovingChip] = useState(null)
   const [showTotalValue, setShowTotalValue] = useState(true)
+  const [touchStart, setTouchStart] = useState(null)
+  const [touchEnd, setTouchEnd] = useState(null)
+  const [longPressTimer, setLongPressTimer] = useState(null)
+  const [isLongPress, setIsLongPress] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(null) // Track which chip to delete
+  const [colorPickerOpen, setColorPickerOpen] = useState(null) // Track which chip's color picker is open
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [letterOffsets, setLetterOffsets] = useState({}) // Track letter positions for mouse avoidance
 
   const presets = [
     {
@@ -64,15 +42,225 @@ function App() {
         green: { count: 0, value: 0.10, color: '#5cb85c' },
         black: { count: 0, value: 0.25, color: '#333333' }
       }
+    },
+    {
+      id: 'bmh-pettypoker',
+      name: 'BMH "PettyPoker"',
+      author: 'BMH',
+      description: 'Literally PENNY Poker',
+      chips: {
+        blue: { count: 0, value: .01, color: '#4a90e2' },
+        red: { count: 0, value: .05, color: '#dc3545' },
+        green: { count: 0, value: .10, color: '#28a745' },
+        black: { count: 0, value: .25, color: '#343a40' }
+      }
+    },
+    {
+      id: 'standard-casino',
+      name: 'Standard poker chip values and colors',
+      author: 'poker.org',
+      description: 'Standard casino chip denominations with traditional colors',
+      chips: {
+        white: { count: 0, value: 1, color: '#ffffff' },
+        red: { count: 0, value: 5, color: '#dc3545' },
+        blue: { count: 0, value: 10, color: '#007bff' },
+        green: { count: 0, value: 25, color: '#28a745' },
+        black: { count: 0, value: 100, color: '#343a40' },
+        purple: { count: 0, value: 500, color: '#6f42c1' },
+        yellow: { count: 0, value: 1000, color: '#ffc107' },
+        orange: { count: 0, value: 5000, color: '#fd7e14' },
+        darkgreen: { count: 0, value: 25000, color: '#155724' },
+        lightblue: { count: 0, value: 100000, color: '#17a2b8' }
+      }
     }
   ]
 
+  // Helper function to trigger haptic feedback on supported devices
+  const triggerHaptic = (type) => {
+    if (navigator.vibrate) {
+      switch (type) {
+        case 'light':
+          navigator.vibrate(10)
+          break
+        case 'success':
+          navigator.vibrate([50, 50, 50])
+          break
+        case 'error':
+          navigator.vibrate([100, 50, 100])
+          break
+        default:
+          navigator.vibrate(20)
+      }
+    }
+  }
+
+  // Minimum swipe distance for gesture recognition
+  const minSwipeDistance = 50
+
+  // Mouse avoidance effect for title letters
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    setMousePosition({ x: mouseX, y: mouseY })
+    
+    calculateLetterOffsets(rect, mouseX, mouseY)
+  }
+
+  // Touch avoidance effect for title letters (mobile)
+  const handleTitleTouchMove = (e) => {
+    e.preventDefault() // Prevent scrolling
+    const rect = e.currentTarget.getBoundingClientRect()
+    const touch = e.touches[0]
+    const touchX = touch.clientX - rect.left
+    const touchY = touch.clientY - rect.top
+    setMousePosition({ x: touchX, y: touchY })
+    
+    calculateLetterOffsets(rect, touchX, touchY)
+  }
+
+  // Shared function to calculate letter offsets
+  const calculateLetterOffsets = (rect, cursorX, cursorY) => {
+    // Calculate offsets for each letter
+    const newOffsets = {}
+    const letters = document.querySelectorAll('.title-letter')
+    
+    letters.forEach((letter, index) => {
+      const letterRect = letter.getBoundingClientRect()
+      // Get the letter's original position (without any current offset)
+      const originalLetterCenterX = letterRect.left + letterRect.width / 2 - rect.left
+      const originalLetterCenterY = letterRect.top + letterRect.height / 2 - rect.top
+      
+      // Get current offset to calculate actual current position
+      const currentOffset = letterOffsets[index] || { x: 0, y: 0 }
+      const currentLetterCenterX = originalLetterCenterX + currentOffset.x
+      const currentLetterCenterY = originalLetterCenterY + currentOffset.y
+      
+      const deltaX = cursorX - currentLetterCenterX
+      const deltaY = cursorY - currentLetterCenterY
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+      
+      // Much more gentle avoidance effect with smoother easing
+      const avoidanceRadius = 120 // Reduced from 200 to 120
+      if (distance < avoidanceRadius && distance > 0) {
+        // Use a smoother easing curve - cubic easing instead of linear
+        const normalizedDistance = distance / avoidanceRadius
+        const force = Math.pow(1 - normalizedDistance, 2) // Quadratic easing for smoother start
+        const maxOffset = 12 // Slightly reduced from 15 to 12 pixels
+        
+        // Calculate the desired offset direction (away from cursor)
+        const desiredOffsetX = -(deltaX / distance) * force * maxOffset
+        const desiredOffsetY = -(deltaY / distance) * force * maxOffset
+        
+        // Gradually move toward the desired offset for smoother animation
+        const lerpFactor = 0.3 // How quickly to interpolate (0.1 = slow, 1.0 = instant)
+        const newOffsetX = currentOffset.x + (desiredOffsetX - currentOffset.x) * lerpFactor
+        const newOffsetY = currentOffset.y + (desiredOffsetY - currentOffset.y) * lerpFactor
+        
+        newOffsets[index] = { x: newOffsetX, y: newOffsetY }
+        
+        // Debug logging for the first letter
+        if (index === 0) {
+          console.log(`Letter ${index}: distance=${distance.toFixed(1)}, force=${force.toFixed(2)}, offset=(${newOffsetX.toFixed(1)}, ${newOffsetY.toFixed(1)})`)
+        }
+      } else {
+        // Gradually return to center when outside avoidance radius
+        const returnLerpFactor = 0.15 // Slower return to center
+        const newOffsetX = currentOffset.x * (1 - returnLerpFactor)
+        const newOffsetY = currentOffset.y * (1 - returnLerpFactor)
+        
+        // Only set to exactly 0 if we're very close to avoid jitter
+        newOffsets[index] = { 
+          x: Math.abs(newOffsetX) < 0.1 ? 0 : newOffsetX, 
+          y: Math.abs(newOffsetY) < 0.1 ? 0 : newOffsetY 
+        }
+      }
+    })
+    
+    setLetterOffsets(newOffsets)
+  }
+
+  const handleMouseLeave = () => {
+    // Reset all letter positions when mouse leaves
+    setLetterOffsets({})
+  }
+
+  const handleTitleTouchEnd = () => {
+    // Reset all letter positions when touch ends
+    setLetterOffsets({})
+  }
+
+  // Handle touch start
+  const handleTouchStart = (e, chipId) => {
+    e.preventDefault() // Always prevent default on touch start
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientY)
+    setIsLongPress(false)
+    
+    // Start long press timer
+    const timer = setTimeout(() => {
+      setIsLongPress(true)
+      triggerHaptic('success') // Different haptic for long press
+      // Open color picker modal
+      setColorPickerOpen(chipId)
+    }, 500) // 500ms for long press
+    
+    setLongPressTimer(timer)
+  }
+
+  // Handle touch move
+  const handleTouchMove = (e) => {
+    e.preventDefault() // Always prevent scrolling when touching chips
+    setTouchEnd(e.targetTouches[0].clientY)
+    
+    // If user moves finger, cancel long press
+    if (longPressTimer && touchStart) {
+      const distance = Math.abs(touchStart - e.targetTouches[0].clientY)
+      if (distance > 10) {
+        clearTimeout(longPressTimer)
+        setLongPressTimer(null)
+      }
+    }
+  }
+
+  // Handle touch end and determine swipe direction
+  const handleTouchEnd = (chipId) => {
+    // Clear long press timer
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+    
+    // If it was a long press, don't do swipe actions
+    if (isLongPress) {
+      setIsLongPress(false)
+      setTouchStart(null)
+      setTouchEnd(null)
+      return
+    }
+    
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isUpSwipe = distance > minSwipeDistance
+    const isDownSwipe = distance < -minSwipeDistance
+
+    if (isUpSwipe) {
+      removeChip(chipId) // Reversed: swipe up (away) removes chip
+      triggerHaptic('light')
+    } else if (isDownSwipe) {
+      addChip(chipId) // Reversed: swipe down (towards you) adds chip
+      triggerHaptic('light')
+    }
+    
+    // Reset touch states
+    setTouchStart(null)
+    setTouchEnd(null)
+  }
+
   // Helper function to trigger chip animations
   const triggerChipAnimation = (chipId, animationType) => {
-    setAnimatingChips(prev => ({ ...prev, [chipId]: animationType }))
-    setTimeout(() => {
-      setAnimatingChips(prev => ({ ...prev, [chipId]: null }))
-    }, animationType === 'bouncing' ? 200 : 150)
+    // Animation removed - keeping function for compatibility
   }
 
   const updateChipValue = (chipId, value) => {
@@ -92,6 +280,12 @@ function App() {
   const handleChipClick = (chipId, event) => {
     // Stop the event from bubbling up
     event.stopPropagation()
+    
+    // On desktop (non-touch devices), open color picker on click
+    if (!('ontouchstart' in window)) {
+      setColorPickerOpen(chipId)
+      triggerHaptic('light')
+    }
   }
 
   const addChip = (chipId) => {
@@ -99,8 +293,6 @@ function App() {
       ...prev,
       [chipId]: { ...prev[chipId], count: prev[chipId].count + 1 }
     }))
-    triggerChipAnimation(chipId, 'bouncing')
-    triggerHaptic('light')
   }
 
   const removeChip = (chipId) => {
@@ -108,8 +300,6 @@ function App() {
       ...prev,
       [chipId]: { ...prev[chipId], count: Math.max(0, prev[chipId].count - 1) }
     }))
-    triggerChipAnimation(chipId, 'pulsing')
-    triggerHaptic('light')
   }
 
   const addNewChipType = () => {
@@ -126,23 +316,51 @@ function App() {
     }))
     
     setTimeout(() => setAddingChip(null), 500)
-    triggerHaptic('medium')
   }
 
   const deleteChipType = (chipId) => {
     if (Object.keys(chips).length > 1) {
-      setRemovingChip(chipId)
-      
-      setTimeout(() => {
-        setChips(prev => {
-          const newChips = { ...prev }
-          delete newChips[chipId]
-          return newChips
-        })
-        setRemovingChip(null)
-      }, 300)
-      triggerHaptic('heavy')
+      setDeleteConfirm(chipId) // Show confirmation instead of deleting immediately
     }
+  }
+
+  const confirmDelete = (chipId) => {
+    setRemovingChip(chipId)
+    
+    setTimeout(() => {
+      setChips(prev => {
+        const newChips = { ...prev }
+        delete newChips[chipId]
+        return newChips
+      })
+      setRemovingChip(null)
+    }, 300)
+    
+    setDeleteConfirm(null) // Clear confirmation
+    triggerHaptic('success')
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null)
+    triggerHaptic('light')
+  }
+
+  const openColorPicker = (chipId) => {
+    setColorPickerOpen(chipId)
+    triggerHaptic('light')
+  }
+
+  const closeColorPicker = () => {
+    setColorPickerOpen(null)
+    triggerHaptic('light')
+  }
+
+  const handleColorChange = (chipId, color, shouldClose = true) => {
+    updateChipColor(chipId, color)
+    if (shouldClose) {
+      setColorPickerOpen(null)
+    }
+    triggerHaptic('success')
   }
 
   const getTotalValue = () => {
@@ -157,6 +375,11 @@ function App() {
 
   const togglePresets = () => {
     setPresetsOpen(!presetsOpen)
+    triggerHaptic('light')
+  }
+
+  const toggleAbout = () => {
+    setAboutOpen(!aboutOpen)
     triggerHaptic('light')
   }
 
@@ -223,7 +446,78 @@ function App() {
   return (
     <div className="app">
       <div className="title-section">
-        <h1 className="title">PONKER</h1>
+        <h1 
+          className="title"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onTouchMove={handleTitleTouchMove}
+          onTouchEnd={handleTitleTouchEnd}
+        >
+          {"PONKER".split('').map((letter, index) => {
+            // Different blue styles for each letter
+            const blueStyles = [
+              // P - Blue outline + neon (combination of N and E)
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              },
+              // O - Blue outline + neon
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              },
+              // N - Blue outline + neon
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              },
+              // K - Blue outline + neon
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              },
+              // E - Blue outline + neon
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              },
+              // R - Blue outline + neon
+              { 
+                color: '#93c5fd',
+                WebkitTextStroke: '3px #3b82f6',
+                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+              }
+            ];
+            
+            // Get offset for this letter from mouse avoidance
+            const offset = letterOffsets[index] || { x: 0, y: 0 }
+            
+            return (
+              <span 
+                key={index} 
+                className="title-letter"
+                style={{ 
+                  animationDelay: `${Math.abs(index - 2.5) * 0.5}s`, // Strong ripple: N=0s, O/K=0.5s, P/E=1.0s, R=1.5s
+                  '--start-rotation': `${titleRotations[index].start}deg`,
+                  '--end-rotation': `${titleRotations[index].end}deg`,
+                  '--mouse-offset-x': `${offset.x}px`,
+                  '--mouse-offset-y': `${offset.y}px`,
+                  transition: '--mouse-offset-x 0.4s ease-out, --mouse-offset-y 0.4s ease-out',
+                  display: 'inline-block',
+                  position: 'relative',
+                  ...blueStyles[index]
+                }}
+              >
+                {letter}
+              </span>
+            );
+          })}
+        </h1>
         <p className="subtitle">by aidan bailey</p>
       </div>
       
@@ -246,6 +540,10 @@ function App() {
         
         <button onClick={toggleTotalValue} className="total-toggle-btn">
           {showTotalValue ? '👁️ Hide Values' : '👁️ Show Values'}
+        </button>
+        
+        <button onClick={toggleAbout} className="about-toggle-btn">
+          {aboutOpen ? '← About' : 'About →'}
         </button>
       </div>
 
@@ -283,6 +581,127 @@ function App() {
         </div>
       )}
       
+      {aboutOpen && (
+        <div className="about-panel">
+          <h3>About PONKER</h3>
+          <div className="about-content">
+            <p>
+              PONKER is a simple and intuitive poker chip counter designed to help you keep track of your chip stacks during poker games.
+            </p>
+            
+            <h4>Features:</h4>
+            <ul>
+              <li>Add and remove chips with animated feedback</li>
+              <li>Customize chip colors by clicking on them</li>
+              <li>Set custom values for each chip type</li>
+              <li>Add or remove chip types as needed</li>
+              <li>Copy and paste chip data for sharing</li>
+              <li>Toggle between showing/hiding total values</li>
+              <li>Preset configurations for common poker setups</li>
+            </ul>
+            
+            <h4>How to Use:</h4>
+            <ul>
+              <li>Click "Add" to increase a chip count</li>
+              <li>Click "Remove" to decrease a chip count</li>
+              <li>Long press on a chip to change its color</li>
+              <li>Swipe down on a chip to add one (mobile)</li>
+              <li>Swipe up on a chip to remove one (mobile)</li>
+              <li>Adjust the value field to set the monetary value</li>
+              <li>Use "+ Chip" to add new chip types</li>
+              <li>Use "Delete" to remove chip types (when you have more than one)</li>
+            </ul>
+            
+            <div className="about-footer">
+              <p><strong>Created by Aidan Bailey</strong></p>
+              <p>Version 1.whateverthefuck - Built with React</p>
+              {/* TODO: Add more about text here - this is where you can write additional content */}
+              <div className="about-placeholder">
+                <p><em></em></p>
+                <p><em></em></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete confirmation popup */}
+      {deleteConfirm && (
+        <div className="delete-confirm-overlay">
+          <div className="delete-confirm-popup">
+            <h3>Delete Chip Type?</h3>
+            <p>Are you sure you want to delete this chip type? This action cannot be undone.</p>
+            <div className="delete-confirm-buttons">
+              <button 
+                className="cancel-btn"
+                onClick={cancelDelete}
+              >
+                Cancel
+              </button>
+              <button 
+                className="confirm-delete-btn"
+                onClick={() => confirmDelete(deleteConfirm)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Color picker popup */}
+      {colorPickerOpen && (
+        <div className="color-picker-overlay" onClick={closeColorPicker}>
+          <div className="color-picker-popup" onClick={(e) => e.stopPropagation()}>
+            <h3>Choose Chip Color</h3>
+            <div className="color-options">
+              {/* Classic poker chip colors */}
+              {[
+                '#ffffff', // White ($1)
+                '#dc3545', // Red ($5)
+                '#007bff', // Blue ($10)
+                '#28a745', // Green ($25)
+                '#343a40', // Black ($100)
+                '#6f42c1', // Purple ($500)
+                '#ffc107', // Yellow ($1000)
+                '#fd7e14', // Orange ($5000)
+                '#155724', // Dark Green ($25000)
+                '#17a2b8'  // Light Blue ($100000)
+              ].map(color => (
+                <button
+                  key={color}
+                  className="color-option"
+                  style={{ backgroundColor: color }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleColorChange(colorPickerOpen, color, true) // Close on preset selection
+                  }}
+                  title={color}
+                />
+              ))}
+            </div>
+            <div className="color-picker-custom" onClick={(e) => e.stopPropagation()}>
+              <label>Custom Color:</label>
+              <input
+                type="color"
+                value={chips[colorPickerOpen]?.color || '#4a90e2'}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  handleColorChange(colorPickerOpen, e.target.value, false) // Don't close on change
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                className="custom-color-input"
+              />
+            </div>
+            <button className="close-color-picker" onClick={closeColorPicker}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="chip-container">
         {Object.entries(chips).map(([chipId, chip]) => (
           <div 
@@ -305,13 +724,18 @@ function App() {
             </div>
             
             <div 
-              className={`chip ${animatingChips[chipId] || ''}`}
+              className={`chip`}
               style={{ 
                 background: `linear-gradient(145deg, ${chip.color}, ${chip.color}dd)`,
                 color: getContrastColor(chip.color),
-                position: 'relative'
+                position: 'relative',
+                '--accent-color': chip.color === '#ffffff' ? '#0b289d' : '#ffffff'
               }}
-              title="Click to change color"
+              title="Click to change color (desktop) or long press (mobile), swipe down to add/swipe up to remove"
+              onTouchStart={(e) => handleTouchStart(e, chipId)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd(chipId)}
+              onClick={(e) => handleChipClick(chipId, e)}
             >
               {/* Edge rectangles for authentic poker chip look */}
               <div className="chip-spots">
@@ -324,7 +748,7 @@ function App() {
                       width: '16px',
                       height: '8px',
                       borderRadius: '2px',
-                      backgroundColor: getContrastColor(chip.color),
+                      backgroundColor: chip.color === '#ffffff' ? '#0b289d' : '#ffffff',
                       opacity: 0.7,
                       top: '50%',
                       left: '50%',
@@ -334,42 +758,30 @@ function App() {
                 ))}
               </div>
               
-              <span className={`chip-count ${animatingChips[chipId] === 'bouncing' || animatingChips[chipId] === 'pulsing' ? 'changing' : ''}`}>
+              <span className="chip-count" style={{ pointerEvents: 'none' }}>
                 {chip.count}
               </span>
-              
-              {/* Overlay color input that covers the entire chip */}
-              <input
-                type="color"
-                value={chip.color}
-                onChange={(e) => {
-                  updateChipColor(chipId, e.target.value)
-                  triggerHaptic('light')
-                }}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  opacity: 0,
-                  cursor: 'pointer',
-                  border: 'none',
-                  borderRadius: '50%'
-                }}
-                title="Click to change color"
-              />
             </div>
             
             <div className="chip-controls">
-              <div className="control-row">
-                <label>Value: $</label>
+              <div className="value-input-container">
+                <span className="dollar-sign">$</span>
                 <input
                   type="number"
                   step="0.01"
                   value={chip.value}
                   onChange={(e) => updateChipValue(chipId, e.target.value)}
+                  onClick={(e) => {
+                    // Only select all if the field was clicked (not focused via keyboard)
+                    if (e.detail > 0) {
+                      e.target.select();
+                    }
+                  }}
                   className="value-input"
+                  style={{ 
+                    width: `${Math.max(6, chip.value.toString().length + 2)}ch`, 
+                    paddingLeft: '12px' 
+                  }}
                 />
               </div>
             </div>
