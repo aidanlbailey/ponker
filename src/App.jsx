@@ -1,6 +1,127 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
+// PokerChip component for static, falling, and rising chips
+function PokerChip({ color, chipCount = null, className = '', style = {}, size = 132 }) {
+  // All design elements use pixel units based on size
+  return (
+    <div
+      className={`chip ${className}`.trim()}
+      style={{
+        background: `linear-gradient(145deg, ${color}, ${color})`,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: size,
+        height: size,
+        ...style
+      }}
+    >
+      <div className="chip-design">
+        {/* 6 large edge rectangles */}
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={`rect-${i}`}
+            className="chip-edge-rect"
+            style={{
+              position: 'absolute',
+              width: 22,
+              height: 22,
+              background: color === '#ffffff' ? '#0b289d' : '#fff',
+              top: '50%',
+              left: '50%',
+              transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(-60px)`,
+              borderRadius: '4px',
+              boxShadow: '0 0 2px #0002',
+              zIndex: 2
+            }}
+          />
+        ))}
+        {/* 6 dice patterns between rectangles */}
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={`dice-${i}`}
+            className="chip-dice-pattern"
+            style={{
+              position: 'absolute',
+              width: 22,
+              height: 22,
+              top: '50%',
+              left: '50%',
+              transform: `translate(-50%, -50%) rotate(${i * 60 + 30}deg) translateY(-60px)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 3
+            }}
+          >
+            <div style={{
+              width: 14,
+              height: 14,
+              border: `2px solid ${color === '#ffffff' ? '#0b289d' : '#fff'}`,
+              borderRadius: '3px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateRows: 'repeat(2, 1fr)',
+              position: 'relative',
+              background: 'transparent',
+            }}>
+              {(() => {
+                const diceDots = [
+                  [{ x: 0.5, y: 0.5 }],
+                  [{ x: 0.25, y: 0.25 }, { x: 0.75, y: 0.75 }],
+                  [{ x: 0.25, y: 0.25 }, { x: 0.5, y: 0.5 }, { x: 0.75, y: 0.75 }],
+                  [{ x: 0.25, y: 0.25 }, { x: 0.75, y: 0.25 }, { x: 0.25, y: 0.75 }, { x: 0.75, y: 0.75 }],
+                  [{ x: 0.25, y: 0.25 }, { x: 0.75, y: 0.25 }, { x: 0.5, y: 0.5 }, { x: 0.25, y: 0.75 }, { x: 0.75, y: 0.75 }],
+                  [{ x: 0.25, y: 0.2 }, { x: 0.25, y: 0.5 }, { x: 0.25, y: 0.8 }, { x: 0.75, y: 0.2 }, { x: 0.75, y: 0.5 }, { x: 0.75, y: 0.8 }],
+                ]
+                return diceDots[i].map((dot, j) => (
+                  <div
+                    key={j}
+                    style={{
+                      position: 'absolute',
+                      width: 2.5,
+                      height: 2.5,
+                      borderRadius: '50%',
+                      background: color === '#ffffff' ? '#0b289d' : '#fff',
+                      left: `${dot.x * 100}%`,
+                      top: `${dot.y * 100}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  />
+                ))
+              })()}
+            </div>
+          </div>
+        ))}
+        {/* 12 small white dashes in the inner ring (always render) */}
+        {[...Array(12)].map((_, i) => (
+          <div
+            key={`dash-${i}`}
+            className="chip-inner-dash"
+            style={{
+              position: 'absolute',
+              width: 8,
+              height: 4,
+              background: color === '#ffffff' ? '#0b289d' : '#fff',
+              borderRadius: '2px',
+              top: '50%',
+              left: '50%',
+              transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(-40px)`,
+              zIndex: 4
+            }}
+          />
+        ))}
+      </div>
+      {chipCount !== null && (
+        <span className="chip-count" style={{ pointerEvents: 'none' }}>
+          {chipCount}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function App() {
   // Default to standard casino preset
   const getInitialChips = () => {
@@ -1360,73 +1481,9 @@ function App() {
               onTouchEnd={() => handleTouchEnd(chipId)}
               onClick={(e) => handleChipClick(chipId, e)}
             >
-              {/* Edge rectangles for authentic poker chip look */}
-              <div className="chip-spots">
-                {[...Array(8)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="chip-spot"
-                    style={{
-                      position: 'absolute',
-                      width: '16px',
-                      height: '8px',
-                      borderRadius: '2px',
-                      backgroundColor: chip.color === '#ffffff' ? '#0b289d' : '#ffffff',
-                      opacity: 0.7,
-                      top: '50%',
-                      left: '50%',
-                      transform: `translate(-50%, -50%) rotate(${i * 45}deg) translateY(-48px)`
-                    }}
-                  />
-                ))}
-              </div>
-              
-              <span className="chip-count" style={{ pointerEvents: 'none' }}>
-                {chip.count.toLocaleString()}
-              </span>
+              <PokerChip color={chip.color} chipCount={chip.count} size={132} />
             </div>
             
-            {/* Falling chip animations for this specific chip stack */}
-            {fallingChips
-              .filter(fc => fc.chipId === chipId)
-              .map(fallingChip => (
-                <div
-                  key={fallingChip.id}
-                  className="falling-chip"
-                  style={{
-                    left: fallingChip.left,
-                    top: fallingChip.top,
-                    background: `linear-gradient(145deg, ${fallingChip.color}, ${fallingChip.color}dd)`,
-                    border: `3px solid #ffffff`,
-                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`,
-                    animation: `chipTossFall ${fallingChip.animationDuration}s cubic-bezier(0.22, 0.61, 0.36, 1) ${fallingChip.startDelay}s forwards`,
-                    '--toss-x': fallingChip.tossX,
-                    '--toss-rot': fallingChip.tossRot
-                  }}
-                />
-              ))}
-            
-            {/* Rising chip animations for this specific chip stack */}
-            {risingChips
-              .filter(rc => rc.chipId === chipId)
-              .map(risingChip => (
-                <div
-                  key={risingChip.id}
-                  className="rising-chip"
-                  style={{
-                    left: risingChip.left,
-                    top: risingChip.top,
-                    background: `linear-gradient(145deg, ${risingChip.color}, ${risingChip.color}dd)`,
-                    border: `3px solid #ffffff`,
-                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`,
-                    animation: `chipTossRise ${risingChip.animationDuration}s cubic-bezier(0.22, 0.61, 0.36, 1) ${risingChip.startDelay}s forwards`,
-                    '--toss-x': risingChip.tossX,
-                    '--toss-rot': risingChip.tossRot
-                  }}
-                />
-              ))}
-            
-
             <div className="chip-controls">
               <div className="value-input-container">
                 <span className="dollar-sign">$</span>
