@@ -869,11 +869,11 @@ body {
   z-index: 10; /* Ensure actual chips are in front of falling/rising animations */
   
   /* Poker chip styling */
-  border: 6px solid rgba(255, 255, 255, 0.8);
+  border: 6px solid #ffffff;
   box-shadow: 
-    0 0 0 2px rgba(0, 0, 0, 0.3),
-    inset 0 0 20px rgba(0, 0, 0, 0.2),
-    0 8px 16px rgba(0, 0, 0, 0.3);
+    0 0 0 2px #000000,
+    inset 0 0 20px #000000,
+    0 8px 16px #000000;
 }
 
 /* Mobile responsive chip adjustments */
@@ -898,9 +898,9 @@ body {
 .chip:hover {
   transform: scale(1.05);
   box-shadow: 
-    0 0 0 2px rgba(0, 0, 0, 0.3),
-    inset 0 0 20px rgba(0, 0, 0, 0.2),
-    0 12px 24px rgba(0, 0, 0, 0.4);
+    0 0 0 2px #000000,
+    inset 0 0 20px #000000,
+    0 12px 24px #000000;
 }
 
 /* Animation classes for chip interactions removed */
@@ -915,13 +915,13 @@ body {
   height: 80%;
   border-radius: 50%;
   border: 2px dashed var(--accent-color, #ffffff);
-  opacity: 0.6;
+  opacity: 1;
   pointer-events: none;
   transition: all 0.3s ease;
 }
 
 .chip:hover::before {
-  opacity: 0.8;
+  opacity: 1;
   transform: translate(-50%, -50%);
 }
 
@@ -935,13 +935,13 @@ body {
   height: 60%;
   border-radius: 50%;
   border: 1px solid var(--accent-color, #ffffff);
-  opacity: 0.4;
+  opacity: 1;
   pointer-events: none;
   transition: all 0.3s ease;
 }
 
 .chip:hover::after {
-  opacity: 0.6;
+  opacity: 1;
   transform: translate(-50%, -50%);
 }
 
@@ -1581,15 +1581,15 @@ body {
 @media (max-width: 768px) {
   .falling-chip,
   .rising-chip {
-    width: 100px;
-    height: 100px;
+    width: 90px;
+    height: 90px;
   }
 }
 
 @media (max-width: 480px) {
   .falling-chip,
   .rising-chip {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
   }
 }

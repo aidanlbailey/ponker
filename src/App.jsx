@@ -419,13 +419,14 @@ function App() {
       // Calculate the correct offset based on screen size
       let animationChipSize = 120 // Default desktop size
       if (window.innerWidth <= 480) {
-        animationChipSize = 80 // Mobile size
+        animationChipSize = 70 // Mobile size
       } else if (window.innerWidth <= 768) {
-        animationChipSize = 100 // Tablet size
+        animationChipSize = 90 // Tablet size
       }
       const offset = animationChipSize / 2
+      // Position the falling chip exactly at the center of the original chip
       left = `${rect.left + rect.width / 2 - offset}px`
-      top = `${rect.top}px`
+      top = `${rect.top + rect.height / 2 - offset}px`
     }
     
     const newFallingChip = {
@@ -469,13 +470,14 @@ function App() {
         // Calculate the correct offset based on screen size
         let animationChipSize = 120 // Default desktop size
         if (window.innerWidth <= 480) {
-          animationChipSize = 80 // Mobile size
+          animationChipSize = 70 // Mobile size
         } else if (window.innerWidth <= 768) {
-          animationChipSize = 100 // Tablet size
+          animationChipSize = 90 // Tablet size
         }
         const offset = animationChipSize / 2
+        // Position the rising chip exactly at the center of the original chip
         left = `${rect.left + rect.width / 2 - offset}px`
-        top = `${rect.top}px`
+        top = `${rect.top + rect.height / 2 - offset}px`
       }
       
       const newRisingChip = {
@@ -1168,7 +1170,7 @@ function App() {
               className={`chip`}
               data-chip-id={chipId}
               style={{ 
-                background: `linear-gradient(145deg, ${chip.color}, ${chip.color}dd)`,
+                background: `linear-gradient(145deg, ${chip.color}, ${chip.color})`,
                 color: getContrastColor(chip.color),
                 position: 'relative',
                 '--accent-color': chip.color === '#ffffff' ? '#0b289d' : '#ffffff'
