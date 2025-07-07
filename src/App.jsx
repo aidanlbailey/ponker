@@ -1216,7 +1216,7 @@ function App() {
                     left: fallingChip.left,
                     top: fallingChip.top,
                     background: `linear-gradient(145deg, ${fallingChip.color}, ${fallingChip.color}dd)`,
-                    border: `3px solid ${getContrastColor(fallingChip.color)}`,
+                    border: `3px solid #ffffff`,
                     boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
                   }}
                 />
@@ -1233,7 +1233,7 @@ function App() {
                     left: risingChip.left,
                     top: risingChip.top,
                     background: `linear-gradient(145deg, ${risingChip.color}, ${risingChip.color}dd)`,
-                    border: `3px solid ${getContrastColor(risingChip.color)}`,
+                    border: `3px solid #ffffff`,
                     boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
                   }}
                 />
