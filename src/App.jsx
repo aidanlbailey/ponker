@@ -429,13 +429,23 @@ function App() {
       top = `${rect.top + rect.height / 2 - offset}px`
     }
     
+    // Randomize toss X and rotation
+    const tossX = `${(Math.random() - 0.5) * 80}px` // -40px to +40px
+    const tossRot = `${360 + Math.random() * 360}deg` // 360deg to 720deg
+    const animationDuration = 0.8 + Math.random() * 0.4 // Between 0.8s and 1.2s
+    const startDelay = Math.random() * 0.2 // Random start delay up to 0.2s
+    
     const newFallingChip = {
       id: fallingChipId,
       color: chip.color,
       value: chip.value,
       chipId: chipId,
       left: left,
-      top: top
+      top: top,
+      tossX,
+      tossRot,
+      animationDuration,
+      startDelay
     }
     
     setFallingChips(prev => [...prev, newFallingChip])
@@ -443,7 +453,7 @@ function App() {
     // Remove the falling chip after animation completes
     setTimeout(() => {
       setFallingChips(prev => prev.filter(fc => fc.id !== fallingChipId))
-    }, 1000)
+    }, (animationDuration + startDelay) * 1000)
     
     // Update the actual chip count
     setChips(prev => ({
@@ -480,13 +490,23 @@ function App() {
         top = `${rect.top + rect.height / 2 - offset}px`
       }
       
+      // Randomize toss X and rotation
+      const tossX = `${(Math.random() - 0.5) * 80}px` // -40px to +40px
+      const tossRot = `${-360 - Math.random() * 360}deg` // -360deg to -720deg
+      const animationDuration = 0.8 + Math.random() * 0.4 // Between 0.8s and 1.2s
+      const startDelay = Math.random() * 0.2 // Random start delay up to 0.2s
+      
       const newRisingChip = {
         id: risingChipId,
         color: chip.color,
         value: chip.value,
         chipId: chipId,
         left: left,
-        top: top
+        top: top,
+        tossX,
+        tossRot,
+        animationDuration,
+        startDelay
       }
       
       setRisingChips(prev => [...prev, newRisingChip])
@@ -494,7 +514,7 @@ function App() {
       // Remove the rising chip after animation completes
       setTimeout(() => {
         setRisingChips(prev => prev.filter(rc => rc.id !== risingChipId))
-      }, 1000)
+      }, (animationDuration + startDelay) * 1000)
     }
     
     // Update the actual chip count
@@ -1219,7 +1239,10 @@ function App() {
                     top: fallingChip.top,
                     background: `linear-gradient(145deg, ${fallingChip.color}, ${fallingChip.color}dd)`,
                     border: `3px solid #ffffff`,
-                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
+                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`,
+                    animation: `chipTossFall ${fallingChip.animationDuration}s cubic-bezier(0.22, 0.61, 0.36, 1) ${fallingChip.startDelay}s forwards`,
+                    '--toss-x': fallingChip.tossX,
+                    '--toss-rot': fallingChip.tossRot
                   }}
                 />
               ))}
@@ -1236,7 +1259,10 @@ function App() {
                     top: risingChip.top,
                     background: `linear-gradient(145deg, ${risingChip.color}, ${risingChip.color}dd)`,
                     border: `3px solid #ffffff`,
-                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
+                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`,
+                    animation: `chipTossRise ${risingChip.animationDuration}s cubic-bezier(0.22, 0.61, 0.36, 1) ${risingChip.startDelay}s forwards`,
+                    '--toss-x': risingChip.tossX,
+                    '--toss-rot': risingChip.tossRot
                   }}
                 />
               ))}
