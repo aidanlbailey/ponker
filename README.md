@@ -1,10 +1,22 @@
 # PONKER 🎲
 
 ## About
-PONKER is a web app intended to solve, or mitigate, the issue of "How much money do I have?" while playing poker. This tool is meant mainly for beginner Poker players who haven't quite gained a knack for keeping mental track of how much money their chips are worth, or how much they've lost/gained.
+PONKER is a web app designed to solve, or mitigate, the issue of "How much money do I have?" while playing poker. This tool is intended primarily for beginner poker players who haven't quite developed a knack for mentally tracking how much money their chips are worth, or how much they've lost or gained.
+
+## Project Background & Tech Stack
+This is a personal project I developed to further familiarize myself with AI coding agents (like Cursor and Copilot) while gaining hands-on experience with JavaScript and CSS. The project utilizes modern web technologies to create a responsive and intuitive poker chip tracking application.
+
+### Tech Stack
+- **React 19.1.0** - UI framework for component-based architecture
+- **Vite** - Lightning-fast build tool and development server
+- **Pure CSS** - Custom styling with advanced animations and responsive design
+- **Local Storage API** - Client-side data persistence
+- **JavaScript ES6+** - Modern JavaScript features and syntax
+- **Touch API** - Mobile gesture support (swipe, long-press)
+- **Vibration API** - Haptic feedback for mobile devices
 
 ## Main Features
-PONKER currently has a single main feature, and that's the chip counting interface. You can create "chips" assign them a value, color, and then increment a counter on each chip that will then multiply with the value of the chip to find a total value for the stack, and then the stack values are combined into a total value at the bottom of the screen.
+PONKER currently has a single main feature: the chip counting interface. You can create "chips," assign them a value and color, and then increment a counter on each chip that multiplies with the chip's value to find a total value for the stack. The stack values are then combined into a total value displayed at the bottom of the screen.
 
 ## How to Use
 
@@ -63,12 +75,6 @@ npm run dev
 # Build for production
 npm run build
 ```
-
-### Tech Stack
-- **React 19.1.0** - UI framework
-- **Vite** - Build tool and development server
-- **Pure CSS** - Styling with advanced animations
-- **Local Storage** - Data persistence
 
 ## Features Overview
 - ✅ **Chip Counter Interface** - Add/remove/customize chips
