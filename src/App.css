@@ -571,7 +571,6 @@ body.felt-mode {
   }
   
   .title-letter {
-    /* Improve rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -639,7 +638,8 @@ body.felt-mode {
   border-color: #a0aec0;
 }
 
-@media (max-width: 768px) {
+/* Mobile responsive adjustments for top controls - REMOVED to prevent layout compression */
+/* @media (max-width: 768px) {
   .top-total-value {
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
@@ -653,7 +653,7 @@ body.felt-mode {
     font-size: 0.8rem;
     min-width: 60px;
   }
-}
+} */
 
 .presets-panel {
   background: #1a1a1a;
@@ -1179,19 +1179,19 @@ body.felt-mode {
   width: 100%;
 }
 
-/* Ensure minimum 2 columns on mobile */
+/* Force 2 columns on mobile with adequate spacing */
 @media (max-width: 768px) {
   .chip-container {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 2rem;
   }
 }
 
-/* For very small screens, still maintain 2 columns but with smaller gaps */
+/* For very small screens, maintain 2 columns with good spacing */
 @media (max-width: 480px) {
   .chip-container {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    gap: 1.5rem;
   }
 }
 
@@ -1201,24 +1201,28 @@ body.felt-mode {
   align-items: center;
   gap: 1rem;
   min-width: 150px;
+  width: 100%;
+  max-width: 200px;
   animation: slideIn 0.5s ease-out;
-  padding: 0.5rem;
+  padding: 1rem;
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .chip-section {
-    min-width: unset;
-    width: 100%;
-    padding: 0.25rem;
-    gap: 0.75rem;
+    min-width: 140px;
+    max-width: 200px;
+    padding: 1rem;
+    gap: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .chip-section {
-    padding: 0.125rem;
-    gap: 0.5rem;
+    min-width: 120px;
+    max-width: 180px;
+    padding: 0.75rem;
+    gap: 0.75rem;
   }
 }
 
@@ -1264,8 +1268,13 @@ body.felt-mode {
 }
 
 .chip {
-  width: 132px;
-  height: 132px;
+  --chip-size: 132px;
+  --edge-rect-size: 22px;
+  --dice-size: 14px;
+  --dot-size: 2.5px;
+  --edge-distance: 66px;
+  width: var(--chip-size);
+  height: var(--chip-size);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1277,14 +1286,12 @@ body.felt-mode {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  touch-action: none; /* Completely disable touch behaviors */
-  user-select: none; /* Prevent text selection */
-  -webkit-user-select: none; /* Safari */
-  -moz-user-select: none; /* Firefox */
-  -ms-user-select: none; /* IE/Edge */
-  z-index: 10; /* Ensure actual chips are in front of falling/rising animations */
-  
-  /* Poker chip styling */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  z-index: 10;
   border: 0px solid #ffffff;
   box-shadow: 
     0 0 0 2px #000000,
@@ -1292,40 +1299,41 @@ body.felt-mode {
     0 8px 16px #000000;
 }
 
-/* Mobile responsive chip adjustments */
-@media (max-width: 768px) {
+.chip-edge-rect, .chip-dice-pattern {
+  width: var(--edge-rect-size);
+  height: var(--edge-rect-size);
+}
+
+.chip-dice-pattern > div {
+  width: var(--dice-size);
+  height: var(--dice-size);
+}
+
+.chip-dice-pattern > div > div {
+  width: var(--dot-size);
+  height: var(--dot-size);
+}
+
+/* Mobile responsive chip adjustments - REMOVED to prevent chip design issues */
+/* @media (max-width: 768px) {
   .chip {
-    width: 110px;
-    height: 110px;
-  }
-  .chip-edge-rect, .chip-dice-pattern {
-    width: 20px !important;
-    height: 20px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-48px) !important;
-  }
-  .chip-inner-dash {
-    width: 6px !important;
-    height: 3px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-32px) !important;
+    --chip-size: 110px;
+    --edge-rect-size: 18px;
+    --dice-size: 12px;
+    --dot-size: 2px;
+    --edge-distance: calc(var(--chip-size) * 0.35);
   }
 }
 
 @media (max-width: 480px) {
   .chip {
-    width: 88px;
-    height: 88px;
+    --chip-size: 88px;
+    --edge-rect-size: 14px;
+    --dice-size: 9px;
+    --dot-size: 1.5px;
+    --edge-distance: calc(var(--chip-size) * 0.35);
   }
-  .chip-edge-rect, .chip-dice-pattern {
-    width: 14px !important;
-    height: 14px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-38px) !important;
-  }
-  .chip-inner-dash {
-    width: 4px !important;
-    height: 2px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-24px) !important;
-  }
-}
+} */
 
 .chip:hover {
   transform: scale(1.05);
@@ -1406,8 +1414,8 @@ body.felt-mode {
   -ms-user-select: none; /* IE/Edge */
 }
 
-/* Mobile responsive chip count adjustments */
-@media (max-width: 768px) {
+/* Mobile responsive chip count adjustments - REMOVED to prevent chip design issues */
+/* @media (max-width: 768px) {
   .chip-count {
     font-size: 2rem;
   }
@@ -1417,9 +1425,7 @@ body.felt-mode {
   .chip-count {
     font-size: 1.6rem;
   }
-}
-
-/* Animation class for count changes removed */
+} */
 
 .chip-controls {
   display: flex;
@@ -1510,8 +1516,8 @@ body.felt-mode {
   min-width: 80px;
 }
 
-/* Mobile responsive button adjustments */
-@media (max-width: 768px) {
+/* Mobile responsive button adjustments - REMOVED to prevent chip design issues */
+/* @media (max-width: 768px) {
   .chip-buttons {
     gap: 0.25rem;
     width: 100%;
@@ -1530,7 +1536,7 @@ body.felt-mode {
     font-size: 0.8rem;
     min-width: 60px;
   }
-}
+} */
 
 .add-btn {
   background: linear-gradient(145deg, #28a745, #218838);
@@ -1701,8 +1707,8 @@ body.felt-mode {
   color: #60a5fa;
 }
 
-/* Mobile responsiveness for menu */
-@media (max-width: 768px) {
+/* Mobile responsiveness for menu - REMOVED to prevent layout compression */
+/* @media (max-width: 768px) {
   .hamburger-btn {
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
@@ -1753,10 +1759,10 @@ body.felt-mode {
     font-size: 14px;
     gap: 12px;
   }
-}
+} */
 
-/* Mobile responsiveness for font menu */
-@media (max-width: 768px) {
+/* Mobile responsiveness for font menu - REMOVED to prevent layout compression */
+/* @media (max-width: 768px) {
   .font-menu {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -1805,7 +1811,7 @@ body.felt-mode {
   .font-sample p {
     font-size: 0.9rem;
   }
-}
+} */
 
 /* Name Input Panel Styles */
 .name-input-panel {
@@ -1936,8 +1942,8 @@ body.felt-mode {
   gap: 0.5rem;
 }
 
-/* Mobile responsiveness for name input and notification */
-@media (max-width: 768px) {
+/* Mobile responsiveness for name input and notification - REMOVED to prevent layout compression */
+/* @media (max-width: 768px) {
   .name-input-panel {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -1989,7 +1995,7 @@ body.felt-mode {
     padding: 0.5rem 0.8rem;
     font-size: 0.8rem;
   }
-}
+} */
 
 /* Falling chip animations - multiple variations for randomization */
 @keyframes chipFall1 {
@@ -2137,65 +2143,18 @@ body.felt-mode {
   }
 }
 
-.falling-chip {
+.falling-chip, .rising-chip {
   position: fixed;
-  width: 120px;
-  height: 120px;
+  width: 132px;
+  height: 132px;
   border-radius: 50%;
   z-index: 5;
   pointer-events: none;
-}
-
-.rising-chip {
-  position: fixed;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  z-index: 5;
-  pointer-events: none;
-}
-
-/* Mobile responsive falling/rising chip adjustments */
-@media (max-width: 768px) {
-  .falling-chip,
-  .rising-chip {
-    width: 90px;
-    height: 90px;
-  }
-  
-  .falling-chip .edge-dot,
-  .rising-chip .edge-dot {
-    width: 3px !important;
-    height: 3px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-42px) !important;
-  }
-  
-  .falling-chip .center-dot,
-  .rising-chip .center-dot {
-    width: 6px !important;
-    height: 6px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .falling-chip,
-  .rising-chip {
-    width: 70px;
-    height: 70px;
-  }
-  
-  .falling-chip .edge-dot,
-  .rising-chip .edge-dot {
-    width: 2px !important;
-    height: 2px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-36px) !important;
-  }
-  
-  .falling-chip .center-dot,
-  .rising-chip .center-dot {
-    width: 5px !important;
-    height: 5px !important;
-  }
+  overflow: hidden;
+  box-shadow: 
+    0 0 0 2px #000000,
+    inset 0 0 20px #000000,
+    0 8px 16px #000000;
 }
 
 /* Classic dice poker chip design styles */
@@ -2207,30 +2166,4 @@ body.felt-mode {
 }
 .chip-inner-dash {
   /* No extra styles needed, handled inline */
-}
-
-/* Responsive adjustments for classic dice chip */
-@media (max-width: 768px) {
-  .chip-edge-rect, .chip-dice-pattern {
-    width: 20px !important;
-    height: 20px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-48px) !important;
-  }
-  .chip-inner-dash {
-    width: 6px !important;
-    height: 3px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-32px) !important;
-  }
-}
-@media (max-width: 480px) {
-  .chip-edge-rect, .chip-dice-pattern {
-    width: 14px !important;
-    height: 14px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-38px) !important;
-  }
-  .chip-inner-dash {
-    width: 4px !important;
-    height: 2px !important;
-    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-24px) !important;
-  }
 }
