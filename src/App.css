@@ -92,13 +92,12 @@ body {
   color: #ffffff;
   margin: 0;
   padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   min-height: 100vh;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
   overflow-x: hidden;
+  /* Ensure proper scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
 /* Light mode styles */
@@ -472,12 +471,12 @@ body.felt-mode {
 #root {
   background-color: #000000;
   min-height: 100vh;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 100%;
   overflow-x: hidden;
+  /* Ensure proper scrolling on mobile */
+  position: relative;
+  top: 0;
+  left: 0;
 }
 
 .light-mode #root {
@@ -496,15 +495,17 @@ body.felt-mode {
 .app {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
   min-height: 100vh;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
   max-width: 1200px;
   padding: 2rem;
   background-color: #000000;
   animation: slideIn 0.5s ease-out;
+  margin: 0 auto;
+  /* Ensure proper scrolling on mobile */
+  position: relative;
+  box-sizing: border-box;
 }
 
 .title-section {
@@ -564,6 +565,22 @@ body.felt-mode {
   
   .subtitle {
     font-size: 1rem;
+  }
+  
+  /* Ensure proper scrolling on mobile */
+  body {
+    position: relative;
+    top: 0;
+  }
+  
+  #root {
+    position: relative;
+    top: 0;
+  }
+  
+  .app {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
 }
 
