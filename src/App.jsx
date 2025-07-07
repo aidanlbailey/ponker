@@ -63,7 +63,44 @@ function App() {
     }
   })
   const [nameInputOpen, setNameInputOpen] = useState(false)
+  const [nameInputEvaporating, setNameInputEvaporating] = useState(false)
+  const [nameChangedNotification, setNameChangedNotification] = useState(false)
+  const [originalNameBeforeEdit, setOriginalNameBeforeEdit] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [fontMenuOpen, setFontMenuOpen] = useState(false)
+  const [currentFontIndex, setCurrentFontIndex] = useState(() => {
+    try {
+      const savedFontIndex = localStorage.getItem('ponker-font-index')
+      return savedFontIndex ? parseInt(savedFontIndex, 10) : 0
+    } catch (err) {
+      console.error('Failed to load font index from localStorage:', err)
+      return 0
+    }
+  })
+
+  // Preset fonts for customization
+  const presetFonts = [
+    { name: 'Default', family: 'system-ui, -apple-system, sans-serif' },
+    { name: 'Georgia', family: 'Georgia, "Times New Roman", serif' },
+    { name: 'Times', family: '"Times New Roman", Times, serif' },
+    { name: 'Arial', family: 'Arial, Helvetica, sans-serif' },
+    { name: 'Helvetica', family: 'Helvetica, Arial, sans-serif' },
+    { name: 'Courier', family: '"Courier New", Courier, monospace' },
+    { name: 'Verdana', family: 'Verdana, Geneva, sans-serif' },
+    { name: 'Trebuchet', family: '"Trebuchet MS", Arial, sans-serif' },
+    { name: 'Comic Sans', family: '"Comic Sans MS", cursive' },
+    { name: 'Impact', family: 'Impact, Arial Black, sans-serif' },
+    { name: 'Palatino', family: 'Palatino, "Palatino Linotype", serif' },
+    { name: 'Book Antiqua', family: '"Book Antiqua", Palatino, serif' },
+    { name: 'Lucida', family: '"Lucida Grande", Lucida, sans-serif' },
+    { name: 'Tahoma', family: 'Tahoma, Geneva, sans-serif' },
+    { name: 'Century Gothic', family: '"Century Gothic", sans-serif' },
+    { name: 'Franklin Gothic', family: '"Franklin Gothic Medium", sans-serif' },
+    { name: 'Garamond', family: 'Garamond, serif' },
+    { name: 'Brush Script', family: '"Brush Script MT", cursive' },
+    { name: 'Papyrus', family: 'Papyrus, fantasy' },
+    { name: 'Copperplate', family: 'Copperplate, fantasy' }
+  ]
 
   const presets = [
     {
@@ -156,10 +193,23 @@ function App() {
     }
   }
 
+  const saveFontIndexToStorage = (fontIndex) => {
+    try {
+      localStorage.setItem('ponker-font-index', fontIndex.toString())
+    } catch (err) {
+      console.error('Failed to save font index to localStorage:', err)
+    }
+  }
+
   // Save chips to localStorage whenever chips change
   useEffect(() => {
     saveChipsToStorage(chips)
   }, [chips])
+
+  // Save font index to localStorage whenever it changes
+  useEffect(() => {
+    saveFontIndexToStorage(currentFontIndex)
+  }, [currentFontIndex])
 
   // Mouse avoidance effect for title letters
   const handleMouseMove = (e) => {
@@ -457,7 +507,21 @@ function App() {
   }
 
   const toggleNameInput = () => {
-    setNameInputOpen(!nameInputOpen)
+    if (nameInputOpen) {
+      // Check if name changed before closing
+      handleNameInputFinished()
+      
+      // Start evaporation effect before closing
+      setNameInputEvaporating(true)
+      setTimeout(() => {
+        setNameInputOpen(false)
+        setNameInputEvaporating(false)
+      }, 300) // Match the CSS transition duration
+    } else {
+      // Store the original name when opening
+      setOriginalNameBeforeEdit(userName)
+      setNameInputOpen(true)
+    }
     triggerHaptic('light')
   }
 
@@ -471,9 +535,46 @@ function App() {
     triggerHaptic('light')
   }
 
+  const toggleDevPanel = () => {
+    setFontMenuOpen(!fontMenuOpen)
+    triggerHaptic('light')
+  }
+
+  const toggleFontMenu = () => {
+    setFontMenuOpen(!fontMenuOpen)
+    triggerHaptic('light')
+  }
+
+  const cycleFontForward = () => {
+    const newIndex = (currentFontIndex + 1) % presetFonts.length
+    setCurrentFontIndex(newIndex)
+    triggerHaptic('light')
+  }
+
+  const cycleFontBackward = () => {
+    const newIndex = (currentFontIndex - 1 + presetFonts.length) % presetFonts.length
+    setCurrentFontIndex(newIndex)
+    triggerHaptic('light')
+  }
+
+  const setFontByIndex = (index) => {
+    setCurrentFontIndex(index)
+    triggerHaptic('light')
+  }
+
   const handleNameChange = (newName) => {
     setUserName(newName)
     saveUserNameToStorage(newName)
+  }
+
+  const handleNameInputFinished = () => {
+    // Show notification if name actually changed from when the input was opened
+    if (originalNameBeforeEdit !== userName && userName.trim() !== '') {
+      setNameChangedNotification(true)
+      setTimeout(() => {
+        setNameChangedNotification(false)
+      }, 3000) // Show for 3 seconds
+    }
   }
 
   const copyToClipboard = async () => {
@@ -590,7 +691,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" style={{ fontFamily: presetFonts[currentFontIndex].family }}>
       <div className="title-section">
         <h1 
           className="title"
@@ -686,6 +787,11 @@ function App() {
                 <span className="menu-icon">ℹ️</span>
                 About PONKER
               </button>
+              
+              <button onClick={() => { toggleFontMenu(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">�</span>
+                Font Style
+              </button>
             </div>
           </div>
         </div>
@@ -693,7 +799,10 @@ function App() {
 
       {presetsOpen && (
         <div className="presets-panel">
-          <h3>Chip Presets</h3>
+          <div className="presets-header">
+            <h3>Chip Presets</h3>
+            <button onClick={togglePresets} className="close-presets-btn">✕</button>
+          </div>
           <div className="presets-list">
             {presets.map(preset => (
               <div key={preset.id} className="preset-card">
@@ -721,6 +830,68 @@ function App() {
                 </button>
               </div>
             ))}
+          </div>
+          
+          <div className="presets-footer">
+            <div className="coming-soon-section">
+              <p className="coming-soon-text">Coming soon!</p>
+              <button 
+                className="add-preset-btn"
+                onClick={() => {
+                  alert('Custom preset creation coming soon! For now, you can manually set up your chips and use the Copy Data feature to share your setup.')
+                  triggerHaptic('light')
+                }}
+              >
+                Add Your Own Preset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {fontMenuOpen && (
+        <div className="font-menu">
+          <div className="font-menu-header">
+            <h3>� Font Style</h3>
+            <button onClick={toggleFontMenu} className="close-font-menu-btn">✕</button>
+          </div>
+          <div className="font-menu-content">
+            <div className="current-font-info">
+              <h4>Current Font: {presetFonts[currentFontIndex].name}</h4>
+              <p className="font-family-display">{presetFonts[currentFontIndex].family}</p>
+            </div>
+            
+            <div className="font-controls">
+              <button onClick={cycleFontBackward} className="font-btn">
+                ← Previous Font
+              </button>
+              <button onClick={cycleFontForward} className="font-btn">
+                Next Font →
+              </button>
+            </div>
+            
+            <div className="font-grid">
+              {presetFonts.map((font, index) => (
+                <button
+                  key={index}
+                  onClick={() => setFontByIndex(index)}
+                  className={`font-option ${index === currentFontIndex ? 'active' : ''}`}
+                  style={{ fontFamily: font.family }}
+                >
+                  {font.name}
+                </button>
+              ))}
+            </div>
+            
+            <div className="font-sample">
+              <h4>Preview:</h4>
+              <p style={{ fontFamily: presetFonts[currentFontIndex].family }}>
+                The quick brown fox jumps over the lazy dog. 1234567890
+              </p>
+              <p style={{ fontFamily: presetFonts[currentFontIndex].family }}>
+                PONKER Chip Counter - Add/Remove chips easily!
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -770,7 +941,7 @@ function App() {
       )}
       
       {nameInputOpen && (
-        <div className="name-input-panel">
+        <div className={`name-input-panel ${nameInputEvaporating ? 'evaporating' : ''}`}>
           <h3>Set Your Name</h3>
           <div className="name-input-content">
             <p>Your name will be included when you copy chip data to share with others.</p>
@@ -779,6 +950,11 @@ function App() {
                 type="text"
                 value={userName}
                 onChange={(e) => handleNameChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    toggleNameInput() // Same action as "Done" button
+                  }
+                }}
                 placeholder="Enter your name..."
                 className="name-input"
                 maxLength={30}
@@ -985,6 +1161,15 @@ function App() {
       {showTotalValue && (
         <div className="total-value">
           Total Value: ${getTotalValue().toFixed(2)}
+        </div>
+      )}
+      
+      {/* Name changed notification popup */}
+      {nameChangedNotification && (
+        <div className="name-changed-notification">
+          <div className="notification-content">
+            ✓ Name Changed!
+          </div>
         </div>
       )}
     </div>

@@ -29,6 +29,41 @@
   100% { transform: scale(1); }
 }
 
+/* Evaporation effect for name input panel */
+@keyframes evaporate {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02) translateY(-5px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05) translateY(-15px);
+  }
+}
+
+@keyframes slideInFadeOut {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.9);
+  }
+}
+
 body {
   background-color: #000000;
   color: #ffffff;
@@ -185,11 +220,42 @@ body {
   transition: all 0.3s ease;
 }
 
-.presets-panel h3 {
+.presets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.presets-header h3 {
   color: #ffffff;
-  margin: 0 0 1rem 0;
-  text-align: center;
+  margin: 0;
   font-size: 1.5rem;
+}
+
+.close-presets-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-presets-btn:hover {
+  background: #333;
+  color: #ff6b6b;
+}
+
+.close-presets-btn:active {
+  transform: scale(0.95);
 }
 
 .presets-list {
@@ -286,6 +352,182 @@ body {
 
 .load-preset-btn:active {
   animation: buttonPress 0.1s ease;
+}
+
+/* Font Menu Styles */
+.font-menu {
+  background: #1a1a1a;
+  border: 2px solid #4a90e2;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.4s ease-out;
+  transition: all 0.3s ease;
+}
+
+.font-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.font-menu-header h3 {
+  color: #4a90e2;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.close-font-menu-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-font-menu-btn:hover {
+  background: #333;
+  color: #4a90e2;
+}
+
+.close-font-menu-btn:active {
+  transform: scale(0.95);
+}
+
+.font-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.current-font-info {
+  text-align: center;
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+.current-font-info h4 {
+  color: #4a90e2;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.font-family-display {
+  color: #aaa;
+  font-family: monospace;
+  font-size: 0.9rem;
+  margin: 0;
+  word-break: break-all;
+}
+
+.font-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.font-btn {
+  background: linear-gradient(145deg, #4a90e2, #357abd);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.font-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
+}
+
+.font-btn:active {
+  animation: buttonPress 0.1s ease;
+}
+
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: #2a2a2a;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+.font-option {
+  background: #333;
+  color: white;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.font-option:hover {
+  background: #444;
+  border-color: #4a90e2;
+}
+
+.font-option.active {
+  background: #4a90e2;
+  border-color: #4a90e2;
+  color: white;
+}
+
+.font-option:active {
+  transform: scale(0.95);
+}
+
+.font-sample {
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+.font-sample h4 {
+  color: #4a90e2;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.font-sample p {
+  color: #fff;
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.dev-menu-item {
+  border-top: 1px solid #444 !important;
+  margin-top: 0.5rem !important;
+  padding-top: 1rem !important;
+}
+
+.dev-menu-item .menu-icon {
+  color: #6c757d !important;
 }
 
 .delete-confirm-overlay {
@@ -1020,5 +1262,241 @@ body {
     padding: 16px 16px;
     font-size: 14px;
     gap: 12px;
+  }
+}
+
+/* Mobile responsiveness for font menu */
+@media (max-width: 768px) {
+  .font-menu {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .font-menu-header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .font-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .font-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .font-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.3rem;
+    max-height: 250px;
+  }
+  
+  .font-option {
+    padding: 0.4rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .font-menu {
+    padding: 0.8rem;
+  }
+  
+  .font-menu-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .font-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    max-height: 200px;
+  }
+  
+  .font-sample p {
+    font-size: 0.9rem;
+  }
+}
+
+/* Name Input Panel Styles */
+.name-input-panel {
+  background: #1a1a1a;
+  border: 2px solid #3b82f6;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.4s ease-out;
+  transition: all 0.3s ease;
+}
+
+.name-input-panel.evaporating {
+  animation: evaporate 0.3s ease-out forwards;
+}
+
+.name-input-panel h3 {
+  color: #3b82f6;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.name-input-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.name-input-content p {
+  color: #ccc;
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.name-input-container {
+  display: flex;
+  justify-content: center;
+}
+
+.name-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 0.75rem 1rem;
+  border: 2px solid #555;
+  border-radius: 6px;
+  font-size: 1rem;
+  text-align: center;
+  background-color: #2a2a2a;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.name-input-buttons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.clear-name-btn, .close-name-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.clear-name-btn {
+  background: linear-gradient(145deg, #6c757d, #5a6268);
+  color: white;
+}
+
+.clear-name-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+.close-name-btn {
+  background: linear-gradient(145deg, #3b82f6, #2563eb);
+  color: white;
+}
+
+.close-name-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.clear-name-btn:active, .close-name-btn:active {
+  animation: buttonPress 0.1s ease;
+}
+
+/* Name Changed Notification */
+.name-changed-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  animation: slideInFadeOut 3s ease-out forwards;
+}
+
+.notification-content {
+  background: linear-gradient(145deg, #28a745, #20c997);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Mobile responsiveness for name input and notification */
+@media (max-width: 768px) {
+  .name-input-panel {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .name-input-panel h3 {
+    font-size: 1.2rem;
+  }
+  
+  .name-input-buttons {
+    gap: 1rem;
+    flex-direction: column;
+  }
+  
+  .clear-name-btn, .close-name-btn {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .name-changed-notification {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+  }
+  
+  .notification-content {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 20px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .name-input-panel {
+    padding: 0.8rem;
+  }
+  
+  .name-input-buttons {
+    gap: 0.75rem;
+  }
+  
+  .clear-name-btn, .close-name-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .notification-content {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
   }
 }
