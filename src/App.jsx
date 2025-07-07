@@ -2,11 +2,28 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
-  const [chips, setChips] = useState({
-    blue: { count: 0, value: 1, color: '#4a90e2' },
-    green: { count: 0, value: 5, color: '#5cb85c' },
-    black: { count: 0, value: 10, color: '#333333' }
-  })
+  // Default to standard casino preset
+  const getInitialChips = () => {
+    try {
+      const saved = localStorage.getItem('ponker-chips')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (err) {
+      console.error('Failed to load chips from localStorage:', err)
+    }
+    
+    // Default to standard casino preset
+    return {
+      white: { count: 0, value: 1, color: '#ffffff' },
+      red: { count: 0, value: 5, color: '#dc3545' },
+      blue: { count: 0, value: 10, color: '#007bff' },
+      green: { count: 0, value: 25, color: '#28a745' },
+      black: { count: 0, value: 100, color: '#343a40' }
+    }
+  }
+
+  const [chips, setChips] = useState(getInitialChips)
 
   // Generate random rotation values once and store them
   const [titleRotations] = useState(() => {
@@ -14,6 +31,14 @@ function App() {
       start: (Math.random() - 0.5) * 6, // Random between -3 and 3 (more subtle)
       end: (Math.random() - 0.5) * 12 // Random between -6 and 6 (more subtle)
     }))
+  })
+
+  // Generate random fonts for letters (all using Georgia serif like P)
+  const [letterFonts] = useState(() => {
+    return "PONKER".split('').map((letter, index) => {
+      // All letters use Georgia serif
+      return { family: 'Georgia, "Times New Roman", serif', weight: 'bold' }
+    })
   })
 
   const [presetsOpen, setPresetsOpen] = useState(false)
@@ -30,6 +55,15 @@ function App() {
   const [colorPickerOpen, setColorPickerOpen] = useState(null) // Track which chip's color picker is open
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [letterOffsets, setLetterOffsets] = useState({}) // Track letter positions for mouse avoidance
+  const [userName, setUserName] = useState(() => {
+    try {
+      return localStorage.getItem('ponker-user-name') || ''
+    } catch (err) {
+      return ''
+    }
+  })
+  const [nameInputOpen, setNameInputOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const presets = [
     {
@@ -38,9 +72,9 @@ function App() {
       author: 'Aidan',
       description: 'Low stakes penny poker setup',
       chips: {
-        blue: { count: 0, value: 0.05, color: '#4a90e2' },
-        green: { count: 0, value: 0.10, color: '#5cb85c' },
-        black: { count: 0, value: 0.25, color: '#333333' }
+        blue: { count: 0, value: 0.05, color: '#007bff' },
+        green: { count: 0, value: 0.10, color: '#28a745' },
+        black: { count: 0, value: 0.25, color: '#343a40' }
       }
     },
     {
@@ -49,7 +83,7 @@ function App() {
       author: 'BMH',
       description: 'Literally PENNY Poker',
       chips: {
-        blue: { count: 0, value: .01, color: '#4a90e2' },
+        blue: { count: 0, value: .01, color: '#007bff' },
         red: { count: 0, value: .05, color: '#dc3545' },
         green: { count: 0, value: .10, color: '#28a745' },
         black: { count: 0, value: .25, color: '#343a40' }
@@ -96,6 +130,36 @@ function App() {
 
   // Minimum swipe distance for gesture recognition
   const minSwipeDistance = 50
+
+  // localStorage helper functions
+  const saveChipsToStorage = (chipsData) => {
+    try {
+      localStorage.setItem('ponker-chips', JSON.stringify(chipsData))
+    } catch (err) {
+      console.error('Failed to save chips to localStorage:', err)
+    }
+  }
+
+  const savePresetToStorage = (presetId) => {
+    try {
+      localStorage.setItem('ponker-last-preset', presetId)
+    } catch (err) {
+      console.error('Failed to save preset to localStorage:', err)
+    }
+  }
+
+  const saveUserNameToStorage = (name) => {
+    try {
+      localStorage.setItem('ponker-user-name', name)
+    } catch (err) {
+      console.error('Failed to save user name to localStorage:', err)
+    }
+  }
+
+  // Save chips to localStorage whenever chips change
+  useEffect(() => {
+    saveChipsToStorage(chips)
+  }, [chips])
 
   // Mouse avoidance effect for title letters
   const handleMouseMove = (e) => {
@@ -370,6 +434,10 @@ function App() {
   const loadPreset = (preset) => {
     setChips(preset.chips)
     setPresetsOpen(false)
+    
+    // Save the preset selection to localStorage
+    savePresetToStorage(preset.id)
+    
     triggerHaptic('success')
   }
 
@@ -388,28 +456,106 @@ function App() {
     triggerHaptic('light')
   }
 
+  const toggleNameInput = () => {
+    setNameInputOpen(!nameInputOpen)
+    triggerHaptic('light')
+  }
+
+  const toggleMenu = () => {
+    setMenuOpen(!menuOpen)
+    triggerHaptic('light')
+  }
+
+  const closeMenu = () => {
+    setMenuOpen(false)
+    triggerHaptic('light')
+  }
+
+  const handleNameChange = (newName) => {
+    setUserName(newName)
+    saveUserNameToStorage(newName)
+  }
+
   const copyToClipboard = async () => {
     const chipData = Object.entries(chips).map(([chipId, chip]) => {
       return `${chipId}: ${chip.count} chips @ $${chip.value.toFixed(2)} each (${chip.color})`
     }).join('\n')
     
     const totalValue = getTotalValue()
-    const exportText = `PONKER Chip Data:\n\n${chipData}\n\nTotal Value: $${totalValue.toFixed(2)}\n\nExported: ${new Date().toLocaleString()}`
+    const userNameLine = userName ? `Player: ${userName}\n` : ''
+    const exportText = `PONKER Chip Data:\n${userNameLine}\n${chipData}\n\nTotal Value: $${totalValue.toFixed(2)}\n\nExported: ${new Date().toLocaleString()}`
     
     try {
-      await navigator.clipboard.writeText(exportText)
-      alert('Chip data copied to clipboard!')
-      triggerHaptic('success')
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(exportText)
+        const successMessage = userName ? `${userName}'s chip data copied to clipboard!` : 'Chip data copied to clipboard!'
+        alert(successMessage)
+        triggerHaptic('success')
+      } else {
+        // Fallback for older browsers or mobile devices
+        fallbackCopyTextToClipboard(exportText)
+      }
     } catch (err) {
-      console.error('Failed to copy: ', err)
-      alert('Failed to copy to clipboard')
+      console.error('Failed to copy with modern API, trying fallback: ', err)
+      // If modern API fails, try fallback
+      fallbackCopyTextToClipboard(exportText)
+    }
+  }
+
+  const fallbackCopyTextToClipboard = (text) => {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    
+    // Make it invisible but still functional
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    textArea.style.opacity = '0'
+    
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    
+    try {
+      // Use the older execCommand method
+      const successful = document.execCommand('copy')
+      if (successful) {
+        const successMessage = userName ? `${userName}'s chip data copied to clipboard!` : 'Chip data copied to clipboard!'
+        alert(successMessage)
+        triggerHaptic('success')
+      } else {
+        throw new Error('execCommand copy failed')
+      }
+    } catch (err) {
+      console.error('Fallback copy failed: ', err)
+      // Last resort - show the text in a prompt for manual copy
+      const message = 'Could not copy automatically. Please copy the text below manually:'
+      alert(message)
+      prompt('Copy this text:', text)
       triggerHaptic('error')
+    } finally {
+      document.body.removeChild(textArea)
     }
   }
 
   const loadFromClipboard = async () => {
     try {
-      const text = await navigator.clipboard.readText()
+      let text = ''
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText()
+      } else {
+        // Fallback for older browsers or mobile devices
+        text = prompt('Paste your chip data here:') || ''
+      }
+      
+      if (!text) {
+        alert('No data to load')
+        return
+      }
       
       // Simple parsing - look for lines that match the pattern
       const lines = text.split('\n')
@@ -454,45 +600,14 @@ function App() {
           onTouchEnd={handleTitleTouchEnd}
         >
           {"PONKER".split('').map((letter, index) => {
-            // Different blue styles for each letter
-            const blueStyles = [
-              // P - Blue outline + neon (combination of N and E)
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              },
-              // O - Blue outline + neon
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              },
-              // N - Blue outline + neon
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              },
-              // K - Blue outline + neon
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              },
-              // E - Blue outline + neon
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              },
-              // R - Blue outline + neon
-              { 
-                color: '#93c5fd',
-                WebkitTextStroke: '3px #3b82f6',
-                textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
-              }
-            ];
+            // Use the randomly generated fonts for each letter
+            const letterStyle = {
+              color: '#93c5fd',
+              WebkitTextStroke: '3px #3b82f6',
+              textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8',
+              fontFamily: letterFonts[index].family,
+              fontWeight: letterFonts[index].weight
+            }
             
             // Get offset for this letter from mouse avoidance
             const offset = letterOffsets[index] || { x: 0, y: 0 }
@@ -510,7 +625,7 @@ function App() {
                   transition: '--mouse-offset-x 0.4s ease-out, --mouse-offset-y 0.4s ease-out',
                   display: 'inline-block',
                   position: 'relative',
-                  ...blueStyles[index]
+                  ...letterStyle
                 }}
               >
                 {letter}
@@ -522,30 +637,59 @@ function App() {
       </div>
       
       <div className="top-controls">
-        <button onClick={addNewChipType} className="add-chip-type-btn">
-          + Chip
-        </button>
-        
-        <button onClick={togglePresets} className="presets-toggle-btn">
-          {presetsOpen ? '← Presets' : 'Presets →'}
-        </button>
-        
-        <button onClick={copyToClipboard} className="clipboard-btn">
-          📋 Copy
-        </button>
-        
-        <button onClick={loadFromClipboard} className="clipboard-btn">
-          📥 Paste
-        </button>
-        
-        <button onClick={toggleTotalValue} className="total-toggle-btn">
-          {showTotalValue ? '👁️ Hide Values' : '👁️ Show Values'}
-        </button>
-        
-        <button onClick={toggleAbout} className="about-toggle-btn">
-          {aboutOpen ? '← About' : 'About →'}
+        <button onClick={toggleMenu} className="hamburger-btn">
+          ☰ Menu
         </button>
       </div>
+
+      {/* Hamburger Menu */}
+      {menuOpen && (
+        <div className="menu-overlay" onClick={closeMenu}>
+          <div className="menu-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="menu-header">
+              <h3>Menu</h3>
+              <button onClick={closeMenu} className="close-menu-btn">✕</button>
+            </div>
+            
+            <div className="menu-items">
+              <button onClick={() => { addNewChipType(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">+</span>
+                Add New Chip Type
+              </button>
+              
+              <button onClick={() => { togglePresets(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">🎲</span>
+                Chip Presets
+              </button>
+              
+              <button onClick={() => { copyToClipboard(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">📋</span>
+                Copy Data {userName && `(${userName})`}
+              </button>
+              
+              <button onClick={() => { loadFromClipboard(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">📥</span>
+                Paste Data
+              </button>
+              
+              <button onClick={() => { toggleTotalValue(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">👁️</span>
+                {showTotalValue ? 'Hide Values' : 'Show Values'}
+              </button>
+              
+              <button onClick={() => { toggleNameInput(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">👤</span>
+                {userName ? `Change Name (${userName})` : 'Set Your Name'}
+              </button>
+              
+              <button onClick={() => { toggleAbout(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">ℹ️</span>
+                About PONKER
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {presetsOpen && (
         <div className="presets-panel">
@@ -620,6 +764,40 @@ function App() {
                 <p><em></em></p>
                 <p><em></em></p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {nameInputOpen && (
+        <div className="name-input-panel">
+          <h3>Set Your Name</h3>
+          <div className="name-input-content">
+            <p>Your name will be included when you copy chip data to share with others.</p>
+            <div className="name-input-container">
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Enter your name..."
+                className="name-input"
+                maxLength={30}
+                autoFocus
+              />
+            </div>
+            <div className="name-input-buttons">
+              <button 
+                className="clear-name-btn"
+                onClick={() => handleNameChange('')}
+              >
+                Clear
+              </button>
+              <button 
+                className="close-name-btn"
+                onClick={toggleNameInput}
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
