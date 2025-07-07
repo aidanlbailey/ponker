@@ -79,6 +79,44 @@ function App() {
   })
   const [fallingChips, setFallingChips] = useState([])
   const [risingChips, setRisingChips] = useState([])
+  const [screenSize, setScreenSize] = useState(() => {
+    const width = window.innerWidth
+    if (width <= 480) return 'small'
+    if (width <= 600) return 'medium'
+    return 'large'
+  })
+
+  // Helper function to get responsive letter styling
+  const getLetterStyle = (fontFamily, fontWeight) => {
+    const baseStyle = {
+      color: '#93c5fd',
+      fontFamily,
+      fontWeight
+    }
+    
+    switch (screenSize) {
+      case 'small':
+        return {
+          ...baseStyle,
+          WebkitTextStroke: '1.5px #3b82f6',
+          textShadow: '0 0 2px #3b82f6, 0 0 4px #3b82f6',
+          fontWeight: '900'
+        }
+      case 'medium':
+        return {
+          ...baseStyle,
+          WebkitTextStroke: '2px #3b82f6',
+          textShadow: '0 0 3px #3b82f6, 0 0 6px #3b82f6',
+          fontWeight: '900'
+        }
+      default: // large
+        return {
+          ...baseStyle,
+          WebkitTextStroke: '3px #3b82f6',
+          textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+        }
+    }
+  }
 
   // Preset fonts for customization
   const presetFonts = [
@@ -212,6 +250,19 @@ function App() {
   useEffect(() => {
     saveFontIndexToStorage(currentFontIndex)
   }, [currentFontIndex])
+
+  // Handle window resize for responsive styling
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width <= 480) setScreenSize('small')
+      else if (width <= 600) setScreenSize('medium')
+      else setScreenSize('large')
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Mouse avoidance effect for title letters
   const handleMouseMove = (e) => {
@@ -810,13 +861,7 @@ function App() {
         >
           {"PONKER".split('').map((letter, index) => {
             // Use the randomly generated fonts for each letter
-            const letterStyle = {
-              color: '#93c5fd',
-              WebkitTextStroke: '3px #3b82f6',
-              textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8',
-              fontFamily: letterFonts[index].family,
-              fontWeight: letterFonts[index].weight
-            }
+            const letterStyle = getLetterStyle(letterFonts[index].family, letterFonts[index].weight)
             
             // Get offset for this letter from mouse avoidance
             const offset = letterOffsets[index] || { x: 0, y: 0 }
