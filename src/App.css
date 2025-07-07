@@ -64,6 +64,38 @@
   }
 }
 
+/* Falling chip animations */
+@keyframes chipFall {
+  0% {
+    transform: translateY(-200px) scale(0.8) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(-10px) scale(1.05) rotate(720deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(720deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chipRise {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-200px) scale(0.8) rotate(-720deg);
+    opacity: 0;
+  }
+}
+
 body {
   background-color: #000000;
   color: #ffffff;
@@ -1499,4 +1531,47 @@ body {
     padding: 0.5rem 0.8rem;
     font-size: 0.8rem;
   }
+}
+
+/* Falling chip animations */
+@keyframes chipFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chipRise {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+.falling-chip {
+  position: fixed;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  z-index: 1000;
+  pointer-events: none;
+  animation: chipFall 1s ease-in-out forwards;
+}
+
+.rising-chip {
+  position: fixed;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  z-index: 1000;
+  pointer-events: none;
+  animation: chipRise 1s ease-in-out forwards;
 }
