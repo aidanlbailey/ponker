@@ -77,6 +77,8 @@ function App() {
       return 0
     }
   })
+  const [fallingChips, setFallingChips] = useState([])
+  const [risingChips, setRisingChips] = useState([])
 
   // Preset fonts for customization
   const presetFonts = [
@@ -403,6 +405,38 @@ function App() {
   }
 
   const addChip = (chipId) => {
+    // Create a falling chip animation
+    const chip = chips[chipId]
+    const fallingChipId = `falling-${Date.now()}-${Math.random()}`
+    
+    // Get the chip element's position
+    const chipElement = document.querySelector(`[data-chip-id="${chipId}"]`)
+    let left = '50%'
+    let top = '0px'
+    
+    if (chipElement) {
+      const rect = chipElement.getBoundingClientRect()
+      left = `${rect.left + rect.width / 2 - 40}px` // Center the 80px chip
+      top = `${rect.top}px`
+    }
+    
+    const newFallingChip = {
+      id: fallingChipId,
+      color: chip.color,
+      value: chip.value,
+      chipId: chipId,
+      left: left,
+      top: top
+    }
+    
+    setFallingChips(prev => [...prev, newFallingChip])
+    
+    // Remove the falling chip after animation completes
+    setTimeout(() => {
+      setFallingChips(prev => prev.filter(fc => fc.id !== fallingChipId))
+    }, 1000)
+    
+    // Update the actual chip count
     setChips(prev => ({
       ...prev,
       [chipId]: { ...prev[chipId], count: prev[chipId].count + 1 }
@@ -410,6 +444,42 @@ function App() {
   }
 
   const removeChip = (chipId) => {
+    const chip = chips[chipId]
+    
+    // Only animate if there are chips to remove
+    if (chip.count > 0) {
+      // Create a rising chip animation
+      const risingChipId = `rising-${Date.now()}-${Math.random()}`
+      
+      // Get the chip element's position
+      const chipElement = document.querySelector(`[data-chip-id="${chipId}"]`)
+      let left = '50%'
+      let top = '0px'
+      
+      if (chipElement) {
+        const rect = chipElement.getBoundingClientRect()
+        left = `${rect.left + rect.width / 2 - 40}px` // Center the 80px chip
+        top = `${rect.top}px`
+      }
+      
+      const newRisingChip = {
+        id: risingChipId,
+        color: chip.color,
+        value: chip.value,
+        chipId: chipId,
+        left: left,
+        top: top
+      }
+      
+      setRisingChips(prev => [...prev, newRisingChip])
+      
+      // Remove the rising chip after animation completes
+      setTimeout(() => {
+        setRisingChips(prev => prev.filter(rc => rc.id !== risingChipId))
+      }, 1000)
+    }
+    
+    // Update the actual chip count
     setChips(prev => ({
       ...prev,
       [chipId]: { ...prev[chipId], count: Math.max(0, prev[chipId].count - 1) }
@@ -1061,6 +1131,7 @@ function App() {
           <div 
             key={chipId} 
             className={`chip-section ${addingChip === chipId ? 'adding' : ''} ${removingChip === chipId ? 'removing' : ''}`}
+            style={{ position: 'relative' }}
           >
             <div className="chip-header">
               {showTotalValue && (
@@ -1079,6 +1150,7 @@ function App() {
             
             <div 
               className={`chip`}
+              data-chip-id={chipId}
               style={{ 
                 background: `linear-gradient(145deg, ${chip.color}, ${chip.color}dd)`,
                 color: getContrastColor(chip.color),
@@ -1117,6 +1189,41 @@ function App() {
               </span>
             </div>
             
+            {/* Falling chip animations for this specific chip stack */}
+            {fallingChips
+              .filter(fc => fc.chipId === chipId)
+              .map(fallingChip => (
+                <div
+                  key={fallingChip.id}
+                  className="falling-chip"
+                  style={{
+                    left: fallingChip.left,
+                    top: fallingChip.top,
+                    background: `linear-gradient(145deg, ${fallingChip.color}, ${fallingChip.color}dd)`,
+                    border: `3px solid ${getContrastColor(fallingChip.color)}`,
+                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
+                  }}
+                />
+              ))}
+            
+            {/* Rising chip animations for this specific chip stack */}
+            {risingChips
+              .filter(rc => rc.chipId === chipId)
+              .map(risingChip => (
+                <div
+                  key={risingChip.id}
+                  className="rising-chip"
+                  style={{
+                    left: risingChip.left,
+                    top: risingChip.top,
+                    background: `linear-gradient(145deg, ${risingChip.color}, ${risingChip.color}dd)`,
+                    border: `3px solid ${getContrastColor(risingChip.color)}`,
+                    boxShadow: `0 4px 8px rgba(0, 0, 0, 0.3)`
+                  }}
+                />
+              ))}
+            
+
             <div className="chip-controls">
               <div className="value-input-container">
                 <span className="dollar-sign">$</span>
@@ -1172,6 +1279,8 @@ function App() {
           </div>
         </div>
       )}
+      
+
     </div>
   )
 }
