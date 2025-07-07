@@ -1,5 +1,5 @@
 # PONKER 🎲
-
+![alt text]([https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png](https://github.com/aidanlbailey/ponker/blob/main/Screenshot%202025-07-07%20131910.png) "Logo Title Text 1")
 ## About
 PONKER is a web app designed to solve, or mitigate, the issue of "How much money do I have?" while playing poker. This tool is intended primarily for beginner poker players who haven't quite developed a knack for mentally tracking how much money their chips are worth, or how much they've lost or gained.
 
