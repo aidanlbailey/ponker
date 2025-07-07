@@ -177,18 +177,18 @@ function App() {
     { name: 'Courier', family: '"Courier New", Courier, monospace' },
     { name: 'Verdana', family: 'Verdana, Geneva, sans-serif' },
     { name: 'Trebuchet', family: '"Trebuchet MS", Arial, sans-serif' },
-    { name: 'Comic Sans', family: '"Comic Sans MS", cursive' },
-    { name: 'Impact', family: 'Impact, Arial Black, sans-serif' },
-    { name: 'Palatino', family: 'Palatino, "Palatino Linotype", serif' },
+    { name: 'Comic Sans', family: '"Comic Sans MS", "Comic Sans", cursive' },
+    { name: 'Impact', family: 'Impact, "Arial Black", "Helvetica Black", sans-serif' },
+    { name: 'Palatino', family: 'Palatino, "Palatino Linotype", "Palatino LT STD", serif' },
     { name: 'Book Antiqua', family: '"Book Antiqua", Palatino, serif' },
-    { name: 'Lucida', family: '"Lucida Grande", Lucida, sans-serif' },
+    { name: 'Lucida', family: '"Lucida Grande", "Lucida Sans Unicode", Lucida, sans-serif' },
     { name: 'Tahoma', family: 'Tahoma, Geneva, sans-serif' },
-    { name: 'Century Gothic', family: '"Century Gothic", sans-serif' },
-    { name: 'Franklin Gothic', family: '"Franklin Gothic Medium", sans-serif' },
-    { name: 'Garamond', family: 'Garamond, serif' },
-    { name: 'Brush Script', family: '"Brush Script MT", cursive' },
-    { name: 'Papyrus', family: 'Papyrus, fantasy' },
-    { name: 'Copperplate', family: 'Copperplate, fantasy' }
+    { name: 'Century Gothic', family: '"Century Gothic", "CenturyGothic", AppleGothic, sans-serif' },
+    { name: 'Franklin Gothic', family: '"Franklin Gothic Medium", "Franklin Gothic Book", sans-serif' },
+    { name: 'Garamond', family: 'Garamond, "Times New Roman", serif' },
+    { name: 'Brush Script', family: '"Brush Script MT", "Brush Script Std", cursive, fantasy' },
+    { name: 'Papyrus', family: 'Papyrus, "Papyrus MT", fantasy' },
+    { name: 'Copperplate', family: 'Copperplate, "Copperplate Gothic Light", "Copperplate Gothic Bold", fantasy' }
   ]
 
   const presets = [
