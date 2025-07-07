@@ -1558,8 +1558,8 @@ body {
 
 .falling-chip {
   position: fixed;
-  width: 80px;
-  height: 80px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   z-index: 1000;
   pointer-events: none;
@@ -1568,10 +1568,27 @@ body {
 
 .rising-chip {
   position: fixed;
-  width: 80px;
-  height: 80px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   z-index: 1000;
   pointer-events: none;
   animation: chipRise 1s ease-in-out forwards;
+}
+
+/* Mobile responsive falling/rising chip adjustments */
+@media (max-width: 768px) {
+  .falling-chip,
+  .rising-chip {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .falling-chip,
+  .rising-chip {
+    width: 80px;
+    height: 80px;
+  }
 }
