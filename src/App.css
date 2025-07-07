@@ -866,6 +866,7 @@ body {
   -webkit-user-select: none; /* Safari */
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* IE/Edge */
+  z-index: 10; /* Ensure actual chips are in front of falling/rising animations */
   
   /* Poker chip styling */
   border: 6px solid rgba(255, 255, 255, 0.8);
@@ -1561,7 +1562,7 @@ body {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  z-index: 1000;
+  z-index: 5;
   pointer-events: none;
   animation: chipFall 1s ease-in-out forwards;
 }
@@ -1571,7 +1572,7 @@ body {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  z-index: 1000;
+  z-index: 5;
   pointer-events: none;
   animation: chipRise 1s ease-in-out forwards;
 }
