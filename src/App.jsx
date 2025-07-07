@@ -47,6 +47,15 @@ function App() {
   const [addingChip, setAddingChip] = useState(null)
   const [removingChip, setRemovingChip] = useState(null)
   const [showTotalValue, setShowTotalValue] = useState(true)
+  const [totalValueNextToMenu, setTotalValueNextToMenu] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ponker-total-value-next-to-menu')
+      return saved ? JSON.parse(saved) : true
+    } catch (err) {
+      console.error('Failed to load total value position from localStorage:', err)
+      return true
+    }
+  })
   const [touchStart, setTouchStart] = useState(null)
   const [touchEnd, setTouchEnd] = useState(null)
   const [longPressTimer, setLongPressTimer] = useState(null)
@@ -77,6 +86,15 @@ function App() {
       return 0
     }
   })
+  const [theme, setTheme] = useState(() => {
+    try {
+      const savedTheme = localStorage.getItem('ponker-theme')
+      return savedTheme || 'dark'
+    } catch (err) {
+      console.error('Failed to load theme from localStorage:', err)
+      return 'dark'
+    }
+  })
   const [fallingChips, setFallingChips] = useState([])
   const [risingChips, setRisingChips] = useState([])
   const [screenSize, setScreenSize] = useState(() => {
@@ -88,8 +106,32 @@ function App() {
 
   // Helper function to get responsive letter styling
   const getLetterStyle = (fontFamily, fontWeight) => {
+    // Theme-specific colors
+    let color, strokeColor, shadowColor, outerShadowColor
+    
+    switch (theme) {
+      case 'light':
+        color = '#212529'
+        strokeColor = '#212529'
+        shadowColor = '#212529'
+        outerShadowColor = '#000000'
+        break
+      case 'felt':
+        color = '#ffffff'
+        strokeColor = '#ffffff'
+        shadowColor = '#ffffff'
+        outerShadowColor = '#cccccc'
+        break
+      default: // dark
+        color = '#93c5fd'
+        strokeColor = '#3b82f6'
+        shadowColor = '#3b82f6'
+        outerShadowColor = '#1d4ed8'
+        break
+    }
+    
     const baseStyle = {
-      color: '#93c5fd',
+      color,
       fontFamily,
       fontWeight
     }
@@ -98,22 +140,22 @@ function App() {
       case 'small':
         return {
           ...baseStyle,
-          WebkitTextStroke: '1.5px #3b82f6',
-          textShadow: '0 0 2px #3b82f6, 0 0 4px #3b82f6',
+          WebkitTextStroke: `1.5px ${strokeColor}`,
+          textShadow: `0 0 2px ${shadowColor}, 0 0 4px ${shadowColor}`,
           fontWeight: '900'
         }
       case 'medium':
         return {
           ...baseStyle,
-          WebkitTextStroke: '2px #3b82f6',
-          textShadow: '0 0 3px #3b82f6, 0 0 6px #3b82f6',
+          WebkitTextStroke: `2px ${strokeColor}`,
+          textShadow: `0 0 3px ${shadowColor}, 0 0 6px ${shadowColor}`,
           fontWeight: '900'
         }
       default: // large
         return {
           ...baseStyle,
-          WebkitTextStroke: '3px #3b82f6',
-          textShadow: '0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8'
+          WebkitTextStroke: `3px ${strokeColor}`,
+          textShadow: `0 0 5px ${shadowColor}, 0 0 10px ${shadowColor}, 0 0 15px ${shadowColor}, 0 0 20px ${outerShadowColor}`
         }
     }
   }
@@ -241,6 +283,22 @@ function App() {
     }
   }
 
+  const saveTotalValuePositionToStorage = (nextToMenu) => {
+    try {
+      localStorage.setItem('ponker-total-value-next-to-menu', JSON.stringify(nextToMenu))
+    } catch (err) {
+      console.error('Failed to save total value position to localStorage:', err)
+    }
+  }
+
+  const saveThemeToStorage = (themeName) => {
+    try {
+      localStorage.setItem('ponker-theme', themeName)
+    } catch (err) {
+      console.error('Failed to save theme to localStorage:', err)
+    }
+  }
+
   // Save chips to localStorage whenever chips change
   useEffect(() => {
     saveChipsToStorage(chips)
@@ -250,6 +308,29 @@ function App() {
   useEffect(() => {
     saveFontIndexToStorage(currentFontIndex)
   }, [currentFontIndex])
+
+  // Save total value position to localStorage whenever it changes
+  useEffect(() => {
+    saveTotalValuePositionToStorage(totalValueNextToMenu)
+  }, [totalValueNextToMenu])
+
+  // Save theme to localStorage whenever it changes
+  useEffect(() => {
+    saveThemeToStorage(theme)
+  }, [theme])
+
+  // Update body class when theme changes
+  useEffect(() => {
+    // Remove all theme classes first
+    document.body.classList.remove('light-mode', 'felt-mode')
+    
+    // Add the appropriate theme class
+    if (theme === 'light') {
+      document.body.classList.add('light-mode')
+    } else if (theme === 'felt') {
+      document.body.classList.add('felt-mode')
+    }
+  }, [theme])
 
   // Handle window resize for responsive styling
   useEffect(() => {
@@ -665,6 +746,19 @@ function App() {
     triggerHaptic('light')
   }
 
+  const toggleTotalValuePosition = () => {
+    setTotalValueNextToMenu(!totalValueNextToMenu)
+    triggerHaptic('light')
+  }
+
+  const toggleTheme = () => {
+    const themes = ['dark', 'light', 'felt']
+    const currentIndex = themes.indexOf(theme)
+    const nextIndex = (currentIndex + 1) % themes.length
+    setTheme(themes[nextIndex])
+    triggerHaptic('light')
+  }
+
   const toggleNameInput = () => {
     if (nameInputOpen) {
       // Check if name changed before closing
@@ -738,12 +832,12 @@ function App() {
 
   const copyToClipboard = async () => {
     const chipData = Object.entries(chips).map(([chipId, chip]) => {
-      return `${chipId}: ${chip.count} chips @ $${chip.value.toFixed(2)} each (${chip.color})`
+      return `${chipId}: ${chip.count.toLocaleString()} chips @ $${formatNumber(chip.value)} each (${chip.color})`
     }).join('\n')
     
     const totalValue = getTotalValue()
     const userNameLine = userName ? `Player: ${userName}\n` : ''
-    const exportText = `PONKER Chip Data:\n${userNameLine}\n${chipData}\n\nTotal Value: $${totalValue.toFixed(2)}\n\nExported: ${new Date().toLocaleString()}`
+    const exportText = `PONKER Chip Data:\n${userNameLine}\n${chipData}\n\nTotal Value: $${formatNumber(totalValue)}\n\nExported: ${new Date().toLocaleString()}`
     
     try {
       // Try modern clipboard API first
@@ -823,12 +917,12 @@ function App() {
       
       for (const line of lines) {
         // Match pattern: "chipId: count chips @ $value each (color)"
-        const match = line.match(/^(\w+):\s*(\d+)\s*chips\s*@\s*\$?([\d.]+)\s*each\s*\(([^)]+)\)/)
+        const match = line.match(/^(\w+):\s*([\d,]+)\s*chips\s*@\s*\$?([\d,]+\.?\d*)\s*each\s*\(([^)]+)\)/)
         if (match) {
           const [, chipId, count, value, color] = match
           newChips[chipId] = {
-            count: parseInt(count),
-            value: parseFloat(value),
+            count: parseInt(count.replace(/,/g, '')),
+            value: parseFloat(value.replace(/,/g, '')),
             color: color.startsWith('#') ? color : '#' + color.replace('#', '')
           }
         }
@@ -850,7 +944,7 @@ function App() {
   }
 
   return (
-    <div className="app" style={{ fontFamily: presetFonts[currentFontIndex].family }}>
+    <div className={`app ${theme !== 'dark' ? `${theme}-mode` : ''}`} style={{ fontFamily: presetFonts[currentFontIndex].family }}>
       <div className="title-section">
         <h1 
           className="title"
@@ -894,6 +988,11 @@ function App() {
         <button onClick={toggleMenu} className="hamburger-btn">
           ☰ Menu
         </button>
+        {showTotalValue && totalValueNextToMenu && (
+          <div className="top-total-value">
+            ${formatNumber(getTotalValue())}
+          </div>
+        )}
       </div>
 
       {/* Hamburger Menu */}
@@ -931,19 +1030,34 @@ function App() {
                 {showTotalValue ? 'Hide Values' : 'Show Values'}
               </button>
               
+              <button onClick={() => { toggleTotalValuePosition(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">📍</span>
+                {totalValueNextToMenu ? 'Move Total to Bottom' : 'Move Total to Top'}
+              </button>
+              
               <button onClick={() => { toggleNameInput(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">👤</span>
                 {userName ? `Change Name (${userName})` : 'Set Your Name'}
               </button>
               
-              <button onClick={() => { toggleAbout(); closeMenu(); }} className="menu-item">
+              <button onClick={() => { 
+                window.open('https://github.com/aidanlbailey/ponker/blob/main/README.md', '_blank');
+                closeMenu(); 
+              }} className="menu-item">
                 <span className="menu-icon">ℹ️</span>
                 About PONKER
               </button>
               
               <button onClick={() => { toggleFontMenu(); closeMenu(); }} className="menu-item">
-                <span className="menu-icon">�</span>
+                <span className="menu-icon"></span>
                 Font Style
+              </button>
+              
+              <button onClick={() => { toggleTheme(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">
+                  {theme === 'dark' ? '☀️' : theme === 'light' ? '🃏' : '🌙'}
+                </span>
+                {theme === 'dark' ? 'Light Mode' : theme === 'light' ? 'Felt Mode' : 'Dark Mode'}
               </button>
             </div>
           </div>
@@ -1005,7 +1119,7 @@ function App() {
       {fontMenuOpen && (
         <div className="font-menu">
           <div className="font-menu-header">
-            <h3>� Font Style</h3>
+            <h3>Font Style</h3>
             <button onClick={toggleFontMenu} className="close-font-menu-btn">✕</button>
           </div>
           <div className="font-menu-content">
@@ -1217,9 +1331,9 @@ function App() {
             style={{ position: 'relative' }}
           >
             <div className="chip-header">
-              {showTotalValue && (
-                <span className="chip-name">${(chip.value * chip.count).toFixed(2)}</span>
-              )}
+                          {showTotalValue && (
+              <span className="chip-name">${formatNumber(chip.value * chip.count)}</span>
+            )}
               {Object.keys(chips).length > 1 && (
                 <button 
                   className="delete-chip-btn"
@@ -1268,7 +1382,7 @@ function App() {
               </div>
               
               <span className="chip-count" style={{ pointerEvents: 'none' }}>
-                {chip.count}
+                {chip.count.toLocaleString()}
               </span>
             </div>
             
@@ -1354,9 +1468,9 @@ function App() {
         ))}
       </div>
       
-      {showTotalValue && (
+      {showTotalValue && !totalValueNextToMenu && (
         <div className="total-value">
-          Total Value: ${getTotalValue().toFixed(2)}
+          Total Value: ${formatNumber(getTotalValue())}
         </div>
       )}
       
@@ -1381,6 +1495,17 @@ function getContrastColor(hexColor) {
   const b = parseInt(hexColor.substr(5, 2), 16)
   const brightness = (r * 299 + g * 587 + b * 114) / 1000
   return brightness > 128 ? '#000000' : '#ffffff'
+}
+
+// Helper function to format numbers with commas
+function formatNumber(num) {
+  // Check if the number has a fractional part
+  const hasFraction = num % 1 !== 0
+  
+  return num.toLocaleString('en-US', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2
+  })
 }
 
 export default App
