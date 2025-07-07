@@ -416,7 +416,15 @@ function App() {
     
     if (chipElement) {
       const rect = chipElement.getBoundingClientRect()
-      left = `${rect.left + rect.width / 2 - 40}px` // Center the 80px chip
+      // Calculate the correct offset based on screen size
+      let animationChipSize = 120 // Default desktop size
+      if (window.innerWidth <= 480) {
+        animationChipSize = 80 // Mobile size
+      } else if (window.innerWidth <= 768) {
+        animationChipSize = 100 // Tablet size
+      }
+      const offset = animationChipSize / 2
+      left = `${rect.left + rect.width / 2 - offset}px`
       top = `${rect.top}px`
     }
     
@@ -458,7 +466,15 @@ function App() {
       
       if (chipElement) {
         const rect = chipElement.getBoundingClientRect()
-        left = `${rect.left + rect.width / 2 - 40}px` // Center the 80px chip
+        // Calculate the correct offset based on screen size
+        let animationChipSize = 120 // Default desktop size
+        if (window.innerWidth <= 480) {
+          animationChipSize = 80 // Mobile size
+        } else if (window.innerWidth <= 768) {
+          animationChipSize = 100 // Tablet size
+        }
+        const offset = animationChipSize / 2
+        left = `${rect.left + rect.width / 2 - offset}px`
         top = `${rect.top}px`
       }
       
