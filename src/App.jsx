@@ -89,14 +89,15 @@ function App() {
   const [theme, setTheme] = useState(() => {
     try {
       const savedTheme = localStorage.getItem('ponker-theme')
-      return savedTheme || 'dark'
+      return savedTheme || 'felt'
     } catch (err) {
       console.error('Failed to load theme from localStorage:', err)
-      return 'dark'
+      return 'felt'
     }
   })
   const [fallingChips, setFallingChips] = useState([])
   const [risingChips, setRisingChips] = useState([])
+  const [activeAnimations, setActiveAnimations] = useState(0)
   const [screenSize, setScreenSize] = useState(() => {
     const width = window.innerWidth
     if (width <= 480) return 'small'
@@ -141,21 +142,27 @@ function App() {
         return {
           ...baseStyle,
           WebkitTextStroke: `1.5px ${strokeColor}`,
-          textShadow: `0 0 2px ${shadowColor}, 0 0 4px ${shadowColor}`,
+          textShadow: theme === 'felt' 
+            ? `0 0 1px ${shadowColor}, 0 0 2px ${shadowColor}` 
+            : `0 0 2px ${shadowColor}, 0 0 4px ${shadowColor}`,
           fontWeight: '900'
         }
       case 'medium':
         return {
           ...baseStyle,
           WebkitTextStroke: `2px ${strokeColor}`,
-          textShadow: `0 0 3px ${shadowColor}, 0 0 6px ${shadowColor}`,
+          textShadow: theme === 'felt' 
+            ? `0 0 1px ${shadowColor}, 0 0 3px ${shadowColor}` 
+            : `0 0 3px ${shadowColor}, 0 0 6px ${shadowColor}`,
           fontWeight: '900'
         }
       default: // large
         return {
           ...baseStyle,
           WebkitTextStroke: `3px ${strokeColor}`,
-          textShadow: `0 0 5px ${shadowColor}, 0 0 10px ${shadowColor}, 0 0 15px ${shadowColor}, 0 0 20px ${outerShadowColor}`
+          textShadow: theme === 'felt' 
+            ? `0 0 2px ${shadowColor}, 0 0 4px ${shadowColor}` 
+            : `0 0 5px ${shadowColor}, 0 0 10px ${shadowColor}, 0 0 15px ${shadowColor}, 0 0 20px ${outerShadowColor}`
         }
     }
   }
@@ -344,6 +351,34 @@ function App() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Disable scrolling when animations are active
+  useEffect(() => {
+    const preventScroll = (e) => {
+      e.preventDefault()
+    }
+
+    if (activeAnimations > 0) {
+      document.body.style.overflowY = 'scroll' // Keep scrollbar visible
+      document.addEventListener('wheel', preventScroll, { passive: false })
+      document.addEventListener('touchmove', preventScroll, { passive: false })
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'PageUp' || e.key === 'PageDown' || e.key === 'Home' || e.key === 'End') {
+          e.preventDefault()
+        }
+      })
+    } else {
+      document.body.style.overflowY = 'auto'
+      document.removeEventListener('wheel', preventScroll)
+      document.removeEventListener('touchmove', preventScroll)
+    }
+
+    return () => {
+      document.body.style.overflowY = 'auto'
+      document.removeEventListener('wheel', preventScroll)
+      document.removeEventListener('touchmove', preventScroll)
+    }
+  }, [activeAnimations])
 
   // Mouse avoidance effect for title letters
   const handleMouseMove = (e) => {
@@ -557,10 +592,10 @@ function App() {
     }
     
     // Randomize toss X and rotation
-    const tossX = `${(Math.random() - 0.5) * 80}px` // -40px to +40px
-    const tossRot = `${360 + Math.random() * 360}deg` // 360deg to 720deg
-    const animationDuration = 0.8 + Math.random() * 0.4 // Between 0.8s and 1.2s
-    const startDelay = Math.random() * 0.2 // Random start delay up to 0.2s
+    const tossX = `${(Math.random() - 0.5) * 500}px` // -250px to +250px
+    const tossRot = `${(Math.random() - 0.5) * 1440}deg` // -720deg to +720deg
+    const animationDuration = 1.2 + Math.random() * 0.4 // Between 1.2s and 1.6s
+    const startDelay = 0
     
     const newFallingChip = {
       id: fallingChipId,
@@ -576,10 +611,12 @@ function App() {
     }
     
     setFallingChips(prev => [...prev, newFallingChip])
+    setActiveAnimations(prev => prev + 1)
     
     // Remove the falling chip after animation completes
     setTimeout(() => {
       setFallingChips(prev => prev.filter(fc => fc.id !== fallingChipId))
+      setActiveAnimations(prev => prev - 1)
     }, (animationDuration + startDelay) * 1000)
     
     // Update the actual chip count
@@ -612,11 +649,11 @@ function App() {
         top = `${rect.top + rect.height / 2 - offset}px`
       }
       
-      // Randomize toss X and rotation
-      const tossX = `${(Math.random() - 0.5) * 80}px` // -40px to +40px
-      const tossRot = `${-360 - Math.random() * 360}deg` // -360deg to -720deg
-      const animationDuration = 0.8 + Math.random() * 0.4 // Between 0.8s and 1.2s
-      const startDelay = Math.random() * 0.2 // Random start delay up to 0.2s
+          // Randomize toss X and rotation
+    const tossX = `${(Math.random() - 0.5) * 500}px` // -250px to +250px
+    const tossRot = `${(Math.random() - 0.5) * 1440}deg` // -720deg to +720deg
+    const animationDuration = 2.0 + Math.random() * 0.6 // Between 2.0s and 2.6s (slower)
+    const startDelay = 0
       
       const newRisingChip = {
         id: risingChipId,
@@ -632,10 +669,12 @@ function App() {
       }
       
       setRisingChips(prev => [...prev, newRisingChip])
+      setActiveAnimations(prev => prev + 1)
       
       // Remove the rising chip after animation completes
       setTimeout(() => {
         setRisingChips(prev => prev.filter(rc => rc.id !== risingChipId))
+        setActiveAnimations(prev => prev - 1)
       }, (animationDuration + startDelay) * 1000)
     }
     
@@ -1347,8 +1386,8 @@ function App() {
                 '--edge-rect-size': '22px',
                 '--dice-size': '14px',
                 '--dot-size': '2.5px',
-                '--edge-distance': '50px',
-                '--rect-edge-distance': '66px'
+                '--edge-distance': '55px',
+                '--rect-edge-distance': '56px'
               }}
               title="Click to change color (desktop) or long press (mobile), swipe down to add/swipe up to remove"
               onTouchStart={(e) => handleTouchStart(e, chipId)}
@@ -1466,8 +1505,8 @@ function App() {
                     '--edge-rect-size': '22px',
                     '--dice-size': '14px',
                     '--dot-size': '2.5px',
-                    '--edge-distance': '50px',
-                    '--rect-edge-distance': '66px'
+                    '--edge-distance': '55px',
+                    '--rect-edge-distance': '56px'
                   }}
                 >
                   {/* Classic dice poker chip design for falling chip */}
@@ -1570,8 +1609,8 @@ function App() {
                     '--edge-rect-size': '22px',
                     '--dice-size': '14px',
                     '--dot-size': '2.5px',
-                    '--edge-distance': '50px',
-                    '--rect-edge-distance': '66px'
+                    '--edge-distance': '55px',
+                    '--rect-edge-distance': '56px'
                   }}
                 >
                   {/* Classic dice poker chip design for rising chip */}
