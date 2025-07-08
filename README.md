@@ -1,5 +1,6 @@
 # PONKER 🎲
 ![alt text](https://github.com/aidanlbailey/ponker/blob/main/ponkerscreenshot.png "Ponker Screenshot")
+
 ## About
 PONKER is a web app designed to solve, or mitigate, the issue of "How much money do I have?" while playing poker. This tool is intended primarily for beginner poker players who haven't quite developed a knack for mentally tracking how much money their chips are worth, or how much they've lost or gained.
 
@@ -16,7 +17,7 @@ This is a personal project I developed to further familiarize myself with AI cod
 - **Vibration API** - Haptic feedback for mobile devices
 
 ## Main Features
-PONKER currently has a single main feature: the chip counting interface. You can create chip types assign them a value and color, and then increment a counter on each chip that multiplies with the chip's value to find a total value for the stack. The stack values are then combined into a total value displayed at the bottom of the screen.
+PONKER features an intuitive chip counting interface that lets you create chip types with custom values and colors. Simply increment counters on each chip to calculate total stack values, with automatic multiplication and real-time total display.
 
 ## Features
 
@@ -41,6 +42,11 @@ PONKER currently has a single main feature: the chip counting interface. You can
 - **Touch Gestures**: Swipe up/down on chips to add/remove (mobile)
 - **Mouse Avoidance**: Interactive title letters that move away from cursor
 - **Theme Persistence**: Your theme choice is remembered between sessions
+- **Delete Button Visibility**: Toggle delete button visibility for cleaner interface
+- **Ko-fi Donation Support**: Support the project with an integrated Ko-fi link
+- **Seamless Mobile Experience**: Optimized touch interactions with text selection prevention
+- **Smooth Animations**: Layout stability during chip animations with scrollbar handling
+- **Enhanced Visual Design**: Professional drop shadow effects for the PONKER logo in felt mode
 
 ### Customization Options
 - **Font Selection**: Choose from 20+ different fonts
@@ -133,7 +139,7 @@ npm run build
 - ✅ **Flexible Total Display** - Choose top or bottom total value position
 - ✅ **User Names** - Personalized data sharing with custom names
 - ✅ **Theme Persistence** - Theme preference saves between sessions
-- ✅ **Enhanced Mobile UX** - Improved touch interactions and feedback
+- ✅ **Seamless Mobile Experience** - Optimized touch interactions and feedback
 
 ## Browser Support
 PONKER works in all modern browsers including:
@@ -150,6 +156,6 @@ Created by Aidan Bailey
 
 ---
 
-**Version**: 1.0.1
+**Version**: 1.0.2
 **Built with**: React & Vite
 **Last Updated**: July 2025

@@ -47,6 +47,15 @@ function App() {
   const [addingChip, setAddingChip] = useState(null)
   const [removingChip, setRemovingChip] = useState(null)
   const [showTotalValue, setShowTotalValue] = useState(true)
+  const [showDeleteButtons, setShowDeleteButtons] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ponker-show-delete-buttons')
+      return saved ? JSON.parse(saved) : true
+    } catch (err) {
+      console.error('Failed to load delete button visibility from localStorage:', err)
+      return true
+    }
+  })
   const [totalValueNextToMenu, setTotalValueNextToMenu] = useState(() => {
     try {
       const saved = localStorage.getItem('ponker-total-value-next-to-menu')
@@ -308,6 +317,14 @@ function App() {
     }
   }
 
+  const saveDeleteButtonVisibilityToStorage = (show) => {
+    try {
+      localStorage.setItem('ponker-show-delete-buttons', JSON.stringify(show))
+    } catch (err) {
+      console.error('Failed to save delete button visibility to localStorage:', err)
+    }
+  }
+
   // Save chips to localStorage whenever chips change
   useEffect(() => {
     saveChipsToStorage(chips)
@@ -361,7 +378,7 @@ function App() {
     }
 
     if (fallingAnimations > 0) {
-      document.body.style.overflowY = 'scroll' // Keep scrollbar visible
+      document.body.style.overflowY = 'hidden' // Hide scrollbar during animations
       document.addEventListener('wheel', preventScroll, { passive: false })
       document.addEventListener('touchmove', preventScroll, { passive: false })
       document.addEventListener('keydown', (e) => {
@@ -790,6 +807,13 @@ function App() {
     triggerHaptic('light')
   }
 
+  const toggleDeleteButtonVisibility = () => {
+    const newVisibility = !showDeleteButtons
+    setShowDeleteButtons(newVisibility)
+    saveDeleteButtonVisibilityToStorage(newVisibility)
+    triggerHaptic('light')
+  }
+
   const toggleNameInput = () => {
     if (nameInputOpen) {
       // Check if name changed before closing
@@ -1061,6 +1085,11 @@ function App() {
                 {showTotalValue ? 'Hide Values' : 'Show Values'}
               </button>
               
+              <button onClick={() => { toggleDeleteButtonVisibility(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">🗑️</span>
+                {showDeleteButtons ? 'Hide Delete Buttons' : 'Show Delete Buttons'}
+              </button>
+              
               <button onClick={() => { toggleTotalValuePosition(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">📍</span>
                 {totalValueNextToMenu ? 'Move Total to Bottom' : 'Move Total to Top'}
@@ -1077,6 +1106,14 @@ function App() {
               }} className="menu-item">
                 <span className="menu-icon">ℹ️</span>
                 About PONKER
+              </button>
+              
+              <button onClick={() => { 
+                window.open('https://ko-fi.com/aidanlbailey', '_blank');
+                closeMenu(); 
+              }} className="menu-item kofi-menu-item">
+                <span className="menu-icon">☕</span>
+                Buy me a Coffee
               </button>
               
               <button onClick={() => { toggleFontMenu(); closeMenu(); }} className="menu-item">
@@ -1365,7 +1402,7 @@ function App() {
                           {showTotalValue && (
               <span className="chip-name">${formatNumber(chip.value * chip.count)}</span>
             )}
-              {Object.keys(chips).length > 1 && (
+              {Object.keys(chips).length > 1 && showDeleteButtons && (
                 <button 
                   className="delete-chip-btn"
                   onClick={() => deleteChipType(chipId)}
@@ -1412,6 +1449,7 @@ function App() {
                       top: '50%',
                       left: '50%',
                       transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(calc(-1 * var(--rect-edge-distance)))`,
+                      clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)',
                       borderRadius: '4px',
                       boxShadow: '0 0 2px #0002',
                       zIndex: 2
@@ -1483,6 +1521,24 @@ function App() {
                     </div>
                   </div>
                 ))}
+                {/* 12 inner notches */}
+                {[...Array(12)].map((_, i) => (
+                  <div
+                    key={`notch-${i}`}
+                    style={{
+                      position: 'absolute',
+                      width: '10px',
+                      height: '4px',
+                      background: '#fff',
+                      borderRadius: '6px 6px 6px 6px',
+                      top: '48.5%',
+                      left: '46.25%',
+                      transform: `rotate(${i * 30}deg) translateY(-39px)`,
+                      zIndex: 4,
+                      boxShadow: '0 0 1px #0006'
+                    }}
+                  />
+                ))}
               </div>
               <span className="chip-count" style={{ pointerEvents: 'none' }}>
                 {chip.count.toLocaleString()}
@@ -1526,6 +1582,7 @@ function App() {
                           top: '50%',
                           left: '50%',
                           transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(calc(-1 * var(--rect-edge-distance)))`,
+                          clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)',
                           borderRadius: '4px',
                           boxShadow: '0 0 2px #0002',
                           zIndex: 2
@@ -1579,7 +1636,7 @@ function App() {
                                   height: 'var(--dot-size)',
                                   borderRadius: '50%',
                                   background: fallingChip.color === '#ffffff' ? '#0b289d' : '#fff',
-                                  left: `${dot.x * 100}%`,
+                                  left: '46.25%',
                                   top: `${dot.y * 100}%`,
                                   transform: 'translate(-50%, -50%)',
                                 }}
@@ -1588,6 +1645,24 @@ function App() {
                           })()}
                         </div>
                       </div>
+                    ))}
+                    {/* 12 inner notches */}
+                    {[...Array(12)].map((_, i) => (
+                      <div
+                        key={`notch-${i}`}
+                        style={{
+                          position: 'absolute',
+                          width: '10px',
+                          height: '4px',
+                          background: '#fff',
+                          borderRadius: '6px 6px 6px 6px',
+                          top: '48.5%',
+                          left: '46%',
+                          transform: `rotate(${i * 30}deg) translateY(-39px)`,
+                          zIndex: 4,
+                          boxShadow: '0 0 1px #0006'
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1630,6 +1705,7 @@ function App() {
                           top: '50%',
                           left: '50%',
                           transform: `translate(-50%, -50%) rotate(${i * 60}deg) translateY(calc(-1 * var(--rect-edge-distance)))`,
+                          clipPath: 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)',
                           borderRadius: '4px',
                           boxShadow: '0 0 2px #0002',
                           zIndex: 2
@@ -1683,7 +1759,7 @@ function App() {
                                   height: 'var(--dot-size)',
                                   borderRadius: '50%',
                                   background: risingChip.color === '#ffffff' ? '#0b289d' : '#fff',
-                                  left: `${dot.x * 100}%`,
+                                  left: '46.25%',
                                   top: `${dot.y * 100}%`,
                                   transform: 'translate(-50%, -50%)',
                                 }}
@@ -1692,6 +1768,24 @@ function App() {
                           })()}
                         </div>
                       </div>
+                    ))}
+                    {/* 12 inner notches */}
+                    {[...Array(12)].map((_, i) => (
+                      <div
+                        key={`notch-${i}`}
+                        style={{
+                          position: 'absolute',
+                          width: '10px',
+                          height: '4px',
+                          background: '#fff',
+                          borderRadius: '6px 6px 6px 6px',
+                          top: '48.5%',
+                          left: '46%',
+                          transform: `rotate(${i * 30}deg) translateY(-39px)`,
+                          zIndex: 4,
+                          boxShadow: '0 0 1px #0006'
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
