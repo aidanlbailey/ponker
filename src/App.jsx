@@ -952,8 +952,8 @@ function App() {
       
       // Bill denominations (only if any chip value exceeds $1 AND not all chips are low value)
       if (hasHighValueChips && !allChipsLowValue && remaining >= 100) {
-        const billDenoms = [10000, 5000, 2000, 1000, 500, 200, 100] // $100, $50, $20, $10, $5, $2, $1
-        const billNames = ['$100', '$50', '$20', '$10', '$5', '$2', '$1']
+        const billDenoms = [10000, 5000, 2000, 1000, 500, 100] // $100, $50, $20, $10, $5, $1
+        const billNames = ['$100', '$50', '$20', '$10', '$5', '$1']
         
         for (let i = 0; i < billDenoms.length; i++) {
           const count = Math.floor(remaining / billDenoms[i])
@@ -1012,8 +1012,12 @@ function App() {
       return
     }
 
-    // Try Web Share API first (mobile browsers)
-    if (navigator.share) {
+    // Detect if user is on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2)
+
+    // On mobile, try Web Share API first
+    if (isMobile && navigator.share) {
       try {
         await navigator.share({
           title: 'PONKER Cashout',
@@ -1030,7 +1034,7 @@ function App() {
       }
     }
 
-    // Fallback to clipboard copy for desktop or if Web Share API fails
+    // On desktop or if Web Share API fails, copy to clipboard
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(cashoutText)
@@ -1695,7 +1699,7 @@ function App() {
                       position: 'absolute',
                       width: '10px',
                       height: '4px',
-                      background: '#fff',
+                      background: chip.color === '#ffffff' ? '#0b289d' : '#fff',
                       borderRadius: '6px 6px 6px 6px',
                       top: '48.5%',
                       left: '46.25%',
@@ -1820,7 +1824,7 @@ function App() {
                           position: 'absolute',
                           width: '10px',
                           height: '4px',
-                          background: '#fff',
+                          background: fallingChip.color === '#ffffff' ? '#0b289d' : '#fff',
                           borderRadius: '6px 6px 6px 6px',
                           top: '48.5%',
                           left: '46%',
@@ -1943,7 +1947,7 @@ function App() {
                           position: 'absolute',
                           width: '10px',
                           height: '4px',
-                          background: '#fff',
+                          background: risingChip.color === '#ffffff' ? '#0b289d' : '#fff',
                           borderRadius: '6px 6px 6px 6px',
                           top: '48.5%',
                           left: '46%',
