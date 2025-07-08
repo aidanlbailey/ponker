@@ -304,7 +304,7 @@ body.felt-mode {
 }
 
 .felt-mode .title {
-  color: #ffffff;
+  color: #ffd700;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
@@ -313,7 +313,7 @@ body.felt-mode {
 }
 
 .felt-mode .title-letter {
-  color: #ffffff !important;
+  color: #ffd700 !important;
   -webkit-text-stroke: none !important;
   text-shadow: 
     1px 1px 0px #000000,
