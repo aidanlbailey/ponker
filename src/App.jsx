@@ -83,6 +83,7 @@ function App() {
   const [nameInputOpen, setNameInputOpen] = useState(false)
   const [nameInputEvaporating, setNameInputEvaporating] = useState(false)
   const [nameChangedNotification, setNameChangedNotification] = useState(false)
+  const [copyNotification, setCopyNotification] = useState({ show: false, message: '', type: 'success' })
   const [originalNameBeforeEdit, setOriginalNameBeforeEdit] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [fontMenuOpen, setFontMenuOpen] = useState(false)
@@ -263,6 +264,14 @@ function App() {
           navigator.vibrate(20)
       }
     }
+  }
+
+  // Helper function to show copy notifications
+  const showCopyNotification = (message, type = 'success') => {
+    setCopyNotification({ show: true, message, type })
+    setTimeout(() => {
+      setCopyNotification({ show: false, message: '', type: 'success' })
+    }, 3000) // Show for 3 seconds
   }
 
   // Minimum swipe distance for gesture recognition
@@ -898,8 +907,8 @@ function App() {
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(exportText)
-        const successMessage = userName ? `${userName}'s chip data copied to clipboard!` : 'Chip data copied to clipboard!'
-        alert(successMessage)
+        const successMessage = userName ? `${userName}'s chip data copied!` : 'Chip data copied!'
+        showCopyNotification(successMessage, 'success')
         triggerHaptic('success')
       } else {
         // Fallback for older browsers or mobile devices
@@ -909,6 +918,158 @@ function App() {
       console.error('Failed to copy with modern API, trying fallback: ', err)
       // If modern API fails, try fallback
       fallbackCopyTextToClipboard(exportText)
+    }
+  }
+
+    const generateCashoutText = () => {
+    // Map chip colors to appropriate dot emojis
+    const getColorDot = (color) => {
+      const colorLower = color.toLowerCase()
+      if (colorLower === '#ffffff' || colorLower === '#f8f9fa') return '⚪' // white
+      if (colorLower === '#dc3545' || colorLower === '#ff0000') return '🔴' // red
+      if (colorLower === '#007bff' || colorLower === '#0000ff') return '🔵' // blue
+      if (colorLower === '#28a745' || colorLower === '#00ff00') return '🟢' // green
+      if (colorLower === '#343a40' || colorLower === '#000000') return '⚫' // black
+      if (colorLower === '#ffc107' || colorLower === '#ffff00') return '🟡' // yellow
+      if (colorLower === '#6f42c1' || colorLower === '#800080') return '🟣' // purple
+      if (colorLower === '#fd7e14' || colorLower === '#ffa500') return '🟠' // orange
+      if (colorLower === '#e83e8c' || colorLower === '#ff69b4') return '🩷' // pink
+      if (colorLower === '#20c997' || colorLower === '#00ffff') return '🟦' // cyan
+      // Default to white dot for unknown colors
+      return '⚪'
+    }
+
+    // Calculate optimal cashout denominations
+    const calculateCashout = (totalValue, activeChips) => {
+      const denominations = []
+      let remaining = Math.round(totalValue * 100) // Convert to cents to avoid floating point issues
+      
+      // Check if any individual chip value exceeds $1
+      const hasHighValueChips = activeChips.some(([_, chip]) => chip.value > 1)
+      
+      // If all chips are $1 or less, force coins-only mode
+      const allChipsLowValue = activeChips.every(([_, chip]) => chip.value <= 1)
+      
+      // Bill denominations (only if any chip value exceeds $1 AND not all chips are low value)
+      if (hasHighValueChips && !allChipsLowValue && remaining >= 100) {
+        const billDenoms = [10000, 5000, 2000, 1000, 500, 200, 100] // $100, $50, $20, $10, $5, $2, $1
+        const billNames = ['$100', '$50', '$20', '$10', '$5', '$2', '$1']
+        
+        for (let i = 0; i < billDenoms.length; i++) {
+          const count = Math.floor(remaining / billDenoms[i])
+          if (count > 0) {
+            denominations.push(`${count} ${billNames[i]} bill${count > 1 ? 's' : ''}`)
+            remaining -= count * billDenoms[i]
+          }
+        }
+      }
+      // If no high-value chips, skip bills entirely and go straight to coins
+      
+      // Coin denominations
+      const coinDenoms = [25, 10, 5, 1] // 25¢, 10¢, 5¢, 1¢
+      const coinNames = ['quarter', 'dime', 'nickel', 'penny']
+      
+      for (let i = 0; i < coinDenoms.length; i++) {
+        const count = Math.floor(remaining / coinDenoms[i])
+        if (count > 0) {
+          const coinName = coinNames[i]
+          const plural = count > 1 ? (coinName === 'penny' ? 'pennies' : `${coinName}s`) : coinName
+          denominations.push(`${count} ${plural}`)
+          remaining -= count * coinDenoms[i]
+        }
+      }
+      
+      return denominations
+    }
+
+    // Filter out chips with zero count
+    const activeChips = Object.entries(chips).filter(([_, chip]) => chip.count > 0)
+    
+    if (activeChips.length === 0) {
+      return null
+    }
+
+    const chipLines = activeChips.map(([chipId, chip]) => {
+      const dot = getColorDot(chip.color)
+      const chipName = chipId.charAt(0).toUpperCase() + chipId.slice(1)
+      const valueText = chip.value >= 1 ? `$${formatNumber(chip.value)}` : `${(chip.value * 100).toFixed(0)}¢`
+      return `${dot} ${chip.count.toLocaleString()} ${chipName} chips (${valueText} each)`
+    })
+
+    const totalValue = getTotalValue()
+    const userNameLine = userName ? `${userName}'s chips:\n` : 'My chips:\n'
+    const cashoutDenoms = calculateCashout(totalValue, activeChips)
+    const cashoutLine = cashoutDenoms.length > 0 ? `\nCashout: ${cashoutDenoms.join(', ')}` : ''
+    return `${userNameLine}${chipLines.join('\n')}\n\nTotal: $${formatNumber(totalValue)}${cashoutLine}`
+  }
+
+  const shareCashout = async () => {
+    const cashoutText = generateCashoutText()
+    
+    if (!cashoutText) {
+      showCopyNotification('No chips to cash out! Add some chips first.', 'error')
+      triggerHaptic('error')
+      return
+    }
+
+    // Try Web Share API first (mobile browsers)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'PONKER Cashout',
+          text: cashoutText
+        })
+        showCopyNotification('Cashout shared!', 'success')
+        triggerHaptic('success')
+        return
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Web Share API failed:', err)
+          // Fall back to clipboard copy
+        }
+      }
+    }
+
+    // Fallback to clipboard copy for desktop or if Web Share API fails
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(cashoutText)
+        const successMessage = userName ? `${userName}'s cashout copied!` : 'Cashout copied!'
+        showCopyNotification(successMessage, 'success')
+        triggerHaptic('success')
+      } else {
+        fallbackCopyTextToClipboard(cashoutText)
+      }
+    } catch (err) {
+      console.error('Failed to copy with modern API, trying fallback: ', err)
+      fallbackCopyTextToClipboard(cashoutText)
+    }
+  }
+
+  const copyPlainEnglishToClipboard = async () => {
+    const cashoutText = generateCashoutText()
+    
+    if (!cashoutText) {
+      showCopyNotification('No chips to cash out! Add some chips first.', 'error')
+      triggerHaptic('error')
+      return
+    }
+
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(cashoutText)
+        const successMessage = userName ? `${userName}'s plain English data copied!` : 'Plain English data copied!'
+        showCopyNotification(successMessage, 'success')
+        triggerHaptic('success')
+      } else {
+        // Fallback for older browsers or mobile devices
+        fallbackCopyTextToClipboard(cashoutText)
+      }
+    } catch (err) {
+      console.error('Failed to copy with modern API, trying fallback: ', err)
+      // If modern API fails, try fallback
+      fallbackCopyTextToClipboard(cashoutText)
     }
   }
 
@@ -931,8 +1092,8 @@ function App() {
       // Use the older execCommand method
       const successful = document.execCommand('copy')
       if (successful) {
-        const successMessage = userName ? `${userName}'s chip data copied to clipboard!` : 'Chip data copied to clipboard!'
-        alert(successMessage)
+        const successMessage = userName ? `${userName}'s chip data copied!` : 'Chip data copied!'
+        showCopyNotification(successMessage, 'success')
         triggerHaptic('success')
       } else {
         throw new Error('execCommand copy failed')
@@ -940,8 +1101,7 @@ function App() {
     } catch (err) {
       console.error('Fallback copy failed: ', err)
       // Last resort - show the text in a prompt for manual copy
-      const message = 'Could not copy automatically. Please copy the text below manually:'
-      alert(message)
+      showCopyNotification('Copy failed. Please copy manually.', 'error')
       prompt('Copy this text:', text)
       triggerHaptic('error')
     } finally {
@@ -962,7 +1122,8 @@ function App() {
       }
       
       if (!text) {
-        alert('No data to load')
+        showCopyNotification('No data to load', 'error')
+        triggerHaptic('error')
         return
       }
       
@@ -985,15 +1146,15 @@ function App() {
       
       if (Object.keys(newChips).length > 0) {
         setChips(newChips)
-        alert(`Loaded ${Object.keys(newChips).length} chip types from clipboard!`)
+        showCopyNotification(`Loaded ${Object.keys(newChips).length} chip types!`, 'success')
         triggerHaptic('success')
       } else {
-        alert('No valid chip data found in clipboard')
+        showCopyNotification('No valid chip data found', 'error')
         triggerHaptic('error')
       }
     } catch (err) {
       console.error('Failed to read clipboard: ', err)
-      alert('Failed to read from clipboard')
+      showCopyNotification('Failed to read from clipboard', 'error')
       triggerHaptic('error')
     }
   }
@@ -1073,6 +1234,11 @@ function App() {
               <button onClick={() => { copyToClipboard(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">📋</span>
                 Copy Data {userName && `(${userName})`}
+              </button>
+              
+              <button onClick={() => { shareCashout(); closeMenu(); }} className="menu-item">
+                <span className="menu-icon">💵</span>
+                Cashout {userName && `(${userName})`}
               </button>
               
               <button onClick={() => { loadFromClipboard(); closeMenu(); }} className="menu-item">
@@ -1844,6 +2010,15 @@ function App() {
         <div className="name-changed-notification">
           <div className="notification-content">
             ✓ Name Changed!
+          </div>
+        </div>
+      )}
+
+      {/* Copy notification popup */}
+      {copyNotification.show && (
+        <div className={`copy-notification ${copyNotification.type}`}>
+          <div className="notification-content">
+            {copyNotification.type === 'success' ? '✓ ' : '✗ '}{copyNotification.message}
           </div>
         </div>
       )}
