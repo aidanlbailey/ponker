@@ -98,6 +98,8 @@ function App() {
   const [fallingChips, setFallingChips] = useState([])
   const [risingChips, setRisingChips] = useState([])
   const [activeAnimations, setActiveAnimations] = useState(0)
+  const [fallingAnimations, setFallingAnimations] = useState(0)
+  const [risingAnimations, setRisingAnimations] = useState(0)
   const [screenSize, setScreenSize] = useState(() => {
     const width = window.innerWidth
     if (width <= 480) return 'small'
@@ -352,13 +354,13 @@ function App() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Disable scrolling when animations are active
+  // Disable scrolling when falling animations are active (only when adding chips)
   useEffect(() => {
     const preventScroll = (e) => {
       e.preventDefault()
     }
 
-    if (activeAnimations > 0) {
+    if (fallingAnimations > 0) {
       document.body.style.overflowY = 'scroll' // Keep scrollbar visible
       document.addEventListener('wheel', preventScroll, { passive: false })
       document.addEventListener('touchmove', preventScroll, { passive: false })
@@ -378,7 +380,7 @@ function App() {
       document.removeEventListener('wheel', preventScroll)
       document.removeEventListener('touchmove', preventScroll)
     }
-  }, [activeAnimations])
+  }, [fallingAnimations])
 
   // Mouse avoidance effect for title letters
   const handleMouseMove = (e) => {
@@ -611,12 +613,12 @@ function App() {
     }
     
     setFallingChips(prev => [...prev, newFallingChip])
-    setActiveAnimations(prev => prev + 1)
+    setFallingAnimations(prev => prev + 1)
     
     // Remove the falling chip after animation completes
     setTimeout(() => {
       setFallingChips(prev => prev.filter(fc => fc.id !== fallingChipId))
-      setActiveAnimations(prev => prev - 1)
+      setFallingAnimations(prev => prev - 1)
     }, (animationDuration + startDelay) * 1000)
     
     // Update the actual chip count
@@ -669,12 +671,12 @@ function App() {
       }
       
       setRisingChips(prev => [...prev, newRisingChip])
-      setActiveAnimations(prev => prev + 1)
+      setRisingAnimations(prev => prev + 1)
       
       // Remove the rising chip after animation completes
       setTimeout(() => {
         setRisingChips(prev => prev.filter(rc => rc.id !== risingChipId))
-        setActiveAnimations(prev => prev - 1)
+        setRisingAnimations(prev => prev - 1)
       }, (animationDuration + startDelay) * 1000)
     }
     
