@@ -438,6 +438,12 @@ function App() {
     
     letters.forEach((letter, index) => {
       const letterRect = letter.getBoundingClientRect()
+      
+      // Create a circular hitbox for each letter
+      const letterWidth = letterRect.width
+      const letterHeight = letterRect.height
+      const hitboxRadius = Math.max(letterWidth, letterHeight) * 0.6 // Circular hitbox based on letter size
+      
       // Get the letter's original position (without any current offset)
       const originalLetterCenterX = letterRect.left + letterRect.width / 2 - rect.left
       const originalLetterCenterY = letterRect.top + letterRect.height / 2 - rect.top
@@ -447,24 +453,25 @@ function App() {
       const currentLetterCenterX = originalLetterCenterX + currentOffset.x
       const currentLetterCenterY = originalLetterCenterY + currentOffset.y
       
+      // Calculate distance from cursor to the circular hitbox center
       const deltaX = cursorX - currentLetterCenterX
       const deltaY = cursorY - currentLetterCenterY
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
       
-      // Much more gentle avoidance effect with smoother easing
-      const avoidanceRadius = 120 // Reduced from 200 to 120
-      if (distance < avoidanceRadius && distance > 0) {
-        // Use a smoother easing curve - cubic easing instead of linear
-        const normalizedDistance = distance / avoidanceRadius
-        const force = Math.pow(1 - normalizedDistance, 2) // Quadratic easing for smoother start
-        const maxOffset = 12 // Slightly reduced from 15 to 12 pixels
+              // Much more gentle avoidance effect with smoother easing
+        const avoidanceRadius = hitboxRadius + 80 // Dynamic radius based on hitbox size
+        if (distance < avoidanceRadius && distance > 0) {
+          // Use a smoother easing curve - cubic easing instead of linear
+          const normalizedDistance = distance / avoidanceRadius
+          const force = Math.pow(1 - normalizedDistance, 2) // Quadratic easing for smoother start
+          const maxOffset = 60 // Increased from 12 to 35 pixels for much further movement
         
         // Calculate the desired offset direction (away from cursor)
         const desiredOffsetX = -(deltaX / distance) * force * maxOffset
         const desiredOffsetY = -(deltaY / distance) * force * maxOffset
         
         // Gradually move toward the desired offset for smoother animation
-        const lerpFactor = 0.3 // How quickly to interpolate (0.1 = slow, 1.0 = instant)
+        const lerpFactor = 0.08 // Much slower interpolation (0.08 = very slow, 1.0 = instant)
         const newOffsetX = currentOffset.x + (desiredOffsetX - currentOffset.x) * lerpFactor
         const newOffsetY = currentOffset.y + (desiredOffsetY - currentOffset.y) * lerpFactor
         
@@ -472,11 +479,11 @@ function App() {
         
         // Debug logging for the first letter
         if (index === 0) {
-          console.log(`Letter ${index}: distance=${distance.toFixed(1)}, force=${force.toFixed(2)}, offset=(${newOffsetX.toFixed(1)}, ${newOffsetY.toFixed(1)})`)
+          console.log(`Letter ${index}: hitboxRadius=${hitboxRadius.toFixed(1)}, distance=${distance.toFixed(1)}, force=${force.toFixed(2)}, offset=(${newOffsetX.toFixed(1)}, ${newOffsetY.toFixed(1)})`)
         }
       } else {
         // Gradually return to center when outside avoidance radius
-        const returnLerpFactor = 0.15 // Slower return to center
+        const returnLerpFactor = 0.04 // Much slower return to center
         const newOffsetX = currentOffset.x * (1 - returnLerpFactor)
         const newOffsetY = currentOffset.y * (1 - returnLerpFactor)
         
@@ -492,13 +499,50 @@ function App() {
   }
 
   const handleMouseLeave = () => {
-    // Reset all letter positions when mouse leaves
-    setLetterOffsets({})
+    // Start smooth return to center when mouse leaves
+    startSmoothReturn()
   }
 
   const handleTitleTouchEnd = () => {
-    // Reset all letter positions when touch ends
-    setLetterOffsets({})
+    // Start smooth return to center when touch ends
+    startSmoothReturn()
+  }
+
+  // Function to smoothly return letters to center
+  const startSmoothReturn = () => {
+    const returnInterval = setInterval(() => {
+      setLetterOffsets(prevOffsets => {
+        const newOffsets = {}
+        let allReturned = true
+        
+        Object.keys(prevOffsets).forEach(index => {
+          const currentOffset = prevOffsets[index]
+          const returnLerpFactor = 0.04 // Same slow return factor
+          
+          const newOffsetX = currentOffset.x * (1 - returnLerpFactor)
+          const newOffsetY = currentOffset.y * (1 - returnLerpFactor)
+          
+          // Check if this letter has returned to center
+          if (Math.abs(newOffsetX) > 0.1 || Math.abs(newOffsetY) > 0.1) {
+            allReturned = false
+            newOffsets[index] = { 
+              x: newOffsetX, 
+              y: newOffsetY 
+            }
+          } else {
+            // Letter has returned to center
+            newOffsets[index] = { x: 0, y: 0 }
+          }
+        })
+        
+        // If all letters have returned, stop the interval
+        if (allReturned) {
+          clearInterval(returnInterval)
+        }
+        
+        return newOffsets
+      })
+    }, 16) // 60fps (1000ms / 60 ≈ 16ms)
   }
 
   // Handle touch start
@@ -1165,13 +1209,20 @@ function App() {
 
   return (
     <div className={`app ${theme !== 'dark' ? `${theme}-mode` : ''}`} style={{ fontFamily: presetFonts[currentFontIndex].family }}>
-      <div className="title-section">
+      <div 
+        className="title-section"
+        onTouchStart={(e) => e.preventDefault()} // Prevent scrolling on touch start
+        onTouchMove={(e) => e.preventDefault()} // Prevent scrolling on touch move
+        style={{ touchAction: 'none' }} // CSS property to prevent touch actions
+      >
         <h1 
           className="title"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onTouchMove={handleTitleTouchMove}
           onTouchEnd={handleTitleTouchEnd}
+          onTouchStart={(e) => e.preventDefault()} // Prevent scrolling on touch start
+          style={{ touchAction: 'none' }} // CSS property to prevent touch actions
         >
           {"PONKER".split('').map((letter, index) => {
             // Use the randomly generated fonts for each letter
@@ -1201,7 +1252,14 @@ function App() {
             );
           })}
         </h1>
-        <p className="subtitle">by aidan bailey</p>
+        <p 
+          className="subtitle"
+          onTouchStart={(e) => e.preventDefault()} // Prevent scrolling on touch start
+          onTouchMove={(e) => e.preventDefault()} // Prevent scrolling on touch move
+          style={{ touchAction: 'none' }} // CSS property to prevent touch actions
+        >
+          by aidan bailey
+        </p>
       </div>
       
       <div className="top-controls">
