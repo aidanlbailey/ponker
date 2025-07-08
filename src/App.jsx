@@ -947,8 +947,8 @@ function App() {
       // Check if any individual chip value exceeds $1
       const hasHighValueChips = activeChips.some(([_, chip]) => chip.value > 1)
       
-      // If all chips are $1 or less, force coins-only mode
-      const allChipsLowValue = activeChips.every(([_, chip]) => chip.value <= 1)
+      // If all chips are under $1 (99¢ and below), force coins-only mode
+      const allChipsLowValue = activeChips.every(([_, chip]) => chip.value < 1)
       
       // Bill denominations (only if any chip value exceeds $1 AND not all chips are low value)
       if (hasHighValueChips && !allChipsLowValue && remaining >= 100) {
