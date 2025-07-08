@@ -2028,6 +2028,23 @@ body.felt-mode {
   animation: slideInFadeOut 3s ease-out forwards;
 }
 
+/* Copy Notification */
+.copy-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  animation: slideInFadeOut 3s ease-out forwards;
+}
+
+.copy-notification.success {
+  animation: slideInFadeOut 3s ease-out forwards;
+}
+
+.copy-notification.error {
+  animation: slideInFadeOut 3s ease-out forwards;
+}
+
 .notification-content {
   background: linear-gradient(145deg, #28a745, #20c997);
   color: white;
@@ -2041,6 +2058,16 @@ body.felt-mode {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.copy-notification.success .notification-content {
+  background: linear-gradient(145deg, #28a745, #20c997);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.copy-notification.error .notification-content {
+  background: linear-gradient(145deg, #dc3545, #c82333);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
 }
 
 /* Mobile responsiveness for name input and notification - REMOVED to prevent layout compression */
