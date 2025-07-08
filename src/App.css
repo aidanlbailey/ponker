@@ -183,8 +183,8 @@ body.light-mode {
 .light-mode .total-value {
   background: linear-gradient(145deg, #ffffff, #f8f9fa);
   color: #212529;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid #dee2e6;
+  outline: none;
 }
 
 /* Light mode panel styles */
@@ -370,8 +370,8 @@ body.felt-mode {
 .felt-mode .total-value {
   background: linear-gradient(145deg, #1a5f3a, #0f5132);
   color: #ffffff;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   border: 2px solid #2d5a3d;
+  outline: none;
 }
 
 /* Felt mode panel styles */
@@ -1616,8 +1616,8 @@ body.felt-mode {
   background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
   padding: 1rem 2rem;
   border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
   text-align: center;
+  outline: none;
 }
 
 /* Hamburger Menu Styles */
