@@ -205,6 +205,18 @@ function App() {
 
   const presets = [
     {
+      id: 'holidaze25-gmoney-pennypoker',
+      name: 'HoliDaze25 GMoney NickelPoker',
+      author: 'Aidan',
+      description: 'Low stakes 2025 holiday "nickel poker" setup',
+      chips: {
+        blue: { count: 0, value: 0.05, color: '#007bff' },
+        green: { count: 0, value: 0.10, color: '#28a745' },
+        red: { count: 0, value: .25, color: '#dc3545' },
+        black: { count: 0, value: 0.50, color: '#343a40' }
+      }
+    },
+    { 
       id: 'gmoney-pennypoker',
       name: 'GMoney PennyPoker',
       author: 'Aidan',
