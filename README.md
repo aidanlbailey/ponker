@@ -83,13 +83,13 @@ PONKER features an intuitive chip counting interface that lets you create chip t
 - **Set values**: Tap the dollar amount field and type a new value
 
 ### Customizing Your Setup
-- **Add new chip types**: Menu → "Add New Chip Type"
+- **Add new chip types**: Menu → "Add Chip Type"
 - **Delete chip types**: Click "Delete" on any chip (must have more than one chip type)
 - **Change colors**: Use preset colors or the custom color picker
 - **Set your name**: Menu → "Set Your Name" (included when sharing data)
 - **Change theme**: Menu → Theme options (Dark/Light/Felt modes)
 - **Customize fonts**: Menu → "Font Style" (20+ font options)
-- **Move total value**: Menu → "Move Total to Top/Bottom"
+- **Move total value**: Menu → "Total at Top/Bottom" in settings
 
 ### Sharing & Saving
 - **Copy your setup**: Menu → "Copy Data" - copies your chip configuration to clipboard
@@ -104,6 +104,15 @@ PONKER features an intuitive chip counting interface that lets you create chip t
 - **Theme switching** is available in the menu - try all three modes!
 - **Number formatting** automatically adds commas for better readability
 - **Font customization** lets you personalize the app's appearance
+
+## Recent Updates
+- ✅ Removed outdated About panel and placeholder content
+- ✅ Streamlined menu labels and font interface for a cleaner look
+- ✅ Significant code cleanup behind the scenes – smaller bundle, easier maintenance
+- ✅ Updated UI to feel less "AI-rotted" and more polished while preserving the signature
+- ✅ Version bumped to 1.0.3 (March 2026)
+
+---
 
 ## Installation & Development
 
@@ -156,6 +165,6 @@ Created by Aidan Bailey
 
 ---
 
-**Version**: 1.0.2
+**Version**: 1.0.3
 **Built with**: React & Vite
-**Last Updated**: July 2025
+**Last Updated**: March 2026
