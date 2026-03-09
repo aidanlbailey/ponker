@@ -197,7 +197,6 @@ body.light-mode {
 /* Light mode panel styles */
 .light-mode .presets-panel,
 .light-mode .font-menu,
-.light-mode .about-panel,
 .light-mode .name-input-panel {
   background: linear-gradient(145deg, #ffffff, #f8f9fa);
   border: 2px solid #dee2e6;
@@ -206,7 +205,6 @@ body.light-mode {
 
 .light-mode .presets-header,
 .light-mode .font-menu-header,
-.light-mode .about-panel h3,
 .light-mode .name-input-panel h3 {
   color: #212529;
 }
@@ -393,7 +391,6 @@ body.felt-mode {
 /* Felt mode panel styles */
 .felt-mode .presets-panel,
 .felt-mode .font-menu,
-.felt-mode .about-panel,
 .felt-mode .name-input-panel {
   background: linear-gradient(145deg, #1a5f3a, #0f5132);
   border: 2px solid #2d5a3d;
@@ -402,7 +399,6 @@ body.felt-mode {
 
 .felt-mode .presets-header,
 .felt-mode .font-menu-header,
-.felt-mode .about-panel h3,
 .felt-mode .name-input-panel h3 {
   color: #ffffff;
 }
@@ -639,36 +635,6 @@ body.felt-mode {
   animation: slideIn 0.7s ease-out;
 }
 
-.add-chip-type-btn, .presets-toggle-btn, .clipboard-btn {
-  padding: 0.5rem 1rem;
-  background: linear-gradient(145deg, #646cff, #5a5fcf);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.clipboard-btn {
-  background: linear-gradient(145deg, #17a2b8, #138496);
-}
-
-.add-chip-type-btn:hover, .presets-toggle-btn:hover, .clipboard-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(100, 108, 255, 0.3);
-}
-
-.clipboard-btn:hover {
-  box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
-}
-
-.add-chip-type-btn:active, .presets-toggle-btn:active, .clipboard-btn:active {
-  animation: buttonPress 0.1s ease;
-}
-
 .top-total-value {
   background: linear-gradient(145deg, #2d3748, #4a5568);
   color: #ffffff;
@@ -690,22 +656,6 @@ body.felt-mode {
   border-color: #a0aec0;
 }
 
-/* Mobile responsive adjustments for top controls - REMOVED to prevent layout compression */
-/* @media (max-width: 768px) {
-  .top-total-value {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
-    min-width: 70px;
-  }
-}
-
-@media (max-width: 480px) {
-  .top-total-value {
-    padding: 0.5rem 0.7rem;
-    font-size: 0.8rem;
-    min-width: 60px;
-  }
-} */
 
 .presets-panel {
   background: #1a1a1a;
@@ -912,55 +862,6 @@ body.felt-mode {
   gap: 1.5rem;
 }
 
-.current-font-info {
-  text-align: center;
-  background: #2a2a2a;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #444;
-}
-
-.current-font-info h4 {
-  color: #4a90e2;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
-}
-
-.font-family-display {
-  color: #aaa;
-  font-family: monospace;
-  font-size: 0.9rem;
-  margin: 0;
-  word-break: break-all;
-}
-
-.font-controls {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.font-btn {
-  background: linear-gradient(145deg, #4a90e2, #357abd);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.75rem 1.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1rem;
-}
-
-.font-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
-}
-
-.font-btn:active {
-  animation: buttonPress 0.1s ease;
-}
-
 .font-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1018,16 +919,6 @@ body.felt-mode {
   margin: 0.5rem 0;
   font-size: 1rem;
   line-height: 1.4;
-}
-
-.dev-menu-item {
-  border-top: 1px solid #444 !important;
-  margin-top: 0.5rem !important;
-  padding-top: 1rem !important;
-}
-
-.dev-menu-item .menu-icon {
-  color: #6c757d !important;
 }
 
 .delete-confirm-overlay {
@@ -1376,26 +1267,6 @@ body.felt-mode {
   height: var(--dot-size);
 }
 
-/* Mobile responsive chip adjustments - REMOVED to prevent chip design issues */
-/* @media (max-width: 768px) {
-  .chip {
-    --chip-size: 110px;
-    --edge-rect-size: 18px;
-    --dice-size: 12px;
-    --dot-size: 2px;
-    --edge-distance: calc(var(--chip-size) * 0.35);
-  }
-}
-
-@media (max-width: 480px) {
-  .chip {
-    --chip-size: 88px;
-    --edge-rect-size: 14px;
-    --dice-size: 9px;
-    --dot-size: 1.5px;
-    --edge-distance: calc(var(--chip-size) * 0.35);
-  }
-} */
 
 .chip:hover {
   transform: scale(1.05);
@@ -1404,8 +1275,6 @@ body.felt-mode {
     inset 0 0 20px #000000,
     0 12px 24px #000000;
 }
-
-/* Animation classes for chip interactions removed */
 
 /* Simple chip design styles */
 .chip-design {
@@ -1476,18 +1345,6 @@ body.felt-mode {
   -ms-user-select: none; /* IE/Edge */
 }
 
-/* Mobile responsive chip count adjustments - REMOVED to prevent chip design issues */
-/* @media (max-width: 768px) {
-  .chip-count {
-    font-size: 2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .chip-count {
-    font-size: 1.6rem;
-  }
-} */
 
 .chip-controls {
   display: flex;
@@ -1587,27 +1444,6 @@ body.felt-mode {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Mobile responsive button adjustments - REMOVED to prevent chip design issues */
-/* @media (max-width: 768px) {
-  .chip-buttons {
-    gap: 0.25rem;
-    width: 100%;
-  }
-  
-  .add-btn, .remove-btn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.9rem;
-    min-width: 65px;
-  }
-}
-
-@media (max-width: 480px) {
-  .add-btn, .remove-btn {
-    padding: 0.5rem 0.6rem;
-    font-size: 0.8rem;
-    min-width: 60px;
-  }
-} */
 
 .add-btn {
   background: linear-gradient(145deg, #38a169, #2f855a);
@@ -1808,112 +1644,6 @@ body.felt-mode {
   font-size: 1.2em !important;
 }
 
-/* Mobile responsiveness for menu - REMOVED to prevent layout compression */
-/* @media (max-width: 768px) {
-  .hamburger-btn {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
-    min-width: 70px;
-  }
-  
-  .menu-overlay {
-    padding: 10px;
-  }
-  
-  .menu-panel {
-    min-width: 260px;
-    max-width: 95vw;
-  }
-  
-  .menu-item {
-    padding: 18px 16px;
-    font-size: 15px;
-  }
-  
-  .menu-icon {
-    font-size: 16px;
-    width: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .hamburger-btn {
-    padding: 0.5rem 0.7rem;
-    font-size: 0.8rem;
-    min-width: 60px;
-  }
-  
-  .menu-panel {
-    min-width: 240px;
-  }
-  
-  .menu-header {
-    padding: 16px 16px 12px 16px;
-  }
-  
-  .menu-header h3 {
-    font-size: 1.1rem;
-  }
-  
-  .menu-item {
-    padding: 16px 16px;
-    font-size: 14px;
-    gap: 12px;
-  }
-} */
-
-/* Mobile responsiveness for font menu - REMOVED to prevent layout compression */
-/* @media (max-width: 768px) {
-  .font-menu {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .font-menu-header h3 {
-    font-size: 1.2rem;
-  }
-  
-  .font-controls {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .font-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .font-grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 0.3rem;
-    max-height: 250px;
-  }
-  
-  .font-option {
-    padding: 0.4rem;
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .font-menu {
-    padding: 0.8rem;
-  }
-  
-  .font-menu-header h3 {
-    font-size: 1.1rem;
-  }
-  
-  .font-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    max-height: 200px;
-  }
-  
-  .font-sample p {
-    font-size: 0.9rem;
-  }
-} */
-
 /* Name Input Panel Styles */
 .name-input-panel {
   background: #1a1a1a;
@@ -2037,14 +1767,6 @@ body.felt-mode {
   animation: slideInFadeOut 3s ease-out forwards;
 }
 
-.copy-notification.success {
-  animation: slideInFadeOut 3s ease-out forwards;
-}
-
-.copy-notification.error {
-  animation: slideInFadeOut 3s ease-out forwards;
-}
-
 .notification-content {
   background: linear-gradient(145deg, #28a745, #20c997);
   color: white;
@@ -2070,206 +1792,6 @@ body.felt-mode {
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
 }
 
-/* Mobile responsiveness for name input and notification - REMOVED to prevent layout compression */
-/* @media (max-width: 768px) {
-  .name-input-panel {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .name-input-panel h3 {
-    font-size: 1.2rem;
-  }
-  
-  .name-input-buttons {
-    gap: 1rem;
-    flex-direction: column;
-  }
-  
-  .clear-name-btn, .close-name-btn {
-    width: 100%;
-    max-width: 200px;
-  }
-  
-  .name-changed-notification {
-    top: 10px;
-    left: 10px;
-    right: 10px;
-  }
-  
-  .notification-content {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    border-radius: 20px;
-    text-align: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .name-input-panel {
-    padding: 0.8rem;
-  }
-  
-  .name-input-buttons {
-    gap: 0.75rem;
-  }
-  
-  .clear-name-btn, .close-name-btn {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .notification-content {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.8rem;
-  }
-} */
-
-/* Falling chip animations - multiple variations for randomization */
-@keyframes chipFall1 {
-  0% {
-    transform: translateY(-100vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  50% {
-    transform: translateY(-50vh) translateX(20px) rotate(180deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0) translateX(0) rotate(360deg);
-    opacity: 1;
-  }
-}
-
-@keyframes chipFall2 {
-  0% {
-    transform: translateY(-100vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  30% {
-    transform: translateY(-70vh) translateX(-30px) rotate(120deg);
-    opacity: 1;
-  }
-  70% {
-    transform: translateY(-30vh) translateX(15px) rotate(240deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0) translateX(0) rotate(480deg);
-    opacity: 1;
-  }
-}
-
-@keyframes chipFall3 {
-  0% {
-    transform: translateY(-100vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  25% {
-    transform: translateY(-75vh) translateX(25px) rotate(90deg);
-    opacity: 1;
-  }
-  75% {
-    transform: translateY(-25vh) translateX(-20px) rotate(270deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0) translateX(0) rotate(540deg);
-    opacity: 1;
-  }
-}
-
-@keyframes chipFall4 {
-  0% {
-    transform: translateY(-100vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  40% {
-    transform: translateY(-60vh) translateX(-15px) rotate(200deg);
-    opacity: 1;
-  }
-  80% {
-    transform: translateY(-20vh) translateX(10px) rotate(400deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0) translateX(0) rotate(600deg);
-    opacity: 1;
-  }
-}
-
-/* Rising chip animations - multiple variations for randomization */
-@keyframes chipRise1 {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  50% {
-    transform: translateY(-50vh) translateX(-20px) rotate(-180deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(0) rotate(-360deg);
-    opacity: 0;
-  }
-}
-
-@keyframes chipRise2 {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  30% {
-    transform: translateY(-30vh) translateX(30px) rotate(-120deg);
-    opacity: 1;
-  }
-  70% {
-    transform: translateY(-70vh) translateX(-15px) rotate(-240deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(0) rotate(-480deg);
-    opacity: 0;
-  }
-}
-
-@keyframes chipRise3 {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  25% {
-    transform: translateY(-25vh) translateX(-25px) rotate(-90deg);
-    opacity: 1;
-  }
-  75% {
-    transform: translateY(-75vh) translateX(20px) rotate(-270deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(0) rotate(-540deg);
-    opacity: 0;
-  }
-}
-
-@keyframes chipRise4 {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  40% {
-    transform: translateY(-40vh) translateX(15px) rotate(-200deg);
-    opacity: 1;
-  }
-  80% {
-    transform: translateY(-80vh) translateX(-10px) rotate(-400deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(0) rotate(-600deg);
-    opacity: 0;
-  }
-}
 
 .falling-chip, .rising-chip {
   position: fixed;
@@ -2287,10 +1809,4 @@ body.felt-mode {
 /* Classic dice poker chip design styles */
 .chip-edge-rect {
   box-shadow: 0 0 2px #0002;
-}
-.chip-dice-pattern {
-  /* No extra styles needed, handled inline */
-}
-.chip-inner-dash {
-  /* No extra styles needed, handled inline */
 }

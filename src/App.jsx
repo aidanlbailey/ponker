@@ -33,17 +33,7 @@ function App() {
     }))
   })
 
-  // Generate random fonts for letters (all using Georgia serif like P)
-  const [letterFonts] = useState(() => {
-    return "PONKER".split('').map((letter, index) => {
-      // All letters use Georgia serif
-      return { family: 'Georgia, "Times New Roman", serif', weight: 'bold' }
-    })
-  })
-
   const [presetsOpen, setPresetsOpen] = useState(false)
-  const [aboutOpen, setAboutOpen] = useState(false)
-  const [animatingChips, setAnimatingChips] = useState({})
   const [addingChip, setAddingChip] = useState(null)
   const [removingChip, setRemovingChip] = useState(null)
   const [showTotalValue, setShowTotalValue] = useState(true)
@@ -71,7 +61,6 @@ function App() {
   const [isLongPress, setIsLongPress] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null) // Track which chip to delete
   const [colorPickerOpen, setColorPickerOpen] = useState(null) // Track which chip's color picker is open
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [letterOffsets, setLetterOffsets] = useState({}) // Track letter positions for mouse avoidance
   const [userName, setUserName] = useState(() => {
     try {
@@ -107,7 +96,6 @@ function App() {
   })
   const [fallingChips, setFallingChips] = useState([])
   const [risingChips, setRisingChips] = useState([])
-  const [activeAnimations, setActiveAnimations] = useState(0)
   const [fallingAnimations, setFallingAnimations] = useState(0)
   const [risingAnimations, setRisingAnimations] = useState(0)
   const [screenSize, setScreenSize] = useState(() => {
@@ -298,14 +286,6 @@ function App() {
     }
   }
 
-  const savePresetToStorage = (presetId) => {
-    try {
-      localStorage.setItem('ponker-last-preset', presetId)
-    } catch (err) {
-      console.error('Failed to save preset to localStorage:', err)
-    }
-  }
-
   const saveUserNameToStorage = (name) => {
     try {
       localStorage.setItem('ponker-user-name', name)
@@ -425,8 +405,6 @@ function App() {
     const rect = e.currentTarget.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
-    setMousePosition({ x: mouseX, y: mouseY })
-    
     calculateLetterOffsets(rect, mouseX, mouseY)
   }
 
@@ -437,8 +415,6 @@ function App() {
     const touch = e.touches[0]
     const touchX = touch.clientX - rect.left
     const touchY = touch.clientY - rect.top
-    setMousePosition({ x: touchX, y: touchY })
-    
     calculateLetterOffsets(rect, touchX, touchY)
   }
 
@@ -488,11 +464,6 @@ function App() {
         const newOffsetY = currentOffset.y + (desiredOffsetY - currentOffset.y) * lerpFactor
         
         newOffsets[index] = { x: newOffsetX, y: newOffsetY }
-        
-        // Debug logging for the first letter
-        if (index === 0) {
-          console.log(`Letter ${index}: hitboxRadius=${hitboxRadius.toFixed(1)}, distance=${distance.toFixed(1)}, force=${force.toFixed(2)}, offset=(${newOffsetX.toFixed(1)}, ${newOffsetY.toFixed(1)})`)
-        }
       } else {
         // Gradually return to center when outside avoidance radius
         const returnLerpFactor = 0.04 // Much slower return to center
@@ -623,11 +594,6 @@ function App() {
     // Reset touch states
     setTouchStart(null)
     setTouchEnd(null)
-  }
-
-  // Helper function to trigger chip animations
-  const triggerChipAnimation = (chipId, animationType) => {
-    // Animation removed - keeping function for compatibility
   }
 
   const updateChipValue = (chipId, value) => {
@@ -812,11 +778,6 @@ function App() {
     triggerHaptic('light')
   }
 
-  const openColorPicker = (chipId) => {
-    setColorPickerOpen(chipId)
-    triggerHaptic('light')
-  }
-
   const closeColorPicker = () => {
     setColorPickerOpen(null)
     triggerHaptic('light')
@@ -837,20 +798,11 @@ function App() {
   const loadPreset = (preset) => {
     setChips(preset.chips)
     setPresetsOpen(false)
-    
-    // Save the preset selection to localStorage
-    savePresetToStorage(preset.id)
-    
     triggerHaptic('success')
   }
 
   const togglePresets = () => {
     setPresetsOpen(!presetsOpen)
-    triggerHaptic('light')
-  }
-
-  const toggleAbout = () => {
-    setAboutOpen(!aboutOpen)
     triggerHaptic('light')
   }
 
@@ -908,25 +860,8 @@ function App() {
     triggerHaptic('light')
   }
 
-  const toggleDevPanel = () => {
-    setFontMenuOpen(!fontMenuOpen)
-    triggerHaptic('light')
-  }
-
   const toggleFontMenu = () => {
     setFontMenuOpen(!fontMenuOpen)
-    triggerHaptic('light')
-  }
-
-  const cycleFontForward = () => {
-    const newIndex = (currentFontIndex + 1) % presetFonts.length
-    setCurrentFontIndex(newIndex)
-    triggerHaptic('light')
-  }
-
-  const cycleFontBackward = () => {
-    const newIndex = (currentFontIndex - 1 + presetFonts.length) % presetFonts.length
-    setCurrentFontIndex(newIndex)
     triggerHaptic('light')
   }
 
@@ -1237,8 +1172,7 @@ function App() {
           style={{ touchAction: 'none' }} // CSS property to prevent touch actions
         >
           {"PONKER".split('').map((letter, index) => {
-            // Use the randomly generated fonts for each letter
-            const letterStyle = getLetterStyle(letterFonts[index].family, letterFonts[index].weight)
+            const letterStyle = getLetterStyle('Georgia, "Times New Roman", serif', 'bold')
             
             // Get offset for this letter from mouse avoidance
             const offset = letterOffsets[index] || { x: 0, y: 0 }
@@ -1276,7 +1210,7 @@ function App() {
       
       <div className="top-controls">
         <button onClick={toggleMenu} className="hamburger-btn">
-          ☰ Menu
+          ☰
         </button>
         {showTotalValue && totalValueNextToMenu && (
           <div className="top-total-value">
@@ -1297,7 +1231,7 @@ function App() {
             <div className="menu-items">
               <button onClick={() => { addNewChipType(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">+</span>
-                Add New Chip Type
+                Add Chip Type
               </button>
               
               <button onClick={() => { togglePresets(); closeMenu(); }} className="menu-item">
@@ -1327,12 +1261,12 @@ function App() {
               
               <button onClick={() => { toggleDeleteButtonVisibility(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">🗑️</span>
-                {showDeleteButtons ? 'Hide Delete Buttons' : 'Show Delete Buttons'}
+                {showDeleteButtons ? 'Hide Delete' : 'Show Delete'}
               </button>
               
               <button onClick={() => { toggleTotalValuePosition(); closeMenu(); }} className="menu-item">
                 <span className="menu-icon">📍</span>
-                {totalValueNextToMenu ? 'Move Total to Bottom' : 'Move Total to Top'}
+                {totalValueNextToMenu ? 'Total at Bottom' : 'Total at Top'}
               </button>
               
               <button onClick={() => { toggleNameInput(); closeMenu(); }} className="menu-item">
@@ -1357,7 +1291,7 @@ function App() {
               </button>
               
               <button onClick={() => { toggleFontMenu(); closeMenu(); }} className="menu-item">
-                <span className="menu-icon"></span>
+                <span className="menu-icon">Aa</span>
                 Font Style
               </button>
               
@@ -1406,21 +1340,6 @@ function App() {
               </div>
             ))}
           </div>
-          
-          <div className="presets-footer">
-            <div className="coming-soon-section">
-              <p className="coming-soon-text">Coming soon!</p>
-              <button 
-                className="add-preset-btn"
-                onClick={() => {
-                  alert('Custom preset creation coming soon! For now, you can manually set up your chips and use the Copy Data feature to share your setup.')
-                  triggerHaptic('light')
-                }}
-              >
-                Add Your Own Preset
-              </button>
-            </div>
-          </div>
         </div>
       )}
       
@@ -1431,20 +1350,6 @@ function App() {
             <button onClick={toggleFontMenu} className="close-font-menu-btn">✕</button>
           </div>
           <div className="font-menu-content">
-            <div className="current-font-info">
-              <h4>Current Font: {presetFonts[currentFontIndex].name}</h4>
-              <p className="font-family-display">{presetFonts[currentFontIndex].family}</p>
-            </div>
-            
-            <div className="font-controls">
-              <button onClick={cycleFontBackward} className="font-btn">
-                ← Previous Font
-              </button>
-              <button onClick={cycleFontForward} className="font-btn">
-                Next Font →
-              </button>
-            </div>
-            
             <div className="font-grid">
               {presetFonts.map((font, index) => (
                 <button
@@ -1459,57 +1364,10 @@ function App() {
             </div>
             
             <div className="font-sample">
-              <h4>Preview:</h4>
+              <h4>{presetFonts[currentFontIndex].name}</h4>
               <p style={{ fontFamily: presetFonts[currentFontIndex].family }}>
-                The quick brown fox jumps over the lazy dog. 1234567890
+                All in. $25 on the river. 1234567890
               </p>
-              <p style={{ fontFamily: presetFonts[currentFontIndex].family }}>
-                PONKER Chip Counter - Add/Remove chips easily!
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {aboutOpen && (
-        <div className="about-panel">
-          <h3>About PONKER</h3>
-          <div className="about-content">
-            <p>
-              PONKER is a simple and intuitive poker chip counter designed to help you keep track of your chip stacks during poker games.
-            </p>
-            
-            <h4>Features:</h4>
-            <ul>
-              <li>Add and remove chips with animated feedback</li>
-              <li>Customize chip colors by clicking on them</li>
-              <li>Set custom values for each chip type</li>
-              <li>Add or remove chip types as needed</li>
-              <li>Copy and paste chip data for sharing</li>
-              <li>Toggle between showing/hiding total values</li>
-              <li>Preset configurations for common poker setups</li>
-            </ul>
-            
-            <h4>How to Use:</h4>
-            <ul>
-              <li>Click "Add" to increase a chip count</li>
-              <li>Click "Remove" to decrease a chip count</li>
-              <li>Long press on a chip to change its color</li>
-              <li>Swipe down on a chip to add one (mobile)</li>
-              <li>Swipe up on a chip to remove one (mobile)</li>
-              <li>Adjust the value field to set the monetary value</li>
-              <li>Use "+ Chip" to add new chip types</li>
-              <li>Use "Delete" to remove chip types (when you have more than one)</li>
-            </ul>
-            
-            <div className="about-footer">
-              <p><strong>Created by Aidan Bailey</strong></p>
-              <p>Version 1.whateverthefuck - Built with React</p>
-              {/* TODO: Add more about text here - this is where you can write additional content */}
-              <div className="about-placeholder">
-                <p><em></em></p>
-                <p><em></em></p>
-              </div>
             </div>
           </div>
         </div>
