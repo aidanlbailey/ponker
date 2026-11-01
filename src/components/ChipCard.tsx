@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
-import { formatMoney, type Chip as ChipData } from '../lib/chips'
+import { contrastColor, formatMoney, type Chip as ChipData } from '../lib/chips'
 import { Chip } from './Chip'
 import { LAND_MS } from './ChipToss'
 
@@ -19,11 +19,14 @@ type ChipCardProps = {
 
 export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
   const chipButton = useRef<HTMLButtonElement>(null)
+  const count = useRef<HTMLSpanElement>(null)
   const rect = () => chipButton.current!.getBoundingClientRect()
 
   const thud = (keyframes: Keyframe[], delay: number) => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    chipButton.current?.animate(keyframes, { duration: 300, delay, easing: 'ease-out' })
+    for (const part of [chipButton.current, count.current]) {
+      part?.animate(keyframes, { duration: 300, delay, easing: 'ease-out' })
+    }
   }
 
   const add = () => {
@@ -42,17 +45,20 @@ export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChan
     <article className="chip-card">
       <p className="chip-total">{showValue && formatMoney(chip.value * chip.count)}</p>
 
-      <button
-        ref={chipButton}
-        className="chip-button"
-        aria-label={`${chip.count} chips. Edit chip`}
-        title="Click or long press to edit. Swipe down to add, up to remove."
-        {...gestures}
-      >
-        <Chip color={chip.color}>
-          <span className="chip-count">{chip.count.toLocaleString('en-US')}</span>
-        </Chip>
-      </button>
+      <div className="chip-stack">
+        <button
+          ref={chipButton}
+          className="chip-button"
+          aria-label={`${chip.count} chips. Edit chip`}
+          title="Click or long press to edit. Swipe down to add, up to remove."
+          {...gestures}
+        >
+          <Chip color={chip.color} />
+        </button>
+        <span ref={count} className="chip-count" aria-hidden="true" style={{ color: contrastColor(chip.color) }}>
+          {chip.count.toLocaleString('en-US')}
+        </span>
+      </div>
 
       <label className="chip-value">
         <span>$</span>

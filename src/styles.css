@@ -3,7 +3,6 @@
   --radius: 8px;
   --shadow: 0 4px 8px rgb(0 0 0 / 0.3);
   --bg-image: none;
-  --control-text: #ffffff;
   --title-stroke-width: 3px;
   --title-font-weight: 700;
 }
@@ -19,12 +18,8 @@
   --border: #3a3a3a;
   --accent: #3b82f6;
   --accent-text: #93c5fd;
-  --control: linear-gradient(145deg, #2d3748, #4a5568);
-  --control-border: #718096;
   --field: #1a1a1a;
   --field-border: #555555;
-  --pill: transparent;
-  --pill-border: transparent;
   --title-color: #93c5fd;
   --title-stroke: #3b82f6;
   --title-shadow:
@@ -41,12 +36,8 @@
   --border: #dee2e6;
   --accent: #0d6efd;
   --accent-text: #0d6efd;
-  --control: linear-gradient(145deg, #0d6efd, #0056b3);
-  --control-border: #0056b3;
   --field: #ffffff;
   --field-border: #dee2e6;
-  --pill: rgb(255 255 255 / 0.9);
-  --pill-border: #dee2e6;
   --title-color: #212529;
   --title-stroke: #212529;
   --title-shadow:
@@ -66,12 +57,8 @@
   --border: #2d5a3d;
   --accent: #ffd700;
   --accent-text: #ffd700;
-  --control: linear-gradient(145deg, #2d5a3d, #1a5f3a);
-  --control-border: #4a7c59;
   --field: #2d5a3d;
   --field-border: #4a7c59;
-  --pill: rgb(45 90 61 / 0.9);
-  --pill-border: #4a7c59;
   --title-color: #ffd700;
   --title-stroke: #ffffff;
   --title-shadow:
@@ -200,17 +187,12 @@ button {
   gap: 1rem;
 }
 
-.top-control {
-  min-width: 80px;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--control-border);
-  border-radius: var(--radius);
-  background: var(--control);
-  box-shadow: var(--shadow);
-  color: var(--control-text);
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-align: center;
+.total {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.75rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* chips */
@@ -237,18 +219,17 @@ button {
 }
 
 .chip-total {
-  min-height: 1.9rem;
-  font-size: 1.1rem;
-  font-weight: 700;
+  min-height: 1.4rem;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   user-select: none;
   -webkit-user-select: none;
+}
 
-  &:not(:empty) {
-    padding: 0 0.4rem;
-    border: 1px solid var(--pill-border);
-    border-radius: 4px;
-    background: var(--pill);
-  }
+.chip-stack {
+  position: relative;
 }
 
 .chip-button {
@@ -290,10 +271,16 @@ button {
   }
 }
 
+/* its own layer above .toss, so a landing chip can never cover the number */
 .chip-count {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
   font-size: 2.5rem;
   font-weight: 900;
+  pointer-events: none;
   text-shadow:
     2px 2px 4px rgb(0 0 0 / 0.8),
     -1px -1px 2px rgb(255 255 255 / 0.3);
@@ -301,27 +288,35 @@ button {
 
 .chip-value {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  width: 6.5rem;
-  padding-left: 0.5rem;
-  border: 2px solid var(--field-border);
-  border-radius: 4px;
-  background: var(--field);
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.1rem;
+  min-width: 3.5rem;
+  padding: 0.1rem 0.35rem;
+  border-bottom: 1px solid var(--field-border);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
 
+  &:hover,
   &:focus-within {
     border-color: var(--accent);
   }
 
   input {
-    width: 100%;
-    min-width: 0;
-    padding: 0.5rem 0.25rem;
+    width: 5ch;
+    max-width: 9ch;
+    field-sizing: content;
+    padding: 0;
     border: 0;
     outline: 0;
     background: none;
     color: var(--text);
-    text-align: center;
+    appearance: textfield;
+
+    &::-webkit-inner-spin-button {
+      appearance: none;
+    }
   }
 }
 
@@ -510,14 +505,24 @@ button {
 /* card menu */
 
 .card-back {
+  --hatch: 7px;
+
   display: block;
-  border: 3px solid #ffffff;
+  border: calc(var(--hatch) * 0.43) solid #ffffff;
   border-radius: 7px;
   outline: 1px solid rgb(0 0 0 / 0.35);
   outline-offset: -1px;
   background:
-    repeating-linear-gradient(45deg, transparent 0 6px, rgb(255 255 255 / 0.45) 6px 7px),
-    repeating-linear-gradient(-45deg, transparent 0 6px, rgb(255 255 255 / 0.45) 6px 7px),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 calc(var(--hatch) * 0.86),
+      rgb(255 255 255 / 0.45) calc(var(--hatch) * 0.86) var(--hatch)
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 calc(var(--hatch) * 0.86),
+      rgb(255 255 255 / 0.45) calc(var(--hatch) * 0.86) var(--hatch)
+    ),
     #0b289d;
 }
 
@@ -566,44 +571,71 @@ button {
   }
 }
 
+/* cards lie sideways and pivot around a point far off the left edge, so they stack down the screen */
 .card-hand {
-  --card-width: clamp(92px, min(27vw, 30dvh), 140px);
-  /* adjacent cards sit pivot * sin(step) apart. 0.73 is 7 gaps * sin(6deg) */
-  --pivot: calc((min(100vw, 760px) - 4.5rem - var(--card-width)) / 0.73);
+  --hand-left: 0.25rem;
+  --hand-height: min(100dvh, 900px);
+  --card-width: min(72vw, 62dvh, 440px);
+  --card-height: calc(var(--card-width) * 0.714);
+  --step: 5deg;
+  --spread: calc(var(--step) * 3.5);
+  --label-size: clamp(0.95rem, calc(var(--card-width) * 0.055), 1.2rem);
+  /* solved so the end cards' corners just reach the top and bottom of the hand */
+  --pivot: calc(
+    (var(--hand-height) / 2 - 1rem - var(--card-height) / 2 * cos(var(--spread))) / sin(var(--spread)) -
+      var(--card-width) / 2
+  );
 
   display: grid;
-  place-items: center;
+  justify-items: start;
+  align-items: center;
   height: 100%;
+  padding-left: var(--hand-left);
+}
+
+@media (max-height: 480px) {
+  .card-hand {
+    --card-width: min(60vw, 360px);
+    --card-height: calc(var(--card-width) * 0.3);
+    --step: 1.5deg;
+    --label-size: 0.85rem;
+  }
+
+  .card-pip {
+    display: none;
+  }
 }
 
 .playing-card {
-  --slot: calc(var(--i) - 3.5);
-  --step: 6deg;
-  --angle: calc(var(--slot) * var(--step));
+  --angle: calc((var(--i) - 3.5) * var(--step));
   --lift: 0px;
-  --row-offset: 0px;
 
   grid-area: 1 / 1;
   display: block;
   width: var(--card-width);
-  aspect-ratio: 5 / 7;
+  height: var(--card-height);
   padding: 0;
   border: 0;
   border-radius: 7px;
   background: none;
   rotate: var(--angle);
   translate:
-    calc(sin(var(--angle)) * (var(--pivot) + var(--lift)))
-    calc(var(--pivot) - cos(var(--angle)) * (var(--pivot) + var(--lift)) + var(--row-offset));
+    /* the last term keeps the top card's corner, and its label, on screen */
+    calc(
+      cos(var(--angle)) * (var(--pivot) + var(--lift)) - cos(var(--spread)) * var(--pivot) +
+        sin(var(--spread)) * var(--card-height) / 2
+    )
+    calc(sin(var(--angle)) * (var(--pivot) + var(--lift)));
   transition: translate 0.18s ease-out;
-  perspective: 900px;
+  perspective: 1400px;
   text-decoration: none;
+  /* keeps the card on one layer so it doesn't re-render and snap when it comes to rest */
+  will-change: translate, rotate, scale;
   -webkit-tap-highlight-color: transparent;
-  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--i) * 45ms) backwards;
+  animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--i) * 45ms) backwards;
 
   &:focus-visible {
-    --lift: 28px;
-    z-index: 1;
+    --lift: 32px;
   }
 
   .leaving & {
@@ -624,23 +656,10 @@ button {
   }
 }
 
-/* eight cards in one hand are too thin to tap on a phone, so portrait gets two hands of four */
-@media (max-width: 560px) {
-  .card-hand {
-    --pivot: calc((100vw - 3.5rem - var(--card-width)) / 0.47); /* 3 gaps * sin(9deg) */
-  }
-
-  .playing-card {
-    --slot: calc(var(--position) - 1.5);
-    --step: 9deg;
-    --row-offset: calc(var(--row) * var(--card-width) * 0.82);
-  }
-}
-
+/* slides out without coming to the front, or it would cover the strip of the card below */
 @media (hover: hover) {
   .playing-card:hover {
-    --lift: 28px;
-    z-index: 1;
+    --lift: 32px;
   }
 }
 
@@ -649,9 +668,11 @@ button {
   display: block;
   height: 100%;
   transform-style: preserve-3d;
-  animation: flip-up 0.5s cubic-bezier(0.3, 0, 0.3, 1) calc(var(--i) * 45ms) backwards;
+  animation: flip-up 0.55s cubic-bezier(0.3, 0, 0.3, 1) calc(var(--i) * 45ms) backwards;
 
   .card-back {
+    --hatch: calc(var(--card-height) / 7);
+
     position: absolute;
     inset: 0;
     backface-visibility: hidden;
@@ -665,8 +686,9 @@ button {
   display: block;
   overflow: hidden;
   border-radius: 7px;
+  outline: 1px solid transparent; /* smooths the edge while rotated */
   background: #ffffff;
-  box-shadow: -3px 2px 7px rgb(0 0 0 / 0.4);
+  box-shadow: 0 -2px 7px rgb(0 0 0 / 0.35);
   backface-visibility: hidden;
   color: #17171c;
   font-family: Georgia, 'Times New Roman', serif;
@@ -676,43 +698,41 @@ button {
   }
 }
 
+.card-strip {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.3rem 0.9rem;
+}
+
 .card-index {
-  position: absolute;
-  top: 0.35rem;
-  left: 0;
-  width: 2rem;
-  font-size: 1.05rem;
+  flex: none;
+  font-size: calc(var(--label-size) * 1.3);
   font-weight: 700;
-  line-height: 1.05;
-  text-align: center;
+  line-height: 1.2;
 
   &.upside-down {
-    top: auto;
-    right: 0;
-    bottom: 0.35rem;
-    left: auto;
+    position: absolute;
+    right: 0.9rem;
+    bottom: 0.3rem;
     rotate: 180deg;
   }
 }
 
 .card-label {
-  position: absolute;
-  top: 2.75rem;
-  left: 0;
-  width: 2rem;
-  line-height: 2rem;
+  overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
-  font-size: min(0.8rem, calc(var(--card-width) * 0.122));
+  font-size: var(--label-size);
   font-weight: 600;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  writing-mode: vertical-rl;
 }
 
 .card-pip {
   position: absolute;
   top: 50%;
-  left: 58%;
-  font-size: calc(var(--card-width) * 0.42);
+  left: 62%;
+  font-size: calc(var(--card-height) * 0.55);
   line-height: 1;
   translate: -50% -50%;
 }
@@ -916,25 +936,23 @@ button {
 
 @keyframes deal {
   from {
-    rotate: 0deg;
-    translate: var(--from-x) var(--from-y);
-    scale: 0.4;
+    rotate: 450deg;
+    translate: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2) var(--deck-y);
+    scale: 0.22;
   }
 }
 
 @keyframes collect {
   to {
-    rotate: 0deg;
-    translate: var(--from-x) var(--from-y);
-    scale: 0.4;
+    rotate: 90deg;
+    translate: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2) var(--deck-y);
+    scale: 0.22;
   }
 }
 
 @keyframes pick {
   to {
-    rotate: 0deg;
-    translate: 0 -6vh;
-    scale: 1.3;
+    scale: 1.06;
     opacity: 0;
   }
 }

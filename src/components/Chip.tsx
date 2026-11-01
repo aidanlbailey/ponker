@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react'
-import { accentColor, contrastColor } from '../lib/chips'
+import { accentColor } from '../lib/chips'
 
 const pips = (...positions: [x: number, y: number][]) => positions.map(([x, y]) => [(x - 0.5) * 10, (y - 0.5) * 10])
 
@@ -18,14 +17,12 @@ const DICE_FACES = [
   pips([0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]),
 ]
 
-type ChipProps = { color: string; children?: ReactNode }
-
 // markings only, the chip color is the span's background so its inset shadow still shows through
-export function Chip({ color, children }: ChipProps) {
+export function Chip({ color }: { color: string }) {
   const accent = accentColor(color)
 
   return (
-    <span className="chip" style={{ backgroundColor: color, color: contrastColor(color) }}>
+    <span className="chip" style={{ backgroundColor: color }}>
       <svg viewBox="-66 -66 132 132" fill={accent} aria-hidden="true">
         {DICE_FACES.map((face, i) => (
           <g key={i}>
@@ -42,7 +39,6 @@ export function Chip({ color, children }: ChipProps) {
           <rect key={i} x="-5" y="-41" width="10" height="4" rx="2" transform={`rotate(${i * 30})`} />
         ))}
       </svg>
-      {children}
     </span>
   )
 }

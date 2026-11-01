@@ -106,7 +106,7 @@ export function App() {
             <span className="card-back" />
             <span className="card-back" />
           </button>
-          {showValues && <output className="top-control">{total}</output>}
+          {showValues && <output className="total">{total}</output>}
         </div>
 
         <section className="chip-grid" aria-label="Chips">

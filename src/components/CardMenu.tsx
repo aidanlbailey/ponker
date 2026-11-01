@@ -24,18 +24,18 @@ function CardFace({ rank, suit, label }: CardProps) {
     <span className="card-flip">
       <span className="card-back" />
       <span className={`card-face ${isRed ? 'red' : ''}`}>
-        <span className="card-index" aria-hidden="true">
-          {rank}
-          <br />
-          {suit}
+        <span className="card-strip">
+          <span className="card-index" aria-hidden="true">
+            {rank}
+            {suit}
+          </span>
+          <span className="card-label">{label}</span>
         </span>
-        <span className="card-label">{label}</span>
         <span className="card-pip" aria-hidden="true">
           {suit}
         </span>
         <span className="card-index upside-down" aria-hidden="true">
           {rank}
-          <br />
           {suit}
         </span>
       </span>
@@ -105,8 +105,8 @@ export function CardMenu(props: CardMenuProps) {
   ]
 
   const origin = {
-    '--from-x': `${deck.left + deck.width / 2 - innerWidth / 2}px`,
-    '--from-y': `${deck.top + deck.height / 2 - innerHeight / 2}px`,
+    '--deck-x': `${deck.left + deck.width / 2}px`,
+    '--deck-y': `${deck.top + deck.height / 2 - innerHeight / 2}px`,
   } as CSSProperties
 
   return (
@@ -125,7 +125,7 @@ export function CardMenu(props: CardMenuProps) {
         {cards.map(({ run, href, ...card }, i) => {
           const shared = {
             className: `playing-card ${picked === i ? 'picked' : ''}`,
-            style: { '--i': i, '--position': i % 4, '--row': i < 4 ? -1 : 1 } as CSSProperties,
+            style: { '--i': i } as CSSProperties,
             onAnimationEnd: (e: AnimationEvent) => finish(e, i),
             onClick: () => pick(i, run),
           }
