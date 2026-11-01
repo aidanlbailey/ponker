@@ -2,6 +2,8 @@
   --chip-size: 132px;
   --deck-width: 48px;
   --deck-height: 67px;
+  /* true 5% would be 2.4px here, which reads as square at this size, so the deck is drawn rounder */
+  --deck-corner: 5px;
   --radius: 8px;
   --shadow: 0 4px 8px rgb(0 0 0 / 0.3);
   --bg-image: none;
@@ -535,7 +537,7 @@ button {
   height: var(--deck-height);
   padding: 0;
   border: 0;
-  border-radius: 2.4px;
+  border-radius: var(--deck-corner);
   background: none;
 
   /* the dealt cards take over from the exact same spot, so the real deck steps aside */
@@ -546,6 +548,7 @@ button {
   .card-back {
     position: absolute;
     inset: 0;
+    border-radius: var(--deck-corner);
     box-shadow: 0 2px 4px rgb(0 0 0 / 0.4);
     transition: translate 0.15s ease;
 
@@ -664,6 +667,10 @@ button {
       animation: flip-down 0.26s ease-in calc(var(--i) * 18ms) forwards;
     }
 
+    .card-back {
+      animation: corner-to-deck 0.26s ease-in calc(var(--i) * 18ms) forwards;
+    }
+
     &.picked {
       z-index: 2;
       animation: pick 0.32s ease-out forwards;
@@ -696,6 +703,7 @@ button {
     inset: 0;
     backface-visibility: hidden;
     transform: rotateY(180deg);
+    animation: corner-from-deck 0.55s ease-out calc((7 - var(--i)) * 45ms) backwards;
   }
 }
 
@@ -990,6 +998,19 @@ button {
   }
 }
 
+/* divided by the deal's scale, so on screen it's exactly --deck-corner while the card is deck sized */
+@keyframes corner-from-deck {
+  from {
+    border-radius: calc(var(--deck-corner) / var(--deck-scale-x)) / calc(var(--deck-corner) / var(--deck-scale-y));
+  }
+}
+
+@keyframes corner-to-deck {
+  to {
+    border-radius: calc(var(--deck-corner) / var(--deck-scale-x)) / calc(var(--deck-corner) / var(--deck-scale-y));
+  }
+}
+
 @keyframes flip-up {
   from {
     transform: rotateY(180deg);
@@ -1063,6 +1084,8 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card-flip .card-back,
+  .leaving .playing-card .card-back,
   .card-menu::backdrop,
   .card-menu.leaving::backdrop,
   .dialog::backdrop,
