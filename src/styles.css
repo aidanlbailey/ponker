@@ -155,6 +155,7 @@ button {
 }
 
 .title {
+  position: relative; /* Title.tsx reads each letter's offset from here */
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(2.5rem, 14.4vw, 5rem);
@@ -169,7 +170,8 @@ button {
     display: inline-block;
     transform-origin: center bottom;
     animation: title-wave 4.5s ease-in-out infinite;
-    will-change: transform;
+    /* the wave owns transform and the dodge owns translate, so neither disturbs the other */
+    will-change: transform, translate;
   }
 }
 
@@ -964,10 +966,10 @@ button {
 @keyframes title-wave {
   0%,
   100% {
-    transform: translate(var(--dodge-x, 0), var(--dodge-y, 0)) rotate(var(--wave-start));
+    transform: rotate(var(--wave-start));
   }
   50% {
-    transform: translate(var(--dodge-x, 0), var(--dodge-y, 0)) translateY(-16px) rotate(var(--wave-end));
+    transform: translateY(-16px) rotate(var(--wave-end));
   }
 }
 

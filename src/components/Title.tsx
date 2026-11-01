@@ -1,10 +1,8 @@
-import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
+import { dodgeTarget, stepSpring, type Spring } from '../lib/dodge'
 
 const LETTERS = [...'PONKER']
-const AVOID_RANGE = 80
-const MAX_OFFSET = 60
-const AVOID_EASE = 0.08
-const RETURN_EASE = 0.04
+const AVOID_RANGE = 70
 
 const WAVES = LETTERS.map((_, i) => ({
   animationDelay: `${Math.abs(i - 2.5) * 0.5}s`, // ripples out from the middle
@@ -13,63 +11,77 @@ const WAVES = LETTERS.map((_, i) => ({
 })) as CSSProperties[]
 
 export function Title() {
+  const title = useRef<HTMLHeadingElement>(null)
   const letters = useRef<HTMLSpanElement[]>([])
-  const offsets = useRef(LETTERS.map(() => ({ x: 0, y: 0 })))
-  const pointer = useRef<{ x: number; y: number } | null>(null)
-  const frame = useRef(0)
+  const springs = useRef<Spring[]>(LETTERS.map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })))
 
-  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+  useEffect(() => {
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+    let pointer: { x: number; y: number } | null = null
+    let frame = 0
+    let lastTime = 0
 
-  const tick = () => {
-    let moving = false
+    const tick = (now: number) => {
+      const seconds = (now - lastTime) / 1000
+      lastTime = now
+      const box = title.current!.getBoundingClientRect()
+      let moving = false
 
-    letters.current.forEach((letter, i) => {
-      const offset = offsets.current[i]!
-      const rect = letter.getBoundingClientRect()
-      const dx = (pointer.current?.x ?? Infinity) - (rect.left + rect.width / 2 - offset.x)
-      const dy = (pointer.current?.y ?? Infinity) - (rect.top + rect.height / 2 - offset.y)
-      const distance = Math.hypot(dx, dy)
-      const radius = Math.max(rect.width, rect.height) * 0.6 + AVOID_RANGE
+      letters.current.forEach((letter, i) => {
+        // offset rather than a live rect, so the wave and the dodge itself don't shift the home spot
+        const dx = (pointer?.x ?? Infinity) - (box.left + letter.offsetLeft + letter.offsetWidth / 2)
+        const dy = (pointer?.y ?? Infinity) - (box.top + letter.offsetTop + letter.offsetHeight / 2)
+        const radius = Math.max(letter.offsetWidth, letter.offsetHeight) * 0.6 + AVOID_RANGE
+        const spring = springs.current[i]!
 
-      if (distance > 0 && distance < radius) {
-        const push = (1 - distance / radius) ** 2 * MAX_OFFSET
-        offset.x += (-(dx / distance) * push - offset.x) * AVOID_EASE
-        offset.y += (-(dy / distance) * push - offset.y) * AVOID_EASE
-      } else {
-        offset.x *= 1 - RETURN_EASE
-        offset.y *= 1 - RETURN_EASE
-      }
+        if (!stepSpring(spring, dodgeTarget(dx, dy, radius), seconds)) moving = true
+        letter.style.translate = `${spring.x}px ${spring.y}px`
+      })
 
-      if (Math.abs(offset.x) < 0.1 && Math.abs(offset.y) < 0.1) offset.x = offset.y = 0
-      else moving = true
+      frame = moving ? requestAnimationFrame(tick) : 0
+    }
 
-      letter.style.setProperty('--dodge-x', `${offset.x}px`)
-      letter.style.setProperty('--dodge-y', `${offset.y}px`)
-    })
+    const wake = () => {
+      if (frame || reducedMotion.matches) return
+      lastTime = performance.now()
+      frame = requestAnimationFrame(tick)
+    }
 
-    frame.current = moving || pointer.current ? requestAnimationFrame(tick) : 0
-  }
+    // on the window, not the title. letters dodge out of the title's box, and losing the cursor there
+    // released them straight back into it, over and over
+    const track = (e: PointerEvent) => {
+      const target = e.target as Element
+      const offTitle = e.pointerType !== 'mouse' && !title.current?.contains(target)
+      pointer = offTitle || target.closest?.('dialog') ? null : { x: e.clientX, y: e.clientY }
+      wake()
+    }
 
-  const track = (e: PointerEvent) => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    pointer.current = { x: e.clientX, y: e.clientY }
-    if (!frame.current) frame.current = requestAnimationFrame(tick)
-  }
+    const release = () => {
+      pointer = null
+      wake()
+    }
 
-  const release = () => {
-    pointer.current = null
-  }
+    const liftFinger = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') release()
+    }
+
+    window.addEventListener('pointermove', track, { passive: true })
+    window.addEventListener('pointerup', liftFinger)
+    window.addEventListener('pointercancel', release)
+    document.documentElement.addEventListener('pointerleave', release)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('pointermove', track)
+      window.removeEventListener('pointerup', liftFinger)
+      window.removeEventListener('pointercancel', release)
+      document.documentElement.removeEventListener('pointerleave', release)
+    }
+  }, [])
 
   return (
     <header className="title-section">
-      <h1
-        className="title"
-        aria-label="Ponker"
-        onPointerMove={track}
-        onPointerLeave={release}
-        onPointerUp={release}
-        onPointerCancel={release}
-      >
+      <h1 ref={title} className="title" aria-label="Ponker">
         {LETTERS.map((letter, i) => (
           <span
             key={i}
