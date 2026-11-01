@@ -184,11 +184,8 @@ button {
 
     &.held {
       scale: 1.15;
-      rotate: -6deg;
       cursor: grabbing;
-      transition:
-        scale 0.15s ease-out,
-        rotate 0.15s ease-out;
+      transition: scale 0.15s ease-out;
     }
   }
 }

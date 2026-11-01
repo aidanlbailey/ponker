@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   dodgeTarget,
   fallDirection,
+  hangingOffset,
   hasStopped,
   isThrow,
   launch,
@@ -10,7 +11,11 @@ import {
   smack,
   stepFlight,
   stepSpring,
+  stepSwing,
   stumble,
+  swingSpin,
+  swingTilt,
+  swingVelocity,
   waddle,
   walkDuration,
   type Spring,
@@ -192,5 +197,100 @@ describe('getting back up', () => {
     expect(end.lift).toBeCloseTo(0)
     expect(end.scaleX).toBeCloseTo(1)
     expect(end.scaleY).toBeCloseTo(1)
+  })
+})
+
+describe('stepSwing', () => {
+  const LENGTH = 58
+  const still = { x: 0, y: 0 }
+  const hz = 144
+
+  const peak = (pivotAt: (time: number) => { x: number; y: number }, seconds: number) => {
+    const swing = { angle: 0, speed: 0 }
+    let furthest = 0
+    for (let i = 0; i < seconds * hz; i++) {
+      stepSwing(swing, pivotAt(i / hz), LENGTH, 1 / hz)
+      furthest = Math.max(furthest, Math.abs(swing.angle))
+    }
+    return { swing, furthest }
+  }
+
+  it('hangs still when nothing moves it', () => {
+    expect(peak(() => still, 2).swing).toEqual({ angle: 0, speed: 0 })
+  })
+
+  it('swings back and settles when let go from the side', () => {
+    const swing = { angle: 1.2, speed: 0 }
+    let crossed = false
+    for (let i = 0; i < 12 * hz; i++) {
+      stepSwing(swing, still, LENGTH, 1 / hz)
+      if (swing.angle < 0) crossed = true
+    }
+    expect(crossed).toBe(true)
+    expect(Math.abs(swing.angle)).toBeLessThan(0.01)
+  })
+
+  it('lags behind when the pivot jerks sideways', () => {
+    const swing = { angle: 0, speed: 0 }
+    for (let i = 0; i < 20; i++) stepSwing(swing, { x: 8000, y: 0 }, LENGTH, 1 / hz)
+    expect(swing.angle).toBeLessThan(0)
+  })
+
+  it('whirls all the way around when the pivot circles fast', () => {
+    const radius = 80
+    const rate = Math.PI * 4 // two laps a second
+    const circling = (time: number) => ({
+      x: -radius * rate * rate * Math.cos(rate * time),
+      y: -radius * rate * rate * Math.sin(rate * time),
+    })
+    expect(peak(circling, 3).furthest).toBeGreaterThan(Math.PI * 4)
+  })
+
+  it('only sways on a gentle slow circle', () => {
+    const radius = 40
+    const rate = Math.PI // half a lap a second
+    const circling = (time: number) => ({
+      x: -radius * rate * rate * Math.cos(rate * time),
+      y: -radius * rate * rate * Math.sin(rate * time),
+    })
+    expect(peak(circling, 3).furthest).toBeLessThan(Math.PI / 2)
+  })
+
+  it('never runs away, even under huge jolts', () => {
+    const { swing } = peak((time) => ({ x: Math.sin(time * 90) * 1e7, y: Math.cos(time * 70) * 1e7 }), 3)
+    expect(Number.isFinite(swing.angle)).toBe(true)
+    expect(Math.abs(swing.speed)).toBeLessThanOrEqual(40)
+  })
+})
+
+describe('hanging from the pointer', () => {
+  const bottomNow = (offset: { x: number; y: number }) => ({ x: 100 + offset.x, y: 200 + offset.y })
+  const topAfterRotating = (bottom: { x: number; y: number }, height: number, tilt: number) => {
+    const radians = (tilt * Math.PI) / 180
+    return { x: bottom.x + height * Math.sin(radians), y: bottom.y - height * Math.cos(radians) }
+  }
+
+  it.each([0, 45, 90, 180, -135, 720])('keeps the top on the pointer at %d degrees', (tilt) => {
+    const pointer = { x: 500, y: 300 }
+    const top = topAfterRotating(bottomNow(hangingOffset(pointer, { x: 100, y: 200 }, 90, tilt)), 90, tilt)
+    expect(top.x).toBeCloseTo(pointer.x)
+    expect(top.y).toBeCloseTo(pointer.y)
+  })
+
+  it('points the letter the way the swing goes', () => {
+    expect(swingTilt({ angle: Math.PI / 2, speed: 0 })).toBeCloseTo(-90)
+    expect(swingSpin({ angle: 0, speed: Math.PI })).toBeCloseTo(-180)
+  })
+
+  it('adds the swing to a throw', () => {
+    expect(swingVelocity({ angle: 0, speed: 10 }, 50).x).toBeCloseTo(500)
+    expect(swingVelocity({ angle: Math.PI / 2, speed: 10 }, 50).y).toBeCloseTo(-500)
+  })
+
+  it('carries the angle and spin into the flight', () => {
+    const flight = launch(0, 0, { x: 0, y: 0 }, 30, 600)
+    expect(flight.angle).toBe(30)
+    expect(flight.spin).toBe(600)
+    expect(launch(0, 0, { x: 9000, y: 0 }, 0, 9000).spin).toBe(1440)
   })
 })

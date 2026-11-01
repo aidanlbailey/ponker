@@ -90,13 +90,13 @@ export function releaseVelocity(samples: Sample[], now: number) {
 
 export const isThrow = (velocity: { x: number; y: number }) => Math.hypot(velocity.x, velocity.y) >= THROW_SPEED
 
-export const launch = (x: number, y: number, velocity: { x: number; y: number }): Flight => ({
+export const launch = (x: number, y: number, velocity: { x: number; y: number }, angle = 0, spin = 0): Flight => ({
   x,
   y,
   vx: velocity.x,
   vy: velocity.y,
-  angle: 0,
-  spin: Math.max(-900, Math.min(900, velocity.x * SPIN)),
+  angle,
+  spin: Math.max(-1440, Math.min(1440, velocity.x * SPIN + spin)),
 })
 
 // moves a thrown letter one frame. soft hits bounce and carry on, a hard one returns the wall it smacked
@@ -183,4 +183,49 @@ export function stumble(fall: number, progress: number) {
     scaleX: 1 + (1 - effort) * 0.05 * (1 - progress),
     scaleY: 1 - (1 - effort) * 0.08 * (1 - progress),
   }
+}
+
+const GRAVITY = 2500
+const SWING_DAMPING = 1.4
+const MAX_SWING_SPEED = 40
+const MAX_PIVOT_ACCELERATION = 30000
+
+// radians from hanging straight down, positive when swung out to the right
+export type Swing = { angle: number; speed: number }
+
+const clampAcceleration = (value: number) => Math.max(-MAX_PIVOT_ACCELERATION, Math.min(MAX_PIVOT_ACCELERATION, value))
+
+// a pendulum on a moving pivot. the pivot's acceleration is what pumps the swing, so circling
+// the cursor keeps adding energy until the letter goes all the way around
+export function stepSwing(swing: Swing, pivot: { x: number; y: number }, length: number, seconds: number) {
+  const dt = Math.min(seconds, MAX_STEP)
+  const ax = clampAcceleration(pivot.x)
+  const ay = clampAcceleration(pivot.y)
+  const acceleration =
+    -((GRAVITY - ay) * Math.sin(swing.angle) + ax * Math.cos(swing.angle)) / length - SWING_DAMPING * swing.speed
+
+  swing.speed = Math.max(-MAX_SWING_SPEED, Math.min(MAX_SWING_SPEED, swing.speed + acceleration * dt))
+  swing.angle += swing.speed * dt
+}
+
+// css rotate that lines the letter up with the swing, top towards the pivot
+export const swingTilt = (swing: Swing) => (-swing.angle * 180) / Math.PI
+
+export const swingSpin = (swing: Swing) => (-swing.speed * 180) / Math.PI
+
+// how fast the letter's middle is moving because of the swing, added to a throw
+export const swingVelocity = (swing: Swing, length: number) => ({
+  x: length * swing.speed * Math.cos(swing.angle),
+  y: -length * swing.speed * Math.sin(swing.angle),
+})
+
+// letters rotate around their bottom center, so this is the translate that keeps the top on the pointer
+export function hangingOffset(
+  pointer: { x: number; y: number },
+  bottom: { x: number; y: number },
+  height: number,
+  tilt: number,
+) {
+  const radians = (tilt * Math.PI) / 180
+  return { x: pointer.x - bottom.x - height * Math.sin(radians), y: pointer.y - bottom.y + height * Math.cos(radians) }
 }

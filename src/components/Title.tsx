@@ -3,6 +3,7 @@ import { haptic } from '../lib/haptics'
 import {
   dodgeTarget,
   fallDirection,
+  hangingOffset,
   hasStopped,
   isThrow,
   launch,
@@ -11,19 +12,29 @@ import {
   smack,
   stepFlight,
   stepSpring,
+  stepSwing,
   stumble,
+  swingSpin,
+  swingTilt,
+  swingVelocity,
   waddle,
   walkDuration,
   type Flight,
   type Sample,
   type Side,
   type Spring,
+  type Swing,
 } from '../lib/letterPhysics'
 
 const LETTERS = [...'PONKER']
 const AVOID_RANGE = 70
 const NUDGE = 12 // dropped closer to home than this, it just springs back
 const GRAB_REACH = 60
+const HELD_SCALE = 1.15 // keep in step with .held in styles.css
+const SWING_LENGTH = 0.55 // how far down the letter its weight sits, as a share of its height
+const SLACK_EASE = 12 // how quickly the letter slides from where it was grabbed to hanging by its top
+const PIVOT_SMOOTHING = 40 // mice report far less often than the screen draws, so the pivot is smoothed
+const UPRIGHT = 3 // degrees of lean that still counts as standing
 const SMACK_MS = 420
 const FALLEN_STUMBLE_MS = 1300
 const DIZZY_STUMBLE_MS = 700
@@ -41,7 +52,16 @@ type Trip =
   | { kind: 'stumble'; start: number; duration: number; fall: number; x: number; y: number }
   | { kind: 'walk'; start: number; duration: number; from: { x: number; y: number } }
 
-type Hold = { index: number; pointerId: number; grabX: number; grabY: number; x: number; y: number; samples: Sample[] }
+type Hold = {
+  index: number
+  pointerId: number
+  x: number
+  y: number
+  samples: Sample[]
+  swing: Swing
+  pivot: { x: number; y: number; vx: number; vy: number }
+  slack: { x: number; y: number } | null
+}
 
 const WALL_DIRECTION: Record<Side, { x: number; y: number }> = {
   left: { x: 1, y: 0 },
@@ -159,6 +179,41 @@ export function Title() {
       return true
     }
 
+    // hangs by its top from the cursor, swinging like a pendulum
+    const carry = (hold: Hold, letter: HTMLSpanElement, spring: Spring, homeX: number, homeY: number, seconds: number) => {
+      const dt = Math.max(seconds, 0.001)
+      const { pivot, swing } = hold
+      const follow = 1 - Math.exp(-PIVOT_SMOOTHING * dt)
+      const vx = ((hold.x - pivot.x) * follow) / dt
+      const vy = ((hold.y - pivot.y) * follow) / dt
+      const acceleration = { x: (vx - pivot.vx) / dt, y: (vy - pivot.vy) / dt }
+      pivot.x += vx * dt
+      pivot.y += vy * dt
+      pivot.vx = vx
+      pivot.vy = vy
+
+      const height = letter.offsetHeight * HELD_SCALE
+      stepSwing(swing, acceleration, height * SWING_LENGTH, dt)
+
+      const tilt = swingTilt(swing)
+      const bottom = { x: homeX, y: homeY + letter.offsetHeight / 2 }
+      const pointer = {
+        x: Math.max(0, Math.min(innerWidth, hold.x)),
+        y: Math.max(0, Math.min(innerHeight, hold.y)),
+      }
+      const hanging = hangingOffset(pointer, bottom, height, tilt)
+
+      hold.slack ??= { x: spring.x - hanging.x, y: spring.y - hanging.y }
+      const fade = Math.exp(-SLACK_EASE * dt)
+      hold.slack.x *= fade
+      hold.slack.y *= fade
+
+      spring.vx = spring.vy = 0
+      spring.x = hanging.x + hold.slack.x
+      spring.y = hanging.y + hold.slack.y
+      letter.style.rotate = `${tilt}deg`
+    }
+
     const tick = (now: number) => {
       const seconds = (now - lastTime) / 1000
       lastTime = now
@@ -173,9 +228,7 @@ export function Title() {
         const trip = trips[i]
 
         if (held?.index === i) {
-          spring.vx = spring.vy = 0
-          spring.x = Math.min(innerWidth - homeX, Math.max(-homeX, held.x - held.grabX))
-          spring.y = Math.min(innerHeight - homeY, Math.max(-homeY, held.y - held.grabY))
+          carry(held, letter, spring, homeX, homeY, seconds)
           moving = true
         } else if (trip) {
           if (advance(i, trip, now, seconds, homeX, homeY)) moving = true
@@ -221,7 +274,7 @@ export function Title() {
 
       e.preventDefault() // otherwise a press in the gaps starts selecting page text
       const letter = letters.current[index]!
-      const spring = springs.current[index]!
+      const currentTilt = parseFloat(letter.style.rotate) || 0
       letter.setPointerCapture(e.pointerId)
       trips[index] = null
       stand(letter)
@@ -229,11 +282,12 @@ export function Title() {
       held = {
         index,
         pointerId: e.pointerId,
-        grabX: e.clientX - spring.x,
-        grabY: e.clientY - spring.y,
         x: e.clientX,
         y: e.clientY,
         samples: [{ time: e.timeStamp, x: e.clientX, y: e.clientY }],
+        swing: { angle: (-nearestAngle(currentTilt) * Math.PI) / 180, speed: 0 },
+        pivot: { x: e.clientX, y: e.clientY, vx: 0, vy: 0 },
+        slack: null,
       }
       wake()
     }
@@ -241,10 +295,14 @@ export function Title() {
     const drop = (e: PointerEvent) => {
       if (held?.pointerId !== e.pointerId) return
 
-      const { index, samples } = held
+      const { index, samples, swing } = held
       const letter = letters.current[index]!
       const { x, y } = springs.current[index]!
-      const velocity = releaseVelocity(samples, e.timeStamp)
+      const hand = releaseVelocity(samples, e.timeStamp)
+      const flung = swingVelocity(swing, letter.offsetHeight * HELD_SCALE * SWING_LENGTH)
+      const velocity = { x: hand.x + flung.x, y: hand.y + flung.y }
+      const tilt = swingTilt(swing)
+      const fall = nearestAngle(tilt)
       held = null
       stand(letter)
 
@@ -252,7 +310,12 @@ export function Title() {
         const box = title.current!.getBoundingClientRect()
         const homeX = box.left + letter.offsetLeft + letter.offsetWidth / 2
         const homeY = box.top + letter.offsetTop + letter.offsetHeight / 2
-        trips[index] = { kind: 'flight', flight: launch(homeX + x, homeY + y, velocity) }
+        trips[index] = { kind: 'flight', flight: launch(homeX + x, homeY + y, velocity, tilt, swingSpin(swing)) }
+        letter.classList.add('away')
+      } else if (Math.abs(fall) > UPRIGHT) {
+        // still swung over, so it rights itself first rather than snapping upright to walk
+        trips[index] = { kind: 'stumble', start: performance.now(), duration: DIZZY_STUMBLE_MS, fall, x, y }
+        pose(letter, fall)
         letter.classList.add('away')
       } else if (Math.hypot(x, y) > NUDGE) {
         startWalk(index, performance.now(), { x, y })
