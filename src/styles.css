@@ -327,18 +327,70 @@ button {
 
 .toss {
   position: fixed;
-  z-index: 5;
+  z-index: 20;
   pointer-events: none;
-  animation-duration: var(--toss-duration);
-  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
-  animation-fill-mode: forwards;
+
+  &,
+  .toss-height,
+  .toss-spin {
+    animation-duration: var(--toss-duration);
+    animation-fill-mode: forwards;
+  }
 
   &.fall {
-    animation-name: toss-fall;
+    animation-name: fall-drift;
+    animation-timing-function: linear;
+
+    .toss-height {
+      animation-name: fall-height;
+    }
+
+    .toss-spin {
+      animation-name: fall-spin;
+    }
   }
 
   &.rise {
-    animation-name: toss-rise;
+    animation-name: rise-drift;
+    animation-timing-function: linear;
+
+    .toss-height {
+      animation-name: rise-height;
+    }
+
+    .toss-spin {
+      animation-name: rise-spin;
+      animation-timing-function: linear;
+    }
+  }
+}
+
+.toss-height {
+  perspective: 700px;
+}
+
+.toss-spin {
+  position: relative;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  transform-style: preserve-3d;
+
+  /* a stack of striped discs fakes the chip's edge when it turns side on */
+  i {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: repeating-conic-gradient(var(--edge) 0 15deg, var(--stripe) 15deg 30deg);
+    transform: translateZ(var(--depth));
+  }
+}
+
+.toss-face {
+  position: absolute;
+  transform: translateZ(5px);
+
+  &.back {
+    transform: translateZ(-5px) rotateY(180deg);
   }
 }
 
@@ -820,21 +872,44 @@ button {
   }
 }
 
-@keyframes toss-fall {
+/* landing at 62% has to match LAND_MS in ChipToss.tsx */
+@keyframes fall-drift {
   from {
-    transform: translate(var(--toss-x), -100vh);
+    transform: translateX(var(--toss-x));
   }
+  62%,
   to {
-    transform: rotate(var(--toss-rotation));
+    transform: none;
   }
 }
 
-@keyframes toss-rise {
-  from {
-    transform: rotate(var(--toss-rotation));
+@keyframes fall-height {
+  0% {
+    transform: translateY(calc(-1 * var(--toss-drop))) scale(1.6);
+    animation-timing-function: cubic-bezier(0.45, 0.05, 0.75, 0.55);
   }
-  to {
-    transform: translate(var(--toss-x), -100vh);
+  62% {
+    transform: none;
+    animation-timing-function: ease-out;
+  }
+  76% {
+    transform: translateY(-26px);
+    animation-timing-function: ease-in;
+  }
+  88% {
+    transform: none;
+    animation-timing-function: ease-out;
+  }
+  94% {
+    transform: translateY(-6px);
+    animation-timing-function: ease-in;
+  }
+  97% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: none;
     opacity: 0;
   }
 }
@@ -876,6 +951,50 @@ button {
   }
 }
 
+@keyframes fall-spin {
+  0% {
+    transform: rotateX(var(--toss-spin)) rotateZ(var(--toss-roll));
+    animation-timing-function: cubic-bezier(0.3, 0.5, 0.6, 1);
+  }
+  62% {
+    transform: rotateX(16deg);
+  }
+  76% {
+    transform: rotateX(-9deg);
+  }
+  88% {
+    transform: rotateX(4deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes rise-drift {
+  to {
+    transform: translateX(var(--toss-x));
+  }
+}
+
+@keyframes rise-height {
+  0% {
+    animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
+  }
+  38% {
+    transform: translateY(calc(-1 * var(--toss-apex)));
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+  }
+  100% {
+    transform: translateY(120vh);
+  }
+}
+
+@keyframes rise-spin {
+  to {
+    transform: rotateX(var(--toss-spin)) rotateZ(var(--toss-roll));
+  }
+}
+
 @keyframes toast {
   0% {
     opacity: 0;
@@ -911,7 +1030,7 @@ button {
 
   /* still has to fire animationend or the toss never gets cleaned up */
   .toss {
+    --toss-duration: 1ms;
     visibility: hidden;
-    animation-duration: 1ms;
   }
 }

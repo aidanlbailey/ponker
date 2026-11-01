@@ -2,6 +2,11 @@ import { useRef } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
 import { formatMoney, type Chip as ChipData } from '../lib/chips'
 import { Chip } from './Chip'
+import { LAND_MS } from './ChipToss'
+
+// scale rather than transform so these don't fight the hover state
+const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, { scale: '1' }]
+const PLUCK = [{ scale: '1' }, { scale: '0.92' }, { scale: '1.03' }, { scale: '1' }]
 
 type ChipCardProps = {
   chip: ChipData
@@ -15,8 +20,21 @@ type ChipCardProps = {
 export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
   const chipButton = useRef<HTMLButtonElement>(null)
   const rect = () => chipButton.current!.getBoundingClientRect()
-  const add = () => onAdd(rect())
-  const remove = () => onRemove(rect())
+
+  const thud = (keyframes: Keyframe[], delay: number) => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    chipButton.current?.animate(keyframes, { duration: 300, delay, easing: 'ease-out' })
+  }
+
+  const add = () => {
+    onAdd(rect())
+    thud(LANDING, LAND_MS)
+  }
+
+  const remove = () => {
+    onRemove(rect())
+    if (chip.count) thud(PLUCK, 0)
+  }
 
   const gestures = useChipGestures({ onSwipeDown: add, onSwipeUp: remove, onEdit })
 
