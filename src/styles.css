@@ -65,9 +65,6 @@
   --accent-text: #ffd700;
   --field: #2d5a3d;
   --field-border: #8fc7a5;
-  /* green and red buttons sink into the felt without a light edge */
-  --add-edge: #d9f2e3;
-  --danger-edge: #f7c9c9;
   --title-color: #ffd700;
   --title-stroke: #ffffff;
   --title-shadow:
@@ -425,12 +422,12 @@ button {
   }
 
   &.add {
-    border-color: var(--add-edge, #1c5a3a);
+    border-color: #1c5a3a;
     background: linear-gradient(145deg, #2f855a, #276749);
   }
 
   &.danger {
-    border-color: var(--danger-edge, #742a2a);
+    border-color: #742a2a;
     background: linear-gradient(145deg, #c53030, #9b2c2c);
   }
 
