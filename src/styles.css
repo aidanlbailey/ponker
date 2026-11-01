@@ -191,11 +191,17 @@ button {
   gap: 1rem;
 }
 
+/* every money amount shares one look, only the size changes */
+.total,
+.chip-total,
+.chip-value,
+.preset-chips {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .total {
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.75rem;
-  font-variant-numeric: lining-nums tabular-nums;
-  font-weight: 700;
   line-height: 1;
 }
 
@@ -207,6 +213,21 @@ button {
   justify-content: center;
   gap: 2rem clamp(1rem, 4vw, 2rem);
   width: 100%;
+}
+
+/* only named during a transition, a name makes a stacking context that would trap .chip-count under .toss */
+.morphing .chip-card {
+  view-transition-name: var(--morph-name);
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 0.4s;
 }
 
 .chip-card {
@@ -224,9 +245,6 @@ button {
 
 .chip-total {
   min-height: 1.5rem;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -297,8 +315,6 @@ button {
   min-width: 3.5rem;
   padding: 0.4rem 0.35rem 0.25rem; /* the whole label is the tap target */
   border-bottom: 1px solid var(--field-border);
-  color: var(--text-soft);
-  font-variant-numeric: tabular-nums;
 
   &:hover {
     border-color: var(--accent);
@@ -671,7 +687,7 @@ button {
   -webkit-tap-highlight-color: transparent;
   animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc((7 - var(--i)) * 45ms) backwards;
 
-  &:focus-visible {
+  .dealt &:focus-visible {
     --lift: 32px;
   }
 
@@ -697,9 +713,10 @@ button {
   }
 }
 
-/* slides out without coming to the front, or it would cover the strip of the card below */
+/* slides out without coming to the front, or it would cover the strip of the card below.
+   waits for .dealt because changing --lift mid deal shoves the card onto a new path */
 @media (hover: hover) {
-  .pointer-moved .playing-card:hover {
+  .dealt.pointer-moved .playing-card:hover {
     --lift: 32px;
   }
 }
@@ -812,7 +829,6 @@ button {
   padding: 0;
   list-style: none;
   font-size: 0.9rem;
-  font-weight: 700;
 
   li {
     display: flex;

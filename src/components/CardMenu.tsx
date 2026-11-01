@@ -62,6 +62,7 @@ export function CardMenu(props: CardMenuProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const afterCollect = useRef<() => void>(undefined)
   const [leaving, setLeaving] = useState(false)
+  const [dealt, setDealt] = useState(false)
   const [pointerMoved, setPointerMoved] = useState(false)
   const [handingOff, setHandingOff] = useState(false)
   const [picked, setPicked] = useState<number | null>(null)
@@ -88,6 +89,8 @@ export function CardMenu(props: CardMenuProps) {
 
   // the last card goes back on top of the deck, so its animation ending means the hand is gone
   const finish = (e: AnimationEvent, index: number) => {
+    // card 0 is dealt last
+    if (index === 0 && e.target === e.currentTarget && e.animationName === 'deal') setDealt(true)
     if (leaving && index === cards.length - 1 && e.target === e.currentTarget) {
       onClose()
       afterCollect.current?.()
@@ -114,7 +117,9 @@ export function CardMenu(props: CardMenuProps) {
   return (
     <dialog
       ref={dialog}
-      className={`card-menu ${leaving ? 'leaving' : ''} ${pointerMoved ? 'pointer-moved' : ''} ${handingOff ? 'handing-off' : ''}`}
+      className={['card-menu', leaving && 'leaving', dealt && 'dealt', pointerMoved && 'pointer-moved', handingOff && 'handing-off']
+        .filter(Boolean)
+        .join(' ')}
       aria-label="Menu"
       // cards fly under a resting cursor and browsers leave :hover stuck on one until it moves.
       // the movement check matters because browsers also send fake moves after layout changes

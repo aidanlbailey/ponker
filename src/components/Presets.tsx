@@ -22,10 +22,7 @@ export function Presets({ onLoad, onClose }: PresetsProps) {
             </ul>
             <button
               className="button add"
-              onClick={() => {
-                onLoad(chips)
-                close()
-              }}
+              onClick={() => close(() => onLoad(chips))}
             >
               Load Preset
             </button>

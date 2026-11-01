@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
 import { contrastColor, formatMoney, type Chip as ChipData } from '../lib/chips'
 import { Chip } from './Chip'
@@ -9,6 +9,7 @@ const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, 
 const PLUCK = [{ scale: '1' }, { scale: '0.92' }, { scale: '1.03' }, { scale: '1' }]
 
 type ChipCardProps = {
+  id: string
   chip: ChipData
   showValue: boolean
   onAdd: (from: DOMRect) => void
@@ -17,7 +18,7 @@ type ChipCardProps = {
   onValueChange: (value: number) => void
 }
 
-export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
+export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
   const chipButton = useRef<HTMLButtonElement>(null)
   const count = useRef<HTMLSpanElement>(null)
   const rect = () => chipButton.current!.getBoundingClientRect()
@@ -45,7 +46,7 @@ export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChan
   const gestures = useChipGestures({ onSwipeDown: add, onSwipeUp: remove, onEdit })
 
   return (
-    <article className="chip-card">
+    <article className="chip-card" style={{ '--morph-name': `chip-${id}` } as CSSProperties}>
       <p className="chip-total">{showValue && formatMoney(chip.value * chip.count)}</p>
 
       <div className="chip-stack">

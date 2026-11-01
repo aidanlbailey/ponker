@@ -11,6 +11,7 @@ import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
 import { haptic } from './lib/haptics'
+import { smoothly } from './lib/smoothly'
 
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
 
@@ -53,13 +54,13 @@ export function App() {
   }
 
   const deleteChip = (id: string) => {
-    setChips((prev) => Object.fromEntries(Object.entries(prev).filter(([chipId]) => chipId !== id)))
+    smoothly(() => setChips((prev) => Object.fromEntries(Object.entries(prev).filter(([chipId]) => chipId !== id))))
     setEditingId(null)
     haptic('success')
   }
 
   const addChipType = () => {
-    setChips((prev) => ({ ...prev, [`chip_${Date.now()}`]: NEW_CHIP }))
+    smoothly(() => setChips((prev) => ({ ...prev, [`chip_${Date.now()}`]: NEW_CHIP })))
   }
 
   const shareCashout = async () => {
@@ -113,6 +114,7 @@ export function App() {
           {entries.map(([id, chip]) => (
             <ChipCard
               key={id}
+              id={id}
               chip={chip}
               showValue={showValues}
               onAdd={(from) => addChip(id, chip, from)}
@@ -137,8 +139,8 @@ export function App() {
           onOpenPresets={() => setPanel('presets')}
           onOpenName={() => setPanel('name')}
           onCashout={shareCashout}
-          onToggleValues={() => setShowValues(!showValues)}
-          onThemeChange={setTheme}
+          onToggleValues={() => smoothly(() => setShowValues(!showValues))}
+          onThemeChange={(next) => smoothly(() => setTheme(next))}
         />
       )}
 
@@ -146,7 +148,7 @@ export function App() {
         <Presets
           onClose={() => setPanel(null)}
           onLoad={(preset) => {
-            setChips(preset)
+            smoothly(() => setChips(preset))
             haptic('success')
           }}
         />

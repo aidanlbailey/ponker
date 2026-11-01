@@ -24,7 +24,8 @@ export function Dialog({ title, className = '', continuesBackdrop, onClose, chil
   const close: CloseDialog = (then) => setLeaving({ then })
 
   const finish = (e: AnimationEvent) => {
-    if (!leaving || e.target !== dialog.current) return
+    // by name, because the ::backdrop fade also reports its end on this element
+    if (!leaving || e.animationName !== 'dialog-out') return
     leaving.then?.()
     onClose()
   }
