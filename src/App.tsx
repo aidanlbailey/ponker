@@ -147,7 +147,6 @@ export function App() {
           onClose={() => setPanel(null)}
           onLoad={(preset) => {
             setChips(preset)
-            setPanel(null)
             haptic('success')
           }}
         />

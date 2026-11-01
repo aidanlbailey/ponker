@@ -62,6 +62,8 @@ export function CardMenu(props: CardMenuProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const afterCollect = useRef<() => void>(undefined)
   const [leaving, setLeaving] = useState(false)
+  const [pointerMoved, setPointerMoved] = useState(false)
+  const [handingOff, setHandingOff] = useState(false)
   const [picked, setPicked] = useState<number | null>(null)
 
   useEffect(() => {
@@ -93,11 +95,11 @@ export function CardMenu(props: CardMenuProps) {
   }
 
   const next = NEXT_THEME[theme]
-  const cards: (CardProps & { run?: () => void; href?: string })[] = [
+  const cards: (CardProps & { run?: () => void; opensPanel?: boolean; href?: string })[] = [
     { rank: 'A', suit: SPADES, label: 'Add chip type', run: props.onAddChipType },
     { rank: 'K', suit: DIAMONDS, label: 'Cash out', run: props.onCashout },
-    { rank: 'Q', suit: HEARTS, label: userName ? 'Change name' : 'Set your name', run: props.onOpenName },
-    { rank: 'J', suit: CLUBS, label: 'Chip presets', run: props.onOpenPresets },
+    { rank: 'Q', suit: HEARTS, label: userName ? 'Change name' : 'Set your name', run: props.onOpenName, opensPanel: true },
+    { rank: 'J', suit: CLUBS, label: 'Chip presets', run: props.onOpenPresets, opensPanel: true },
     { rank: '10', suit: SPADES, label: showValues ? 'Hide values' : 'Show values', run: props.onToggleValues },
     { rank: '9', suit: DIAMONDS, label: next.label, run: () => onThemeChange(next.theme) },
     { rank: '8', suit: CLUBS, label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' },
@@ -112,8 +114,13 @@ export function CardMenu(props: CardMenuProps) {
   return (
     <dialog
       ref={dialog}
-      className={`card-menu ${leaving ? 'leaving' : ''}`}
+      className={`card-menu ${leaving ? 'leaving' : ''} ${pointerMoved ? 'pointer-moved' : ''} ${handingOff ? 'handing-off' : ''}`}
       aria-label="Menu"
+      // cards fly under a resting cursor and browsers leave :hover stuck on one until it moves.
+      // the movement check matters because browsers also send fake moves after layout changes
+      onPointerMove={(e) => {
+        if (e.movementX || e.movementY) setPointerMoved(true)
+      }}
       onCancel={(e) => {
         e.preventDefault()
         collect()
@@ -122,12 +129,16 @@ export function CardMenu(props: CardMenuProps) {
       onClick={closeOnBackdrop}
     >
       <nav className="card-hand" style={origin}>
-        {cards.map(({ run, href, ...card }, i) => {
+        {cards.map(({ run, opensPanel, href, ...card }, i) => {
           const shared = {
             className: `playing-card ${picked === i ? 'picked' : ''}`,
             style: { '--i': i } as CSSProperties,
             onAnimationEnd: (e: AnimationEvent) => finish(e, i),
-            onClick: () => pick(i, run),
+            onClick: () => {
+              // the next panel takes over the backdrop, so it stays put instead of dipping out and back
+              setHandingOff(Boolean(opensPanel))
+              pick(i, run)
+            },
           }
 
           return href ? (

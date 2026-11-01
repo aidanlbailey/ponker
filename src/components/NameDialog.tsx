@@ -21,26 +21,36 @@ export function NameDialog({ name, onChange, onClose, onRenamed }: NameDialogPro
   }
 
   return (
-    <Dialog title="Set Your Name" onClose={finish}>
-      <p>Your name will be included when you share your cashout.</p>
-      <form method="dialog" className="name-form">
-        <input
-          ref={input}
-          type="text"
-          className="name-input"
-          aria-label="Your name"
-          placeholder="Enter your name..."
-          maxLength={30}
-          value={name}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <div className="button-row">
-          <button type="button" className="button neutral" onClick={() => onChange('')}>
-            Clear
-          </button>
-          <button className="button primary">Done</button>
-        </div>
-      </form>
+    <Dialog title="Set Your Name" continuesBackdrop onClose={finish}>
+      {(close) => (
+        <>
+          <p>Your name will be included when you share your cashout.</p>
+          <form
+            className="name-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              close()
+            }}
+          >
+            <input
+              ref={input}
+              type="text"
+              className="name-input"
+              aria-label="Your name"
+              placeholder="Enter your name..."
+              maxLength={30}
+              value={name}
+              onChange={(e) => onChange(e.target.value)}
+            />
+            <div className="button-row">
+              <button type="button" className="button neutral" onClick={() => onChange('')}>
+                Clear
+              </button>
+              <button className="button primary">Done</button>
+            </div>
+          </form>
+        </>
+      )}
     </Dialog>
   )
 }

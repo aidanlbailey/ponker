@@ -1,5 +1,7 @@
 :root {
   --chip-size: 132px;
+  --backdrop: rgb(0 0 0 / 0.45);
+  --backdrop-blur: 1.5px;
   --deck-width: 48px;
   --deck-height: 67px;
   /* true 5% would be 2.4px here, which reads as square at this size, so the deck is drawn rounder */
@@ -477,9 +479,21 @@ button {
   animation: slide-in 0.3s ease-out;
 
   &::backdrop {
-    background: rgb(0 0 0 / 0.55);
-    backdrop-filter: blur(2px);
+    background: var(--backdrop);
+    backdrop-filter: blur(var(--backdrop-blur));
     animation: backdrop-in 0.5s ease-out;
+  }
+
+  &.continued::backdrop {
+    animation: none;
+  }
+
+  &.leaving {
+    animation: dialog-out 0.35s ease-in forwards;
+
+    &::backdrop {
+      animation: backdrop-out 0.35s ease-in forwards;
+    }
   }
 
   p {
@@ -577,12 +591,12 @@ button {
   background: none;
 
   &::backdrop {
-    background: rgb(0 0 0 / 0.45);
-    backdrop-filter: blur(1.5px);
+    background: var(--backdrop);
+    backdrop-filter: blur(var(--backdrop-blur));
     animation: backdrop-in 0.9s ease-out;
   }
 
-  &.leaving::backdrop {
+  &.leaving:not(.handing-off)::backdrop {
     animation: backdrop-out 0.45s ease-in forwards;
   }
 }
@@ -684,7 +698,7 @@ button {
 
 /* slides out without coming to the front, or it would cover the strip of the card below */
 @media (hover: hover) {
-  .playing-card:hover {
+  .pointer-moved .playing-card:hover {
     --lift: 32px;
   }
 }
@@ -961,6 +975,13 @@ button {
   }
 }
 
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
 @keyframes backdrop-in {
   from {
     background: transparent;
@@ -1087,7 +1108,7 @@ button {
   .card-flip .card-back,
   .leaving .playing-card .card-back,
   .card-menu::backdrop,
-  .card-menu.leaving::backdrop,
+  .card-menu.leaving:not(.handing-off)::backdrop,
   .dialog::backdrop,
   .app,
   .chip-card,
