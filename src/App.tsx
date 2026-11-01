@@ -1,8 +1,8 @@
 import { useLayoutEffect, useState } from 'react'
+import { CardMenu, type Theme } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
 import { ChipToss, createToss, type Toss } from './components/ChipToss'
-import { Menu, type Theme } from './components/Menu'
 import { NameDialog } from './components/NameDialog'
 import { Presets } from './components/Presets'
 import { Title } from './components/Title'
@@ -21,6 +21,7 @@ export function App() {
   const [showValues, setShowValues] = useStoredState('ponker-show-values', true)
 
   const [panel, setPanel] = useState<'menu' | 'presets' | 'name' | null>(null)
+  const [deck, setDeck] = useState<DOMRect | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
   const [toast, setToast] = useState<ToastMessage | null>(null)
@@ -92,8 +93,18 @@ export function App() {
         <Title />
 
         <div className="top-bar">
-          <button className="top-control" aria-label="Open menu" onClick={() => setPanel('menu')}>
-            ☰
+          <button
+            className="deck"
+            aria-label="Open menu"
+            onClick={(e) => {
+              setDeck(e.currentTarget.getBoundingClientRect())
+              setPanel('menu')
+              haptic('light')
+            }}
+          >
+            <span className="card-back" />
+            <span className="card-back" />
+            <span className="card-back" />
           </button>
           {showValues && <output className="top-control">{total}</output>}
         </div>
@@ -115,8 +126,9 @@ export function App() {
 
       <ChipToss tosses={tosses} onDone={(id) => setTosses((prev) => prev.filter((toss) => toss.id !== id))} />
 
-      {panel === 'menu' && (
-        <Menu
+      {panel === 'menu' && deck && (
+        <CardMenu
+          deck={deck}
           theme={theme}
           userName={userName}
           showValues={showValues}

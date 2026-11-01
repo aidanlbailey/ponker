@@ -455,60 +455,214 @@ button {
   }
 }
 
-.menu {
-  width: min(100% - 2rem, 320px);
-  margin: 1.25rem auto auto 1.25rem;
+/* card menu */
 
-  .dialog-content {
-    padding: 1.25rem 0.5rem 0.5rem;
-  }
-
-  .dialog-header {
-    padding-inline: 0.75rem;
-  }
+.card-back {
+  display: block;
+  border: 3px solid #ffffff;
+  border-radius: 7px;
+  outline: 1px solid rgb(0 0 0 / 0.35);
+  outline-offset: -1px;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgb(255 255 255 / 0.45) 6px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgb(255 255 255 / 0.45) 6px 7px),
+    #0b289d;
 }
 
-.menu-items {
-  display: flex;
-  flex-direction: column;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-  padding: 0.9rem 0.75rem;
+.deck {
+  position: relative;
+  width: 48px;
+  height: 66px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 7px;
   background: none;
-  color: var(--text);
-  font-weight: 500;
-  text-align: left;
-  text-decoration: none;
 
-  &:hover {
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
-    color: var(--accent-text);
-  }
+  .card-back {
+    position: absolute;
+    inset: 0;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.4);
+    transition: translate 0.15s ease;
 
-  span {
-    width: 1.5rem;
-    color: var(--accent);
-    font-size: 1.1rem;
-    text-align: center;
-  }
+    &:nth-child(1) {
+      translate: -3px 3px;
+    }
 
-  &.kofi {
-    margin-top: 0.25rem;
-    background: linear-gradient(145deg, #ff5e5e, #e53e3e);
-    color: #ffffff;
-    font-weight: 600;
-
-    span {
-      color: #ffffff;
+    &:nth-child(2) {
+      translate: -1.5px 1.5px;
     }
   }
+
+  &:hover .card-back:nth-child(3) {
+    translate: 2px -4px;
+  }
+}
+
+.card-menu {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: none;
+
+  &::backdrop {
+    background: rgb(0 0 0 / 0.7);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.card-hand {
+  --card-width: clamp(92px, min(27vw, 30dvh), 140px);
+  /* adjacent cards sit pivot * sin(step) apart. 0.73 is 7 gaps * sin(6deg) */
+  --pivot: calc((min(100vw, 760px) - 4.5rem - var(--card-width)) / 0.73);
+
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.playing-card {
+  --slot: calc(var(--i) - 3.5);
+  --step: 6deg;
+  --angle: calc(var(--slot) * var(--step));
+  --lift: 0px;
+  --row-offset: 0px;
+
+  grid-area: 1 / 1;
+  display: block;
+  width: var(--card-width);
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  rotate: var(--angle);
+  translate:
+    calc(sin(var(--angle)) * (var(--pivot) + var(--lift)))
+    calc(var(--pivot) - cos(var(--angle)) * (var(--pivot) + var(--lift)) + var(--row-offset));
+  transition: translate 0.18s ease-out;
+  perspective: 900px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--i) * 45ms) backwards;
+
+  &:focus-visible {
+    --lift: 28px;
+    z-index: 1;
+  }
+
+  .leaving & {
+    animation: collect 0.26s ease-in calc((7 - var(--i)) * 18ms) forwards;
+
+    .card-flip {
+      animation: flip-down 0.26s ease-in calc((7 - var(--i)) * 18ms) forwards;
+    }
+
+    &.picked {
+      z-index: 2;
+      animation: pick 0.32s ease-out forwards;
+
+      .card-flip {
+        animation: none;
+      }
+    }
+  }
+}
+
+/* eight cards in one hand are too thin to tap on a phone, so portrait gets two hands of four */
+@media (max-width: 560px) {
+  .card-hand {
+    --pivot: calc((100vw - 3.5rem - var(--card-width)) / 0.47); /* 3 gaps * sin(9deg) */
+  }
+
+  .playing-card {
+    --slot: calc(var(--position) - 1.5);
+    --step: 9deg;
+    --row-offset: calc(var(--row) * var(--card-width) * 0.82);
+  }
+}
+
+@media (hover: hover) {
+  .playing-card:hover {
+    --lift: 28px;
+    z-index: 1;
+  }
+}
+
+.card-flip {
+  position: relative;
+  display: block;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: flip-up 0.5s cubic-bezier(0.3, 0, 0.3, 1) calc(var(--i) * 45ms) backwards;
+
+  .card-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+  }
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: -3px 2px 7px rgb(0 0 0 / 0.4);
+  backface-visibility: hidden;
+  color: #17171c;
+  font-family: Georgia, 'Times New Roman', serif;
+
+  &.red {
+    color: #c8102e;
+  }
+}
+
+.card-index {
+  position: absolute;
+  top: 0.35rem;
+  left: 0;
+  width: 2rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: center;
+
+  &.upside-down {
+    top: auto;
+    right: 0;
+    bottom: 0.35rem;
+    left: auto;
+    rotate: 180deg;
+  }
+}
+
+.card-label {
+  position: absolute;
+  top: 2.75rem;
+  left: 0;
+  width: 2rem;
+  line-height: 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: min(0.8rem, calc(var(--card-width) * 0.122));
+  font-weight: 600;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+}
+
+.card-pip {
+  position: absolute;
+  top: 50%;
+  left: 58%;
+  font-size: calc(var(--card-width) * 0.42);
+  line-height: 1;
+  translate: -50% -50%;
 }
 
 .preset {
@@ -685,6 +839,43 @@ button {
   }
 }
 
+@keyframes deal {
+  from {
+    rotate: 0deg;
+    translate: var(--from-x) var(--from-y);
+    scale: 0.4;
+  }
+}
+
+@keyframes collect {
+  to {
+    rotate: 0deg;
+    translate: var(--from-x) var(--from-y);
+    scale: 0.4;
+  }
+}
+
+@keyframes pick {
+  to {
+    rotate: 0deg;
+    translate: 0 -6vh;
+    scale: 1.3;
+    opacity: 0;
+  }
+}
+
+@keyframes flip-up {
+  from {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes flip-down {
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
 @keyframes toast {
   0% {
     opacity: 0;
@@ -707,6 +898,15 @@ button {
   .dialog,
   .title span {
     animation: none;
+  }
+
+  .playing-card,
+  .card-flip,
+  .leaving .playing-card,
+  .leaving .playing-card .card-flip,
+  .leaving .playing-card.picked {
+    animation-duration: 1ms;
+    animation-delay: 0s;
   }
 
   /* still has to fire animationend or the toss never gets cleaned up */
