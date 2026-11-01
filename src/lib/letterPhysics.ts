@@ -229,3 +229,10 @@ export function hangingOffset(
   const radians = (tilt * Math.PI) / 180
   return { x: pointer.x - bottom.x - height * Math.sin(radians), y: pointer.y - bottom.y + height * Math.cos(radians) }
 }
+
+// letters tip and walk around their base but spin around their middle in flight, as anything does in
+// free air. this is the gap between the two at a given tilt, for swapping pivots without a visible jump
+export function pivotShift(height: number, tilt: number) {
+  const radians = (tilt * Math.PI) / 180
+  return { x: (height / 2) * Math.sin(radians), y: (height / 2) * (1 - Math.cos(radians)) }
+}

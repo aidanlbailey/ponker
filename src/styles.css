@@ -182,6 +182,10 @@ button {
       animation-play-state: paused;
     }
 
+    &.flying {
+      transform-origin: center;
+    }
+
     &.held {
       scale: 1.15;
       cursor: grabbing;

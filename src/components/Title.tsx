@@ -8,6 +8,7 @@ import {
   isThrow,
   launch,
   nearestAngle,
+  pivotShift,
   releaseVelocity,
   smack,
   stepFlight,
@@ -84,7 +85,7 @@ export function Title() {
     let lastTime = 0
 
     const stand = (letter: HTMLSpanElement) => {
-      letter.classList.remove('held', 'away')
+      letter.classList.remove('held', 'away', 'flying')
       letter.style.rotate = letter.style.scale = ''
     }
 
@@ -115,20 +116,21 @@ export function Title() {
         spring.y = flight.y - homeY
         pose(letter, flight.angle)
 
-        if (side) {
-          haptic('error')
-          trips[i] = {
-            kind: 'smack',
-            start: now,
-            side,
-            startAngle: nearestAngle(flight.angle),
-            fall: fallDirection(side, flight.vx),
-            x: spring.x,
-            y: spring.y,
+        if (side || hasStopped(flight)) {
+          // back to pivoting on its base, moved so the letter stays exactly where it is
+          const tilt = nearestAngle(flight.angle)
+          const shift = pivotShift(letter.offsetHeight, tilt)
+          spring.x -= shift.x
+          spring.y -= shift.y
+          letter.classList.remove('flying')
+          const landed = { start: now, x: spring.x, y: spring.y }
+
+          if (side) {
+            haptic('error')
+            trips[i] = { kind: 'smack', ...landed, side, startAngle: tilt, fall: fallDirection(side, flight.vx) }
+          } else {
+            trips[i] = { kind: 'stumble', ...landed, duration: DIZZY_STUMBLE_MS, fall: tilt }
           }
-        } else if (hasStopped(flight)) {
-          const fall = Math.max(-35, Math.min(35, nearestAngle(flight.angle)))
-          trips[i] = { kind: 'stumble', start: now, duration: DIZZY_STUMBLE_MS, fall, x: spring.x, y: spring.y }
         }
         return true
       }
@@ -310,8 +312,13 @@ export function Title() {
         const box = title.current!.getBoundingClientRect()
         const homeX = box.left + letter.offsetLeft + letter.offsetWidth / 2
         const homeY = box.top + letter.offsetTop + letter.offsetHeight / 2
-        trips[index] = { kind: 'flight', flight: launch(homeX + x, homeY + y, velocity, tilt, swingSpin(swing)) }
-        letter.classList.add('away')
+        // spins around its own middle in the air, so launch from where the middle is right now
+        const shift = pivotShift(letter.offsetHeight * HELD_SCALE, tilt)
+        trips[index] = {
+          kind: 'flight',
+          flight: launch(homeX + x + shift.x, homeY + y + shift.y, velocity, tilt, swingSpin(swing)),
+        }
+        letter.classList.add('away', 'flying')
       } else if (Math.abs(fall) > UPRIGHT) {
         // still swung over, so it rights itself first rather than snapping upright to walk
         trips[index] = { kind: 'stumble', start: performance.now(), duration: DIZZY_STUMBLE_MS, fall, x, y }

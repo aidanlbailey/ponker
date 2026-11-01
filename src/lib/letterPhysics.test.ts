@@ -7,6 +7,7 @@ import {
   isThrow,
   launch,
   nearestAngle,
+  pivotShift,
   releaseVelocity,
   smack,
   stepFlight,
@@ -292,5 +293,24 @@ describe('hanging from the pointer', () => {
     expect(flight.angle).toBe(30)
     expect(flight.spin).toBe(600)
     expect(launch(0, 0, { x: 9000, y: 0 }, 0, 9000).spin).toBe(1440)
+  })
+})
+
+describe('pivotShift', () => {
+  // where the middle of a letter ends up when it's rotated around its base
+  const middleAroundBase = (height: number, tilt: number) => {
+    const radians = (tilt * Math.PI) / 180
+    return { x: (height / 2) * Math.sin(radians), y: height / 2 - (height / 2) * Math.cos(radians) }
+  }
+
+  it('is nothing when upright', () => {
+    expect(pivotShift(90, 0)).toEqual({ x: 0, y: 0 })
+  })
+
+  it.each([30, 90, 180, -135, 500])('keeps the letter in place when swapping pivots at %d degrees', (tilt) => {
+    const shift = pivotShift(90, tilt)
+    const middle = middleAroundBase(90, tilt)
+    expect(shift.x).toBeCloseTo(middle.x)
+    expect(shift.y).toBeCloseTo(middle.y)
   })
 })
