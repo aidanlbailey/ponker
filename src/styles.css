@@ -172,6 +172,24 @@ button {
     animation: title-wave 4.5s ease-in-out infinite;
     /* the wave owns transform and the dodge owns translate, so neither disturbs the other */
     will-change: transform, translate;
+    position: relative;
+    cursor: grab;
+
+    /* paused rather than removed, so the wave picks up from the same spot when it gets home */
+    &.held,
+    &.walking {
+      z-index: 40;
+      animation-play-state: paused;
+    }
+
+    &.held {
+      scale: 1.15;
+      rotate: -6deg;
+      cursor: grabbing;
+      transition:
+        scale 0.15s ease-out,
+        rotate 0.15s ease-out;
+    }
   }
 }
 

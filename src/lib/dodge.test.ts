@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dodgeTarget, stepSpring, type Spring } from './dodge'
+import { dodgeTarget, stepSpring, waddle, walkDuration, type Spring } from './dodge'
 
 const size = ({ x, y }: { x: number; y: number }) => Math.hypot(x, y)
 const rest = (): Spring => ({ x: 0, y: 0, vx: 0, vy: 0 })
@@ -27,6 +27,32 @@ describe('dodgeTarget', () => {
       expect(Math.abs(current - previous)).toBeLessThan(1.25)
       previous = current
     }
+  })
+})
+
+describe('waddle', () => {
+  const from = { x: 400, y: 300 }
+
+  it('starts where it was dropped and ends exactly home, upright', () => {
+    expect(waddle(from, 0)).toMatchObject({ x: 400, y: 300, tilt: 0 })
+    const end = waddle(from, 1)
+    expect(end.x).toBeCloseTo(0)
+    expect(end.y).toBeCloseTo(0)
+    expect(end.tilt).toBeCloseTo(0)
+  })
+
+  it('hops above its straight path and rocks both ways', () => {
+    const poses = Array.from({ length: 201 }, (_, i) => waddle({ x: 400, y: 0 }, i / 200))
+    expect(Math.min(...poses.map((p) => p.y))).toBeLessThan(-20)
+    expect(Math.max(...poses.map((p) => p.y))).toBeCloseTo(0)
+    expect(Math.min(...poses.map((p) => p.tilt))).toBeLessThan(-10)
+    expect(Math.max(...poses.map((p) => p.tilt))).toBeGreaterThan(10)
+  })
+
+  it('takes longer the further it has to go, within limits', () => {
+    expect(walkDuration(20)).toBe(800)
+    expect(walkDuration(500)).toBeGreaterThan(walkDuration(350))
+    expect(walkDuration(5000)).toBe(2600)
   })
 })
 

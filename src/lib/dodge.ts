@@ -16,6 +16,30 @@ export function dodgeTarget(dx: number, dy: number, radius: number) {
   return { x: (-dx / radius) * strength, y: (-dy / radius) * strength }
 }
 
+const HOP_MS = 260
+const WALK_SPEED = 380
+
+export const walkDuration = (distance: number) => Math.min(2600, Math.max(800, (distance / WALK_SPEED) * 1000))
+
+// a letter's pose while it waddles home. each half sine is one hop, and because the sine
+// flips sign between hops the same value rocks it side to side
+export function waddle(from: { x: number; y: number }, progress: number) {
+  const distance = Math.hypot(from.x, from.y)
+  const steps = Math.max(3, Math.round(walkDuration(distance) / HOP_MS)) // same rhythm on any length of trip
+  const stride = Math.sin(progress * steps * Math.PI)
+  const hop = Math.abs(stride) * Math.min(24, 10 + distance * 0.03)
+  const travelled = progress * progress * (3 - 2 * progress)
+  const squash = (1 - Math.abs(stride)) ** 3 * 0.14 // flattest as it lands
+
+  return {
+    x: from.x * (1 - travelled),
+    y: from.y * (1 - travelled) - hop,
+    tilt: stride * 14,
+    scaleX: 1 + squash * 0.7,
+    scaleY: 1 - squash,
+  }
+}
+
 // runs on elapsed time rather than per frame, so it feels the same at 60Hz and 144Hz
 export function stepSpring(spring: Spring, target: { x: number; y: number }, seconds: number) {
   const dt = Math.min(seconds, MAX_STEP)
