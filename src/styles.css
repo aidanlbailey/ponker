@@ -647,7 +647,7 @@ button {
   --card-height: calc(var(--card-width) * 0.714);
   --step: 5deg;
   --spread: calc(var(--step) * 3.5);
-  --label-size: clamp(0.95rem, calc(var(--card-width) * 0.055), 1.2rem);
+  --label-size: clamp(1.05rem, calc(var(--card-width) * 0.065), 1.4rem);
   /* solved so the end cards' corners just reach the top and bottom of the hand */
   --pivot: calc(
     (var(--hand-height) / 2 - 1rem - var(--card-height) / 2 * cos(var(--spread))) / sin(var(--spread)) -
@@ -669,7 +669,7 @@ button {
     --card-width: min(60vw, 360px);
     --card-height: calc(var(--card-width) * 0.3);
     --step: 1.5deg;
-    --label-size: 0.85rem;
+    --label-size: 0.9rem;
   }
 
   .card-pip {
@@ -677,7 +677,8 @@ button {
   }
 
   .card-label {
-    padding-top: 0.2rem;
+    padding-top: 0.15rem;
+    line-height: 1.1;
   }
 
   .card-index {
@@ -798,7 +799,7 @@ button {
   position: absolute;
   top: 0.4rem;
   right: 0.45rem;
-  font-size: calc(var(--label-size) * 1.15);
+  font-size: var(--label-size);
   font-weight: 700;
   line-height: 1.05;
   text-align: center;
@@ -818,9 +819,9 @@ button {
   display: block;
   overflow: hidden;
   padding: 0.5rem 3.5rem 0 0.9rem;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
   font-size: var(--label-size);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   text-align: left;
   text-overflow: ellipsis;

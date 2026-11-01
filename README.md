@@ -17,7 +17,7 @@ A poker chip tracker for players who haven't got the knack of counting their sta
 
 ## Stack
 
-React, TypeScript and Vite, with plain CSS. No runtime dependencies beyond React.
+React, TypeScript and Vite, with plain CSS. The only other runtime dependency is the bundled Atkinson Hyperlegible font used on the menu cards.
 
 ```
 src/
