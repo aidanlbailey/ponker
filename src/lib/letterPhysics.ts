@@ -186,7 +186,8 @@ export function stumble(fall: number, progress: number) {
 }
 
 const GRAVITY = 2500
-const SWING_DAMPING = 1.4
+const SWING_DAMPING = 2.2
+const INERTIA = 0.6 // share of the cursor's motion that reaches the letter, lower feels heavier
 const MAX_SWING_SPEED = 40
 const MAX_PIVOT_ACCELERATION = 30000
 
@@ -199,8 +200,8 @@ const clampAcceleration = (value: number) => Math.max(-MAX_PIVOT_ACCELERATION, M
 // the cursor keeps adding energy until the letter goes all the way around
 export function stepSwing(swing: Swing, pivot: { x: number; y: number }, length: number, seconds: number) {
   const dt = Math.min(seconds, MAX_STEP)
-  const ax = clampAcceleration(pivot.x)
-  const ay = clampAcceleration(pivot.y)
+  const ax = clampAcceleration(pivot.x) * INERTIA
+  const ay = clampAcceleration(pivot.y) * INERTIA
   const acceleration =
     -((GRAVITY - ay) * Math.sin(swing.angle) + ax * Math.cos(swing.angle)) / length - SWING_DAMPING * swing.speed
 

@@ -237,24 +237,21 @@ describe('stepSwing', () => {
     expect(swing.angle).toBeLessThan(0)
   })
 
-  it('whirls all the way around when the pivot circles fast', () => {
-    const radius = 80
-    const rate = Math.PI * 4 // two laps a second
-    const circling = (time: number) => ({
+  const circle = (radius: number, lapsPerSecond: number) => {
+    const rate = Math.PI * 2 * lapsPerSecond
+    return (time: number) => ({
       x: -radius * rate * rate * Math.cos(rate * time),
       y: -radius * rate * rate * Math.sin(rate * time),
     })
-    expect(peak(circling, 3).furthest).toBeGreaterThan(Math.PI * 4)
+  }
+
+  it('whirls all the way around when the pivot circles fast', () => {
+    expect(peak(circle(80, 2), 3).furthest).toBeGreaterThan(Math.PI * 4)
   })
 
-  it('only sways on a gentle slow circle', () => {
-    const radius = 40
-    const rate = Math.PI // half a lap a second
-    const circling = (time: number) => ({
-      x: -radius * rate * rate * Math.cos(rate * time),
-      y: -radius * rate * rate * Math.sin(rate * time),
-    })
-    expect(peak(circling, 3).furthest).toBeLessThan(Math.PI / 2)
+  it('has enough weight to shrug off a lazy circle', () => {
+    expect(peak(circle(80, 1), 5).furthest).toBeLessThan(Math.PI)
+    expect(peak(circle(40, 0.5), 3).furthest).toBeLessThan(Math.PI / 2)
   })
 
   it('never runs away, even under huge jolts', () => {
