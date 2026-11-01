@@ -177,7 +177,7 @@ button {
 
     /* paused rather than removed, so the wave picks up from the same spot when it gets home */
     &.held,
-    &.walking {
+    &.away {
       z-index: 40;
       animation-play-state: paused;
     }
