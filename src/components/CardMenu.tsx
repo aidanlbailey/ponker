@@ -24,18 +24,18 @@ function CardFace({ rank, suit, label }: CardProps) {
     <span className="card-flip">
       <span className="card-back" />
       <span className={`card-face ${isRed ? 'red' : ''}`}>
-        <span className="card-strip">
-          <span className="card-index" aria-hidden="true">
-            {rank}
-            {suit}
-          </span>
-          <span className="card-label">{label}</span>
-        </span>
+        <span className="card-label">{label}</span>
         <span className="card-pip" aria-hidden="true">
+          {suit}
+        </span>
+        <span className="card-index" aria-hidden="true">
+          {rank}
+          <br />
           {suit}
         </span>
         <span className="card-index upside-down" aria-hidden="true">
           {rank}
+          <br />
           {suit}
         </span>
       </span>
