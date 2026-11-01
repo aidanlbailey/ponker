@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
 import { contrastColor, formatMoney, type Chip as ChipData } from '../lib/chips'
 import { Chip } from './Chip'
-import { LAND_MS } from './ChipToss'
+import { BOUNCE, BOUNCE_MS, LAND_MS } from './ChipToss'
 
 // scale rather than transform so these don't fight the hover state
 const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, { scale: '1' }]
@@ -32,6 +32,9 @@ export function ChipCard({ chip, showValue, onAdd, onRemove, onEdit, onValueChan
   const add = () => {
     onAdd(rect())
     thud(LANDING, LAND_MS)
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      count.current?.animate(BOUNCE, { duration: BOUNCE_MS, delay: LAND_MS })
+    }
   }
 
   const remove = () => {

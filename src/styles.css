@@ -1,5 +1,7 @@
 :root {
   --chip-size: 132px;
+  --deck-width: 48px;
+  --deck-height: 67px;
   --radius: 8px;
   --shadow: 0 4px 8px rgb(0 0 0 / 0.3);
   --bg-image: none;
@@ -473,8 +475,9 @@ button {
   animation: slide-in 0.3s ease-out;
 
   &::backdrop {
-    background: rgb(0 0 0 / 0.7);
-    backdrop-filter: blur(4px);
+    background: rgb(0 0 0 / 0.55);
+    backdrop-filter: blur(2px);
+    animation: backdrop-in 0.5s ease-out;
   }
 
   p {
@@ -509,7 +512,7 @@ button {
 
   display: block;
   border: calc(var(--hatch) * 0.43) solid #ffffff;
-  border-radius: 7px;
+  border-radius: calc(var(--hatch) * 0.35); /* --hatch is 1/7 of the short side, so this is 5% of it */
   outline: 1px solid rgb(0 0 0 / 0.35);
   outline-offset: -1px;
   background:
@@ -528,12 +531,17 @@ button {
 
 .deck {
   position: relative;
-  width: 48px;
-  height: 66px;
+  width: var(--deck-width);
+  height: var(--deck-height);
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: 2.4px;
   background: none;
+
+  /* the dealt cards take over from the exact same spot, so the real deck steps aside */
+  &.dealt {
+    visibility: hidden;
+  }
 
   .card-back {
     position: absolute;
@@ -566,8 +574,13 @@ button {
   background: none;
 
   &::backdrop {
-    background: rgb(0 0 0 / 0.7);
-    backdrop-filter: blur(4px);
+    background: rgb(0 0 0 / 0.45);
+    backdrop-filter: blur(1.5px);
+    animation: backdrop-in 0.9s ease-out;
+  }
+
+  &.leaving::backdrop {
+    animation: backdrop-out 0.45s ease-in forwards;
   }
 }
 
@@ -585,6 +598,9 @@ button {
     (var(--hand-height) / 2 - 1rem - var(--card-height) / 2 * cos(var(--spread))) / sin(var(--spread)) -
       var(--card-width) / 2
   );
+  /* tan(atan2()) is the way to divide one length by another and get a plain number */
+  --deck-scale-x: tan(atan2(var(--deck-height), var(--card-width)));
+  --deck-scale-y: tan(atan2(var(--deck-width), var(--card-height)));
 
   display: grid;
   justify-items: start;
@@ -609,6 +625,9 @@ button {
 .playing-card {
   --angle: calc((var(--i) - 3.5) * var(--step));
   --lift: 0px;
+  /* where this card rests in the deck, fanned a hair so the pile matches the button's edge */
+  --deck-pose-x: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2 + (var(--i) - 7) * 0.43px);
+  --deck-pose-y: calc(var(--deck-y) + (7 - var(--i)) * 0.43px);
 
   grid-area: 1 / 1;
   display: block;
@@ -616,7 +635,7 @@ button {
   height: var(--card-height);
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: calc(var(--card-height) * 0.05);
   background: none;
   rotate: var(--angle);
   translate:
@@ -632,17 +651,17 @@ button {
   /* keeps the card on one layer so it doesn't re-render and snap when it comes to rest */
   will-change: translate, rotate, scale;
   -webkit-tap-highlight-color: transparent;
-  animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--i) * 45ms) backwards;
+  animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc((7 - var(--i)) * 45ms) backwards;
 
   &:focus-visible {
     --lift: 32px;
   }
 
   .leaving & {
-    animation: collect 0.26s ease-in calc((7 - var(--i)) * 18ms) forwards;
+    animation: collect 0.26s ease-in calc(var(--i) * 18ms) forwards;
 
     .card-flip {
-      animation: flip-down 0.26s ease-in calc((7 - var(--i)) * 18ms) forwards;
+      animation: flip-down 0.26s ease-in calc(var(--i) * 18ms) forwards;
     }
 
     &.picked {
@@ -668,7 +687,7 @@ button {
   display: block;
   height: 100%;
   transform-style: preserve-3d;
-  animation: flip-up 0.55s cubic-bezier(0.3, 0, 0.3, 1) calc(var(--i) * 45ms) backwards;
+  animation: flip-up 0.55s cubic-bezier(0.3, 0, 0.3, 1) calc((7 - var(--i)) * 45ms) backwards;
 
   .card-back {
     --hatch: calc(var(--card-height) / 7);
@@ -685,7 +704,7 @@ button {
   inset: 0;
   display: block;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: calc(var(--card-height) * 0.05);
   outline: 1px solid transparent; /* smooths the edge while rotated */
   background: #ffffff;
   box-shadow: 0 -2px 7px rgb(0 0 0 / 0.35);
@@ -934,19 +953,33 @@ button {
   }
 }
 
+@keyframes backdrop-in {
+  from {
+    background: transparent;
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes backdrop-out {
+  to {
+    background: transparent;
+    backdrop-filter: blur(0);
+  }
+}
+
 @keyframes deal {
   from {
     rotate: 450deg;
-    translate: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2) var(--deck-y);
-    scale: 0.22;
+    translate: var(--deck-pose-x) var(--deck-pose-y);
+    scale: var(--deck-scale-x) var(--deck-scale-y);
   }
 }
 
 @keyframes collect {
   to {
     rotate: 90deg;
-    translate: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2) var(--deck-y);
-    scale: 0.22;
+    translate: var(--deck-pose-x) var(--deck-pose-y);
+    scale: var(--deck-scale-x) var(--deck-scale-y);
   }
 }
 
@@ -1030,6 +1063,9 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card-menu::backdrop,
+  .card-menu.leaving::backdrop,
+  .dialog::backdrop,
   .app,
   .chip-card,
   .dialog,

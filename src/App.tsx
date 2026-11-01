@@ -94,7 +94,7 @@ export function App() {
 
         <div className="top-bar">
           <button
-            className="deck"
+            className={`deck ${panel === 'menu' ? 'dealt' : ''}`}
             aria-label="Open menu"
             onClick={(e) => {
               setDeck(e.currentTarget.getBoundingClientRect())

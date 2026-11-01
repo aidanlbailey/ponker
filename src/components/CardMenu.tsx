@@ -84,9 +84,9 @@ export function CardMenu(props: CardMenuProps) {
     if (!(e.target as Element).closest('.playing-card')) collect()
   }
 
-  // card 0 goes back to the deck last, so its animation ending means the hand is gone
+  // the last card goes back on top of the deck, so its animation ending means the hand is gone
   const finish = (e: AnimationEvent, index: number) => {
-    if (leaving && index === 0 && e.target === e.currentTarget) {
+    if (leaving && index === cards.length - 1 && e.target === e.currentTarget) {
       onClose()
       afterCollect.current?.()
     }
@@ -112,7 +112,7 @@ export function CardMenu(props: CardMenuProps) {
   return (
     <dialog
       ref={dialog}
-      className="card-menu"
+      className={`card-menu ${leaving ? 'leaving' : ''}`}
       aria-label="Menu"
       onCancel={(e) => {
         e.preventDefault()
@@ -121,7 +121,7 @@ export function CardMenu(props: CardMenuProps) {
       onClose={onClose}
       onClick={closeOnBackdrop}
     >
-      <nav className={`card-hand ${leaving ? 'leaving' : ''}`} style={origin}>
+      <nav className="card-hand" style={origin}>
         {cards.map(({ run, href, ...card }, i) => {
           const shared = {
             className: `playing-card ${picked === i ? 'picked' : ''}`,

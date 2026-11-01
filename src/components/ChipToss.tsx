@@ -12,9 +12,20 @@ export type Toss = {
 const CHIP_SIZE = 132
 const EDGE_LAYERS = [-4, -2.5, -1, 1, 2.5, 4]
 
-// keep FLIGHT_MS in step with --toss-duration and LAND_MS with the 62% landing in the toss-fall keyframes
+// LAND_MS has to stay in step with the 62% landing in the fall-height keyframes
 const FLIGHT_MS = 1100
 export const LAND_MS = FLIGHT_MS * 0.62
+export const BOUNCE_MS = FLIGHT_MS - LAND_MS
+
+// the tail of fall-height after landing, so the chip count can ride the same bounces
+export const BOUNCE: Keyframe[] = [
+  { translate: '0 0', easing: 'ease-out' },
+  { translate: '0 -26px', offset: 0.368, easing: 'ease-in' },
+  { translate: '0 0', offset: 0.684, easing: 'ease-out' },
+  { translate: '0 -6px', offset: 0.842, easing: 'ease-in' },
+  { translate: '0 0', offset: 0.921 },
+  { translate: '0 0' },
+]
 
 let nextId = 0
 
