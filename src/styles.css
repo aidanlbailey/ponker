@@ -18,14 +18,14 @@
   --bg: #000000;
   --text: #ffffff;
   --text-soft: #cccccc;
-  --text-muted: #888888;
+  --text-muted: #a0a0a0;
   --surface: linear-gradient(145deg, #1a1a1a, #2a2a2a);
   --surface-raised: #2a2a2a;
   --border: #3a3a3a;
   --accent: #3b82f6;
   --accent-text: #93c5fd;
   --field: #1a1a1a;
-  --field-border: #555555;
+  --field-border: #7a7a7a;
   --title-color: #93c5fd;
   --title-stroke: #3b82f6;
   --title-shadow:
@@ -36,14 +36,14 @@
   --bg: #f8f9fa;
   --text: #212529;
   --text-soft: #495057;
-  --text-muted: #6c757d;
+  --text-muted: #5f6872;
   --surface: linear-gradient(145deg, #ffffff, #f8f9fa);
   --surface-raised: #ffffff;
   --border: #dee2e6;
   --accent: #0d6efd;
   --accent-text: #0d6efd;
   --field: #ffffff;
-  --field-border: #dee2e6;
+  --field-border: #868e96;
   --title-color: #212529;
   --title-stroke: #212529;
   --title-shadow:
@@ -60,11 +60,14 @@
   --text-muted: #a8e6cf;
   --surface: linear-gradient(145deg, #1a5f3a, #0f5132);
   --surface-raised: #2d5a3d;
-  --border: #2d5a3d;
+  --border: #4a7c59;
   --accent: #ffd700;
   --accent-text: #ffd700;
   --field: #2d5a3d;
-  --field-border: #4a7c59;
+  --field-border: #8fc7a5;
+  /* green and red buttons sink into the felt without a light edge */
+  --add-edge: #d9f2e3;
+  --danger-edge: #f7c9c9;
   --title-color: #ffd700;
   --title-stroke: #ffffff;
   --title-shadow:
@@ -108,7 +111,6 @@ body {
   background-size: 20px 20px;
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
   touch-action: manipulation;
 }
 
@@ -177,9 +179,8 @@ button {
 .subtitle {
   margin-top: 0.5rem;
   color: var(--text-muted);
-  font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+  font-size: clamp(0.95rem, 2.5vw, 1.2rem);
   font-style: italic;
-  font-weight: 300;
   letter-spacing: 0.05em;
 }
 
@@ -225,9 +226,8 @@ button {
 }
 
 .chip-total {
-  min-height: 1.4rem;
-  color: var(--text-soft);
-  font-size: 0.95rem;
+  min-height: 1.5rem;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   user-select: none;
@@ -298,15 +298,19 @@ button {
   align-items: baseline;
   gap: 0.1rem;
   min-width: 3.5rem;
-  padding: 0.1rem 0.35rem;
+  padding: 0.4rem 0.35rem 0.25rem; /* the whole label is the tap target */
   border-bottom: 1px solid var(--field-border);
-  color: var(--text-muted);
-  font-size: 0.95rem;
+  color: var(--text-soft);
   font-variant-numeric: tabular-nums;
 
-  &:hover,
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  /* hides the input's own outline below, so this has to be as clear as a focus ring */
   &:focus-within {
     border-color: var(--accent);
+    box-shadow: 0 1px 0 var(--accent);
   }
 
   input {
@@ -421,13 +425,13 @@ button {
   }
 
   &.add {
-    border-color: #276749;
-    background: linear-gradient(145deg, #38a169, #2f855a);
+    border-color: var(--add-edge, #1c5a3a);
+    background: linear-gradient(145deg, #2f855a, #276749);
   }
 
   &.danger {
-    border-color: #9b2c2c;
-    background: linear-gradient(145deg, #e53e3e, #c53030);
+    border-color: var(--danger-edge, #742a2a);
+    background: linear-gradient(145deg, #c53030, #9b2c2c);
   }
 
   &.neutral {
@@ -435,7 +439,7 @@ button {
   }
 
   &.primary {
-    background: linear-gradient(145deg, #3b82f6, #2563eb);
+    background: linear-gradient(145deg, #2563eb, #1d4ed8);
   }
 }
 
@@ -885,7 +889,8 @@ button {
 
   &:focus {
     border-color: var(--accent);
-    outline: 0;
+    outline: 1px solid var(--accent);
+    outline-offset: 0;
   }
 }
 
@@ -906,11 +911,11 @@ button {
   animation: toast 3s ease-out forwards;
 
   &.success {
-    background: linear-gradient(145deg, #28a745, #20c997);
+    background: linear-gradient(145deg, #1e7e34, #176029);
   }
 
   &.error {
-    background: linear-gradient(145deg, #dc3545, #c82333);
+    background: linear-gradient(145deg, #c82333, #a71d2a);
   }
 }
 
