@@ -4,7 +4,9 @@ A poker chip tracker for players who haven't got the knack of counting their sta
 
 **[ponker.aidanbailey.com](https://ponker.aidanbailey.com)**
 
-![Ponker on the felt theme](screenshot.jpg)
+
+[DEMO](https://github.com/user-attachments/assets/56a589b4-f36b-4fdd-b827-22df6bc7ca6d)
+
 
 ## Features
 
