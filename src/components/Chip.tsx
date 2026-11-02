@@ -17,7 +17,8 @@ const DICE_FACES = [
   pips([0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]),
 ]
 
-// markings only, the chip color is the span's background so its inset shadow still shows through
+// markings only, the chip color is the span's background and the lacquer is .chip::after.
+// the groove is strokes with no fill so the middle stays chip colored and contrastColor still holds for the count
 export function Chip({ color }: { color: string }) {
   const accent = accentColor(color)
 
@@ -38,6 +39,9 @@ export function Chip({ color }: { color: string }) {
         {Array.from({ length: 12 }, (_, i) => (
           <rect key={i} x="-5" y="-41" width="10" height="4" rx="2" transform={`rotate(${i * 30})`} />
         ))}
+        <circle r="33.5" fill="none" stroke="#000" strokeOpacity=".28" strokeWidth="1.5" />
+        <circle r="35" fill="none" stroke="#fff" strokeOpacity=".3" />
+        <circle r="64.5" fill="none" stroke="#000" strokeOpacity=".24" strokeWidth="3" strokeDasharray="1 2.4" />
       </svg>
     </span>
   )

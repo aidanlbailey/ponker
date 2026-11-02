@@ -1,8 +1,11 @@
-import { useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
-import { contrastColor, formatMoney, type Chip as ChipData } from '../lib/chips'
+import { accentColor, countStyle, formatMoney, type Chip as ChipData } from '../lib/chips'
+import { CHIP_RISE, STACK_ROOM, landedCount, layerJitter, stackLayers, stackLift } from '../lib/stack'
 import { Chip } from './Chip'
-import { BOUNCE, BOUNCE_MS, LAND_MS } from './ChipToss'
+import { BOUNCE, BOUNCE_MS, CHIP_SIZE, LAND_MS } from './ChipToss'
+
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // scale rather than transform so these don't fight the hover state
 const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, { scale: '1' }]
@@ -19,27 +22,48 @@ type ChipCardProps = {
 }
 
 export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
+  const stack = useRef<HTMLDivElement>(null)
   const chipButton = useRef<HTMLButtonElement>(null)
   const count = useRef<HTMLSpanElement>(null)
-  const rect = () => chipButton.current!.getBoundingClientRect()
+  const landings = useRef(new Set<number>())
+  const [inFlight, setInFlight] = useState(0)
+
+  const landed = landedCount(chip.count, inFlight)
+  const layers = stackLayers(landed)
+
+  useEffect(() => {
+    const pending = landings.current
+    return () => pending.forEach(clearTimeout)
+  }, [])
+
+  // measured off the stack's box, not the button, which grows with the pile and scales on hover
+  const topOfPile = (chips: number) => {
+    const { left, bottom } = stack.current!.getBoundingClientRect()
+    return new DOMRect(left, bottom - CHIP_SIZE - stackLift(chips), CHIP_SIZE, CHIP_SIZE)
+  }
 
   const thud = (keyframes: Keyframe[], delay: number) => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (reducedMotion()) return
     for (const part of [chipButton.current, count.current]) {
       part?.animate(keyframes, { duration: 300, delay, easing: 'ease-out' })
     }
   }
 
   const add = () => {
-    onAdd(rect())
+    onAdd(topOfPile(chip.count + 1))
     thud(LANDING, LAND_MS)
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      count.current?.animate(BOUNCE, { duration: BOUNCE_MS, delay: LAND_MS })
-    }
+    if (reducedMotion()) return
+    count.current?.animate(BOUNCE, { duration: BOUNCE_MS, delay: LAND_MS })
+    setInFlight((n) => n + 1)
+    const timer = window.setTimeout(() => {
+      landings.current.delete(timer)
+      setInFlight((n) => n - 1)
+    }, LAND_MS)
+    landings.current.add(timer)
   }
 
   const remove = () => {
-    onRemove(rect())
+    onRemove(topOfPile(landed))
     if (chip.count) thud(PLUCK, 0)
   }
 
@@ -49,7 +73,11 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
     <article className="chip-card" style={{ '--morph-name': `chip-${id}` } as CSSProperties}>
       <p className="chip-total">{showValue && formatMoney(chip.value * chip.count)}</p>
 
-      <div className="chip-stack">
+      <div
+        ref={stack}
+        className="chip-stack"
+        style={{ '--stack-room': `${STACK_ROOM}px`, '--stack-lift': `${layers * CHIP_RISE}px` } as CSSProperties}
+      >
         <button
           ref={chipButton}
           className="chip-button"
@@ -57,10 +85,24 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
           title="Click or long press to edit. Swipe down to add, up to remove."
           {...gestures}
         >
+          {Array.from({ length: layers }, (_, fromBottom) => (
+            <i
+              key={fromBottom}
+              className="chip-layer"
+              style={
+                {
+                  top: (layers - fromBottom) * CHIP_RISE,
+                  left: layerJitter(fromBottom),
+                  '--edge': chip.color,
+                  '--stripe': accentColor(chip.color),
+                } as CSSProperties
+              }
+            />
+          ))}
           <Chip color={chip.color} />
         </button>
-        <span ref={count} className="chip-count" aria-hidden="true" style={{ color: contrastColor(chip.color) }}>
-          {chip.count.toLocaleString('en-US')}
+        <span ref={count} className="chip-count" aria-hidden="true" style={countStyle(chip.color)}>
+          {landed.toLocaleString('en-US')}
         </span>
       </div>
 
@@ -78,12 +120,10 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
         />
       </label>
 
-      <button className="button add" onClick={add}>
-        Add
-      </button>
-      <button className="button danger" onClick={remove}>
-        Remove
-      </button>
+      <div className="chip-actions">
+        <button className="button danger" aria-label="Remove chip" onClick={remove} />
+        <button className="button add" aria-label="Add chip" onClick={add} />
+      </div>
     </article>
   )
 }

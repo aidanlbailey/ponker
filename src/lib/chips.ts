@@ -88,6 +88,12 @@ export function contrastColor(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 128 ? '#000000' : '#ffffff'
 }
 
+// the drop shadow only helps white numbers, on black ones it's just smudge
+export function countStyle(hex: string) {
+  const color = contrastColor(hex)
+  return color === '#000000' ? { color, textShadow: 'none' } : { color }
+}
+
 // white chips get navy markings, everything else gets white
 export const accentColor = (hex: string) => (hex.toLowerCase() === '#ffffff' ? '#0b289d' : '#ffffff')
 

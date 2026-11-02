@@ -185,6 +185,26 @@ export function stumble(fall: number, progress: number) {
   }
 }
 
+const SPRING_SPINS = 3
+export const SPRING_HOP = 70
+const WIND_UP = 0.25 // share of the time spent lying there gathering itself
+
+// knocked flat, then springs to life: crouches, leaps, and spins on the way down. a spin is the width
+// squeezing through nothing into mirrored and back, so a whole number of them has to land facing forwards
+export function springUp(fall: number, progress: number) {
+  const crouch = Math.sin(Math.PI * Math.min(progress / WIND_UP, 1))
+  const air = Math.max(0, (progress - WIND_UP) / (1 - WIND_UP))
+  const rise = Math.min(air / 0.2, 1)
+  const spin = 1 - (1 - air) ** 2 // quick off the ground, slowing as it comes down
+
+  return {
+    tilt: fall * (1 - rise * rise * (3 - 2 * rise)),
+    lift: 4 * air * (1 - air),
+    scaleX: (1 + crouch * 0.15) * Math.cos(2 * Math.PI * SPRING_SPINS * spin),
+    scaleY: 1 - crouch * 0.25,
+  }
+}
+
 const GRAVITY = 2500
 const SWING_DAMPING = 2.2
 const INERTIA = 0.6 // share of the cursor's motion that reaches the letter, lower feels heavier

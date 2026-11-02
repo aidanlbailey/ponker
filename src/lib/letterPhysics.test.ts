@@ -10,6 +10,7 @@ import {
   pivotShift,
   releaseVelocity,
   smack,
+  springUp,
   stepFlight,
   stepSpring,
   stepSwing,
@@ -179,6 +180,31 @@ describe('getting back up', () => {
     expect(fallDirection('left', 0)).toBeGreaterThan(0)
     expect(fallDirection('right', 0)).toBeLessThan(0)
     expect(fallDirection('top', -500)).toBeLessThan(0)
+  })
+
+  it('springs up from exactly how the smack left it and lands facing forwards', () => {
+    const start = springUp(-80, 0)
+    expect(start.tilt).toBeCloseTo(smack('right', 20, -80, 1).tilt)
+    expect(start.scaleX).toBeCloseTo(smack('right', 20, -80, 1).scaleX)
+    expect(start.scaleY).toBeCloseTo(1)
+    expect(start.lift).toBe(0)
+
+    const end = springUp(-80, 1)
+    expect(end.tilt).toBeCloseTo(0)
+    expect(end.scaleX).toBeCloseTo(1)
+    expect(end.scaleY).toBeCloseTo(1)
+    expect(end.lift).toBeCloseTo(0)
+  })
+
+  it('stays on the ground while winding up, then leaps and spins', () => {
+    const frames = Array.from({ length: 1001 }, (_, i) => springUp(80, i / 1000))
+    expect(frames.slice(0, 250).every(({ lift }) => lift === 0)).toBe(true)
+    expect(Math.max(...frames.map(({ lift }) => lift))).toBeCloseTo(1, 2)
+    expect(Math.min(...frames.map(({ lift }) => lift))).toBeGreaterThanOrEqual(0)
+
+    const widths = frames.map(({ scaleX }) => scaleX)
+    const flips = widths.filter((w, i) => i > 0 && Math.sign(w) !== Math.sign(widths[i - 1]!)).length
+    expect(flips).toBe(6) // three spins, each through mirrored and back
   })
 
   it('squashes into the wall and hands over to the stumble at the same tilt', () => {

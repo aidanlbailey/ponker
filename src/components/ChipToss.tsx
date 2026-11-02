@@ -1,15 +1,16 @@
 import type { AnimationEvent, CSSProperties } from 'react'
-import { accentColor } from '../lib/chips'
+import { accentColor, countStyle } from '../lib/chips'
 import { Chip } from './Chip'
 
 export type Toss = {
   id: number
   direction: 'fall' | 'rise'
   color: string
+  count: number
   style: CSSProperties
 }
 
-const CHIP_SIZE = 132
+export const CHIP_SIZE = 132
 const EDGE_LAYERS = [-4, -2.5, -1, 1, 2.5, 4]
 
 // LAND_MS has to stay in step with the 62% landing in the fall-height keyframes
@@ -29,7 +30,7 @@ export const BOUNCE: Keyframe[] = [
 
 let nextId = 0
 
-export function createToss(direction: Toss['direction'], color: string, from: DOMRect): Toss {
+export function createToss(direction: Toss['direction'], color: string, count: number, from: DOMRect): Toss {
   const side = Math.random() < 0.5 ? -1 : 1
   const turns = 3 + Math.floor(Math.random() * 3)
 
@@ -37,6 +38,7 @@ export function createToss(direction: Toss['direction'], color: string, from: DO
     id: nextId++,
     direction,
     color,
+    count,
     style: {
       left: from.left + from.width / 2 - CHIP_SIZE / 2,
       top: from.top + from.height / 2 - CHIP_SIZE / 2,
@@ -55,27 +57,32 @@ type ChipTossProps = { tosses: Toss[]; onDone: (id: number) => void }
 
 // sideways drift, gravity and spin each run on their own element, which is what makes the arc a real parabola
 export function ChipToss({ tosses, onDone }: ChipTossProps) {
-  return tosses.map(({ id, direction, color, style }) => {
+  return tosses.map(({ id, direction, color, count, style }) => {
     const finish = (e: AnimationEvent) => {
       if (e.target === e.currentTarget) onDone(id)
     }
+
+    const face = (
+      <>
+        <Chip color={color} />
+        <span className="toss-count" style={countStyle(color)}>
+          {count.toLocaleString('en-US')}
+        </span>
+      </>
+    )
 
     return (
       <div key={id} className={`toss ${direction}`} style={style} onAnimationEnd={finish}>
         <div className="toss-height">
           <div className="toss-spin">
-            <div className="toss-face back">
-              <Chip color={color} />
-            </div>
+            <div className="toss-face back">{face}</div>
             {EDGE_LAYERS.map((depth) => (
               <i
                 key={depth}
                 style={{ '--depth': `${depth}px`, '--edge': color, '--stripe': accentColor(color) } as CSSProperties}
               />
             ))}
-            <div className="toss-face">
-              <Chip color={color} />
-            </div>
+            <div className="toss-face">{face}</div>
           </div>
         </div>
       </div>

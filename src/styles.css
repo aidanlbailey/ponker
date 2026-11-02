@@ -8,53 +8,78 @@
   --deck-corner: 5px;
   --radius: 8px;
   --shadow: 0 4px 8px rgb(0 0 0 / 0.3);
-  --bg-image: none;
+  --text-shadow:
+    2px 2px 4px rgb(0 0 0 / 0.8),
+    -1px -1px 2px rgb(255 255 255 / 0.3);
+  --label-shadow: var(--text-shadow);
+  --primary: linear-gradient(145deg, #2563eb, #1d4ed8);
+  /* the textures are generated in the browser, no image to download. grain is fine speckle, clumps and short
+     fibers both ways, in white and black so it works on any theme (only the opposite tone shows). mottle is big
+     slow blotches on a much larger tile so the repeat doesn't show. the feColorMatrix rows keep each noise's peaks */
+  --grain: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' seed='4' stitchTiles='stitch' result='g'/><feColorMatrix in='g' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.6 0 0 0 -.62' result='a'/><feColorMatrix in='g' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.6 0 0 -.62' result='b'/><feTurbulence type='fractalNoise' baseFrequency='.38' numOctaves='3' seed='11' stitchTiles='stitch' result='p'/><feColorMatrix in='p' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.4 0 0 0 -1.1' result='c'/><feColorMatrix in='p' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 2.4 0 0 -1.1' result='d'/><feTurbulence type='fractalNoise' baseFrequency='.18 .75' numOctaves='2' seed='9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 3.5 0 0 0 -1.85' result='e'/><feTurbulence type='fractalNoise' baseFrequency='.75 .18' numOctaves='2' seed='21' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 3.5 0 0 0 -1.85' result='h'/><feMerge><feMergeNode in='c'/><feMergeNode in='d'/><feMergeNode in='b'/><feMergeNode in='a'/><feMergeNode in='e'/><feMergeNode in='h'/></feMerge></filter><rect width='100%' height='100%' filter='url(%23f)' opacity='.2'/></svg>");
+  --mottle: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'><filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='3' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.5 0 0 0 -1.05'/></filter><rect width='100%' height='100%' filter='url(%23f)' opacity='.12'/></svg>");
   --title-stroke-width: 3px;
-  --title-font-weight: 700;
 }
 
 :root,
 [data-theme='dark'] {
-  --bg: #000000;
+  --bg: #0a0f0c;
+  --bg-image:
+    var(--grain),
+    radial-gradient(ellipse 80% 60% at 50% 15%, rgb(57 255 106 / 0.1), transparent 75%),
+    radial-gradient(ellipse 100% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.5));
   --text: #ffffff;
-  --text-soft: #cccccc;
-  --text-muted: #a0a0a0;
-  --surface: linear-gradient(145deg, #1a1a1a, #2a2a2a);
-  --surface-raised: #2a2a2a;
-  --border: #3a3a3a;
-  --accent: #3b82f6;
-  --accent-text: #93c5fd;
-  --field: #1a1a1a;
-  --field-border: #7a7a7a;
-  --title-color: #93c5fd;
-  --title-stroke: #3b82f6;
-  --title-shadow:
-    0 0 5px #3b82f6, 0 0 10px #3b82f6, 0 0 15px #3b82f6, 0 0 20px #1d4ed8;
+  --text-soft: #cdd8cf;
+  --text-muted: #a3b8a8;
+  --surface: linear-gradient(145deg, #171f1a, #1f2922);
+  --surface-raised: #1f2922;
+  --border: #324238;
+  --accent: #39ff6a;
+  --accent-text: #8dffb0;
+  --field: #131a15;
+  --field-border: #73897a;
+  --title-face: linear-gradient(180deg, #f4fff6 8%, #b4ffc6 42%, #2fe063 52%, #c6ffd4 78%, #f4fff6 100%);
+  --title-chip: #0e8a3a;
+  --title-stroke: #0e8a3a;
+  --title-depth: transparent;
+  --title-glow:
+    0 0 5px #39ff6a, 0 0 10px #39ff6a, 0 0 15px #39ff6a, 0 0 20px #0e8a3a;
+}
+
+/* not in the block above, that one also matches :root so it would leak into the other themes */
+[data-theme='dark'] {
+  --primary: linear-gradient(145deg, #15803d, #166534); /* white text has to stay readable, so not the neon */
 }
 
 [data-theme='light'] {
-  --bg: #f8f9fa;
-  --text: #212529;
-  --text-soft: #495057;
-  --text-muted: #5f6872;
-  --surface: linear-gradient(145deg, #ffffff, #f8f9fa);
-  --surface-raised: #ffffff;
-  --border: #dee2e6;
-  --accent: #0d6efd;
-  --accent-text: #0d6efd;
-  --field: #ffffff;
-  --field-border: #868e96;
-  --title-color: #212529;
-  --title-stroke: #212529;
-  --title-shadow:
-    0 0 5px #212529, 0 0 10px #212529, 0 0 15px #212529, 0 0 20px #000000;
+  --bg: #f3efe6;
+  --label-shadow: none; /* labels are dark here, so it'd only smudge them */
+  --bg-image:
+    var(--grain), var(--mottle),
+    radial-gradient(ellipse 100% 80% at 50% 25%, rgb(255 255 255 / 0.6), transparent 70%, rgb(120 95 60 / 0.14));
+  --text: #23211c;
+  --text-soft: #4d483e;
+  --text-muted: #605a4e;
+  --surface: linear-gradient(145deg, #fffdf8, #f3efe6);
+  --surface-raised: #fffdf8;
+  --border: #dcd5c5;
+  --accent: #0b289d;
+  --accent-text: #0b289d;
+  --field: #fffdf8;
+  --field-border: #8a8373;
+  /* the red and navy off the playing cards */
+  --title-face: linear-gradient(180deg, #ef3b52 10%, #c8102e 48%, #9a0a22 54%, #d81f3b 100%);
+  --title-chip: #0b289d;
+  --title-stroke: #fffdf8;
+  --title-depth: #0b289d;
+  --title-glow: 0 0 transparent;
 }
 
 [data-theme='felt'] {
   --bg: #0f5132;
   --bg-image:
-    radial-gradient(circle at 25% 25%, rgb(255 255 255 / 0.1) 1px, transparent 1px),
-    radial-gradient(circle at 75% 75%, rgb(255 255 255 / 0.1) 1px, transparent 1px);
+    var(--grain), var(--mottle),
+    radial-gradient(ellipse 90% 70% at 50% 30%, rgb(255 255 255 / 0.06), transparent 70%, rgb(0 0 0 / 0.2));
   --text: #ffffff;
   --text-soft: #c8e6c9;
   --text-muted: #a8e6cf;
@@ -65,26 +90,22 @@
   --accent-text: #ffd700;
   --field: #2d5a3d;
   --field-border: #8fc7a5;
-  --title-color: #ffd700;
-  --title-stroke: #ffffff;
-  --title-shadow:
-    1px 1px 0 #000, 2px 2px 0 #000, 3px 3px 0 #000, 4px 4px 0 #000, 5px 5px 0 #000,
-    6px 6px 0 #000, 7px 7px 0 #000, 8px 8px 0 #000, 9px 9px 0 #000;
+  --title-face: linear-gradient(180deg, #fff6c4 6%, #ffd700 40%, #a87400 53%, #ffe36b 72%, #d9a514 100%);
+  --title-chip: #c8102e;
+  --title-stroke: #3a2600;
+  --title-depth: #000000;
+  --title-glow: 0 0 transparent;
 }
 
 @media (max-width: 600px) {
   :root {
     --title-stroke-width: 2px;
-    --title-font-weight: 900;
   }
 
   [data-theme='dark'] {
-    --title-shadow: 0 0 3px #3b82f6, 0 0 6px #3b82f6;
+    --title-glow: 0 0 3px #39ff6a, 0 0 6px #39ff6a;
   }
 
-  [data-theme='light'] {
-    --title-shadow: 0 0 3px #212529, 0 0 6px #212529;
-  }
 }
 
 *,
@@ -104,8 +125,6 @@ body {
   overscroll-behavior: none;
   background-color: var(--bg);
   background-image: var(--bg-image);
-  background-position: 0 0, 10px 10px;
-  background-size: 20px 20px;
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
   touch-action: manipulation;
@@ -157,16 +176,31 @@ button {
 .title {
   position: relative; /* Title.tsx reads each letter's offset from here */
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(2.5rem, 14.4vw, 5rem);
-  font-weight: var(--title-font-weight);
+  font-family: Ultra, Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.5rem, 13vw, 5.25rem);
+  font-weight: 400;
+  line-height: 1.15;
   white-space: nowrap;
-  letter-spacing: clamp(0.08em, 1.5vw, 0.15em);
-  color: var(--title-color);
-  -webkit-text-stroke: var(--title-stroke-width) var(--title-stroke);
-  text-shadow: var(--title-shadow);
+  letter-spacing: 0.04em;
 
-  span {
+  > span {
+    /* a shadow's offset turns with the element casting it, so (1, 1) is rotated back by the letter's tilt to
+       keep it down and right on screen. built here and not in the theme, or var(--tilt) would resolve up on
+       <html> where no letter's tilt exists. --mirror is for spinning, a flipped letter flips its shadow too */
+    --shadow-x: calc((cos(var(--tilt, 0deg)) + sin(var(--tilt, 0deg))) * var(--mirror, 1) * 1px);
+    --shadow-y: calc((cos(var(--tilt, 0deg)) - sin(var(--tilt, 0deg))) * 1px);
+    --title-shadow:
+      var(--shadow-x) var(--shadow-y) 0 var(--title-depth),
+      calc(var(--shadow-x) * 2) calc(var(--shadow-y) * 2) 0 var(--title-depth),
+      calc(var(--shadow-x) * 3) calc(var(--shadow-y) * 3) 0 var(--title-depth),
+      calc(var(--shadow-x) * 4) calc(var(--shadow-y) * 4) 0 var(--title-depth),
+      calc(var(--shadow-x) * 5) calc(var(--shadow-y) * 5) 0 var(--title-depth),
+      calc(var(--shadow-x) * 6) calc(var(--shadow-y) * 6) 0 var(--title-depth),
+      calc(var(--shadow-x) * 7) calc(var(--shadow-y) * 7) 0 var(--title-depth),
+      calc(var(--shadow-x) * 8) calc(var(--shadow-y) * 8) 0 var(--title-depth),
+      calc(var(--shadow-x) * 9) calc(var(--shadow-y) * 9) 0 var(--title-depth),
+      var(--title-glow);
+
     display: inline-block;
     transform-origin: center bottom;
     animation: title-wave 4.5s ease-in-out infinite;
@@ -190,6 +224,50 @@ button {
       scale: 1.15;
       cursor: grabbing;
       transition: scale 0.15s ease-out;
+    }
+
+    /* the glyph carries the stroke and shadow, the foil is a copy on top. they can't be one element, a
+       text-shadow paints over a gradient clipped to the same text */
+    &:not(.title-chip) {
+      color: var(--title-stroke);
+      -webkit-text-stroke: var(--title-stroke-width) var(--title-stroke);
+      text-shadow: var(--title-shadow);
+
+      &::after {
+        content: attr(data-letter);
+        position: absolute;
+        inset: 0;
+        background: var(--title-face);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        -webkit-text-stroke: 0;
+        text-shadow: none;
+      }
+    }
+  }
+
+  /* --chip-size is what .chip sizes itself from, so this one's just a chip that's the height of a capital */
+  .title-chip {
+    --chip-size: 0.84em;
+
+    margin-inline: 0.04em;
+
+    .chip {
+      margin-bottom: -0.05em; /* round shapes have to overshoot the baseline or they look like they're floating */
+      box-shadow:
+        0 0 0 var(--title-stroke-width) var(--title-stroke),
+        var(--title-shadow);
+
+      /* the lacquer stays still so the shine doesn't roll with it */
+      svg {
+        animation: title-chip-roll 16s linear infinite;
+      }
+
+      /* firefox grays out the whole face if inset shadows sit inside the wave, even tiny ones. the shine is fine */
+      &::after {
+        box-shadow: none;
+      }
     }
   }
 }
@@ -219,6 +297,15 @@ button {
 .preset-chips {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/* the input is listed because browsers reset text-shadow on form controls */
+.subtitle,
+.total,
+.chip-total,
+.chip-value,
+.chip-value input {
+  text-shadow: var(--label-shadow);
 }
 
 .total {
@@ -258,9 +345,36 @@ button {
   gap: 0.75rem;
   width: clamp(var(--chip-size), 42vw, 160px); /* keeps two columns on the smallest phones */
   animation: slide-in 0.5s ease-out;
+}
+
+.chip-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: var(--chip-size);
 
   .button {
-    width: var(--chip-size);
+    position: relative;
+    flex: 1;
+    min-height: 44px; /* still has to be an easy thumb target */
+    padding: 0;
+
+    /* drawn, not typed. + and − glyphs sit somewhere different in every font */
+    &::before,
+    &.add::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 18px;
+      height: 3px;
+      border-radius: 2px;
+      background: #ffffff;
+      translate: -50% -50%;
+    }
+
+    &.add::after {
+      rotate: 90deg;
+    }
   }
 }
 
@@ -270,18 +384,26 @@ button {
   -webkit-user-select: none;
 }
 
+/* always tall enough for a full pile, so landing a chip never shoves the page around */
 .chip-stack {
   position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: calc(var(--chip-size) + var(--stack-room));
 }
 
+/* the button is the whole pile, so hover and the landing squash move it as one thing */
 .chip-button {
   position: relative;
   z-index: 10;
   display: block;
+  width: var(--chip-size);
+  height: calc(var(--chip-size) + var(--stack-lift));
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: calc(var(--chip-size) / 2);
   background: none;
+  transform-origin: 50% 100%;
   transition: transform 0.3s ease;
   touch-action: none;
   user-select: none;
@@ -292,6 +414,47 @@ button {
   &:hover {
     transform: scale(1.05);
   }
+
+  /* one shadow under the whole pile, whatever its height. the chips only get a tight contact shadow */
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--chip-size);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    box-shadow:
+      0 2px 3px rgb(0 0 0 / 0.5),
+      0 9px 14px rgb(0 0 0 / 0.45);
+  }
+
+  /* absolute because buttons center their content vertically, which would only lift it half way */
+  .chip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-shadow:
+      0 0 0 2px #000000,
+      0 1px 2px rgb(0 0 0 / 0.5);
+  }
+}
+
+/* only the crescent under the chip above shows, so the stripes run straight down like a real chip's edge */
+.chip-layer {
+  position: absolute;
+  width: var(--chip-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 0.3), transparent 22% 78%, rgb(0 0 0 / 0.3)),
+    repeating-linear-gradient(90deg, var(--edge) 0 16px, var(--stripe) 16px 26px);
+  /* same inner shading as the lacquer on .chip::after so the pile reads as one material */
+  box-shadow:
+    0 0 0 1.5px #000000,
+    inset 0 -1px 1px rgb(255 255 255 / 0.25),
+    inset 0 -3px 5px rgb(0 0 0 / 0.26),
+    inset 0 0 12px rgb(0 0 0 / 0.22);
 }
 
 .chip {
@@ -304,28 +467,54 @@ button {
   border-radius: 50%;
   box-shadow:
     0 0 0 2px #000000,
-    inset 0 0 20px #000000,
-    0 8px 16px #000000;
+    0 2px 3px rgb(0 0 0 / 0.5),
+    0 9px 14px rgb(0 0 0 / 0.45);
 
   svg {
     position: absolute;
     inset: 0;
   }
+
+  /* the lacquer. has to sit on top of the svg, an inset shadow on .chip itself gets covered by the markings */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 22%, rgb(255 255 255 / 0.24), transparent 55%);
+    box-shadow:
+      inset 0 1.5px 2px rgb(255 255 255 / 0.45),
+      inset 0 -3px 5px rgb(0 0 0 / 0.4),
+      inset 0 0 12px rgb(0 0 0 / 0.35);
+  }
 }
 
-/* its own layer above .toss, so a landing chip can never cover the number */
+/* above the chip button so the pile's scale doesn't touch it, but under .toss, which brings the next number with it */
 .chip-count {
   position: absolute;
-  inset: 0;
+  top: calc(var(--stack-room) - var(--stack-lift));
+  left: 0;
+  width: var(--chip-size);
+  height: var(--chip-size);
   z-index: 30;
+  /* the bottom of the pile, same origin as .chip-button, so it tracks the chip instead of drifting off it */
+  transform-origin: 50% calc(100% + var(--stack-lift));
+  transition: transform 0.3s ease;
+}
+
+.chip-button:hover + .chip-count {
+  transform: scale(1.05);
+}
+
+.chip-count,
+.toss-count {
   display: grid;
   place-items: center;
+  padding-bottom: 0.125em; /* digits sit low in their line box. not translate, the landing bounce animates that */
   font-size: 2.5rem;
   font-weight: 900;
   pointer-events: none;
-  text-shadow:
-    2px 2px 4px rgb(0 0 0 / 0.8),
-    -1px -1px 2px rgb(255 255 255 / 0.3);
+  text-shadow: var(--text-shadow);
 }
 
 .chip-value {
@@ -364,9 +553,14 @@ button {
   }
 }
 
+.toss-count {
+  position: absolute;
+  inset: 0;
+}
+
 .toss {
   position: fixed;
-  z-index: 20;
+  z-index: 35;
   pointer-events: none;
 
   &,
@@ -431,6 +625,11 @@ button {
   &.back {
     transform: translateZ(-5px) rotateY(180deg);
   }
+
+  /* no drop shadow, both faces would cast one and stack with the resting chip's underneath */
+  .chip {
+    box-shadow: 0 0 0 2px #000000;
+  }
 }
 
 /* buttons */
@@ -473,7 +672,7 @@ button {
   }
 
   &.primary {
-    background: linear-gradient(145deg, #2563eb, #1d4ed8);
+    background: var(--primary);
   }
 }
 
@@ -580,7 +779,35 @@ button {
       transparent 0 calc(var(--hatch) * 0.86),
       rgb(255 255 255 / 0.45) calc(var(--hatch) * 0.86) var(--hatch)
     ),
-    #0b289d;
+    radial-gradient(circle, #1a3fc4, #0b289d 70%);
+
+  /* pinstripe frame */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: calc(var(--hatch) * 0.2);
+    border: calc(var(--hatch) * 0.07) solid rgb(255 255 255 / 0.8);
+    border-radius: calc(var(--hatch) * 0.15);
+    box-shadow: 0 0 0 calc(var(--hatch) * 0.2) #0b289d;
+  }
+
+  /* the medallion. symmetrical on purpose, the same back is seen upright, sideways and mid flip */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--hatch) * 2.1);
+    aspect-ratio: 1;
+    border: calc(var(--hatch) * 0.1) solid #ffffff;
+    outline: calc(var(--hatch) * 0.12) solid #0b289d;
+    box-shadow: 0 0 0 calc(var(--hatch) * 0.2) rgb(255 255 255 / 0.8);
+    background:
+      radial-gradient(circle, #ffffff 0 17%, #0b289d 18% 29%, rgb(255 255 255 / 0.8) 30% 36%, transparent 37%),
+      #0b289d;
+    rotate: 45deg;
+    translate: -50% -50%;
+  }
 }
 
 .deck {
@@ -984,6 +1211,12 @@ button {
   }
 }
 
+@keyframes title-chip-roll {
+  to {
+    rotate: 360deg;
+  }
+}
+
 @keyframes title-wave {
   0%,
   100% {
@@ -1174,7 +1407,8 @@ button {
   .app,
   .chip-card,
   .dialog,
-  .title span {
+  .title > span,
+  .title-chip svg {
     animation: none;
   }
 

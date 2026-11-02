@@ -44,13 +44,13 @@ export function App() {
 
   const addChip = (id: string, chip: Chip, from: DOMRect) => {
     updateChip(id, { count: chip.count + 1 })
-    setTosses((prev) => [...prev, createToss('fall', chip.color, from)])
+    setTosses((prev) => [...prev, createToss('fall', chip.color, chip.count + 1, from)])
   }
 
   const removeChip = (id: string, chip: Chip, from: DOMRect) => {
     if (!chip.count) return
     updateChip(id, { count: chip.count - 1 })
-    setTosses((prev) => [...prev, createToss('rise', chip.color, from)])
+    setTosses((prev) => [...prev, createToss('rise', chip.color, chip.count, from)])
   }
 
   const deleteChip = (id: string) => {

@@ -11,6 +11,8 @@ import {
   pivotShift,
   releaseVelocity,
   smack,
+  SPRING_HOP,
+  springUp,
   stepFlight,
   stepSpring,
   stepSwing,
@@ -26,6 +28,7 @@ import {
   type Spring,
   type Swing,
 } from '../lib/letterPhysics'
+import { Chip } from './Chip'
 
 const LETTERS = [...'PONKER']
 const AVOID_RANGE = 70
@@ -37,7 +40,7 @@ const SLACK_EASE = 12 // how quickly the letter slides from where it was grabbed
 const PIVOT_SMOOTHING = 40 // mice report far less often than the screen draws, so the pivot is smoothed
 const UPRIGHT = 3 // degrees of lean that still counts as standing
 const SMACK_MS = 420
-const FALLEN_STUMBLE_MS = 1300
+const SPRING_MS = 1600
 const DIZZY_STUMBLE_MS = 700
 
 const WAVES = LETTERS.map((_, i) => ({
@@ -50,6 +53,7 @@ const WAVES = LETTERS.map((_, i) => ({
 type Trip =
   | { kind: 'flight'; flight: Flight }
   | { kind: 'smack'; start: number; side: Side; startAngle: number; fall: number; x: number; y: number }
+  | { kind: 'spring'; start: number; fall: number; x: number; y: number }
   | { kind: 'stumble'; start: number; duration: number; fall: number; x: number; y: number }
   | { kind: 'walk'; start: number; duration: number; from: { x: number; y: number } }
 
@@ -87,11 +91,22 @@ export function Title() {
     const stand = (letter: HTMLSpanElement) => {
       letter.classList.remove('held', 'away', 'flying')
       letter.style.rotate = letter.style.scale = ''
+      letter.style.removeProperty('--tilt')
+      letter.style.removeProperty('--mirror')
+    }
+
+    // --tilt is what keeps the cast shadow pointing the same way on screen, see .title in styles.css.
+    // the wave is paused while a letter's away but it's still leaning, so that counts too
+    const setTilt = (letter: HTMLSpanElement, tilt: number) => {
+      const { a, b } = new DOMMatrix(getComputedStyle(letter).transform)
+      letter.style.rotate = `${tilt}deg`
+      letter.style.setProperty('--tilt', `${tilt + (Math.atan2(b, a) * 180) / Math.PI}deg`)
     }
 
     const pose = (letter: HTMLSpanElement, tilt: number, scaleX = 1, scaleY = 1) => {
-      letter.style.rotate = `${tilt}deg`
+      setTilt(letter, tilt)
       letter.style.scale = `${scaleX} ${scaleY}`
+      letter.style.setProperty('--mirror', scaleX < 0 ? '-1' : '1')
     }
 
     const startWalk = (i: number, now: number, from: { x: number; y: number }) => {
@@ -143,16 +158,19 @@ export function Title() {
         spring.y = trip.y + away.y * offWall
         pose(letter, tilt, scaleX, scaleY)
 
-        if (progress === 1) {
-          trips[i] = {
-            kind: 'stumble',
-            start: now,
-            duration: FALLEN_STUMBLE_MS,
-            fall: trip.fall,
-            x: spring.x,
-            y: spring.y,
-          }
-        }
+        if (progress === 1) trips[i] = { kind: 'spring', start: now, fall: trip.fall, x: spring.x, y: spring.y }
+        return true
+      }
+
+      if (trip.kind === 'spring') {
+        const progress = Math.min(1, (now - trip.start) / SPRING_MS)
+        const { tilt, lift, scaleX, scaleY } = springUp(trip.fall, progress)
+        // a letter knocked into the top of the screen can't jump the full height without leaving it
+        const room = homeY + trip.y - letter.offsetHeight / 2
+        spring.x = trip.x
+        spring.y = trip.y - lift * Math.max(0, Math.min(SPRING_HOP, room))
+        pose(letter, tilt, scaleX, scaleY)
+        if (progress === 1) startWalk(i, now, { x: trip.x, y: trip.y })
         return true
       }
 
@@ -213,7 +231,7 @@ export function Title() {
       spring.vx = spring.vy = 0
       spring.x = hanging.x + hold.slack.x
       spring.y = hanging.y + hold.slack.y
-      letter.style.rotate = `${tilt}deg`
+      setTilt(letter, tilt)
     }
 
     const tick = (now: number) => {
@@ -388,9 +406,11 @@ export function Title() {
               if (el) letters.current[i] = el
             }}
             aria-hidden="true"
+            className={letter === 'O' ? 'title-chip' : undefined}
+            data-letter={letter}
             style={WAVES[i]}
           >
-            {letter}
+            {letter === 'O' ? <Chip color="var(--title-chip)" /> : letter}
           </span>
         ))}
       </h1>
