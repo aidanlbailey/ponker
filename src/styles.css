@@ -785,6 +785,7 @@ button {
   background: #ffffff;
   box-shadow: 0 -2px 7px rgb(0 0 0 / 0.35);
   backface-visibility: hidden;
+  transform: rotateY(0deg); /* firefox and safari only honor backface-visibility here with a transform of its own */
   color: #17171c;
   font-family: Georgia, 'Times New Roman', serif;
 
