@@ -5,7 +5,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
 import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
-import { loadRoom, saveRoom, setup } from './sql'
+import { loadRoom, saveRoom } from './sql'
 
 interface Env {
   TABLE: DurableObjectNamespace<Table>
@@ -54,7 +54,6 @@ export class Table extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
-    setup(ctx.storage.sql)
     // answered without waking the object, so the clients' heartbeat costs nothing
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
   }
@@ -249,7 +248,10 @@ export class Table extends DurableObject<Env> {
   async webSocketClose(ws: WebSocket) {
     this.buckets.delete(ws)
     const online = this.online(ws)
-    if (!(await this.change(() => stalled(this.room, online, Date.now())))) this.broadcast(ws)
+    if (await this.change(() => stalled(this.room, online, Date.now()))) return
+    // the last one to press Leave saved while their socket was still open, so commit() kept the room
+    if (!this.room.members.some((m) => m?.token) && !this.sockets(ws).length) return this.clear()
+    this.broadcast(ws)
   }
 
   async webSocketError(ws: WebSocket) {

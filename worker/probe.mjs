@@ -1,5 +1,5 @@
 // Drives a real room from outside and reports what actually happened.
-//   node worker/probe.mjs <ws url> [budget <hands>|public <hands> <guests>|drop|sleep|abuse]
+//   node worker/probe.mjs <ws url> [budget <hands>|public <hands> <guests>|drop|sleep|abuse|clear]
 // budget: two guests and two bots play real hands, guests call or check at once. Rows per hand.
 // public: guests at the Phantom public table, bots fill the other seats. Run it with Phantom empty.
 // drop: a guest's process gets killed mid-hand, so the socket dies with no close frame.
@@ -212,6 +212,23 @@ async function abuse() {
   b.ws.close()
 }
 
+// the last one out presses Leave and comes straight back, while the object's still in memory. The room
+// should be wiped and made fresh, which used to throw "no such table" because deleteAll drops it
+async function clear() {
+  const a = await connect('ann')
+  await until('a seat', 5, () => a.state?.me === 0)
+  a.send({ t: 'leave' })
+  await sleep(0.5)
+  a.ws.close()
+  await sleep(0.5)
+  const b = await connect('ann')
+  const back = await until('a seat again', 5, () => b.state?.me === 0).catch(() => false)
+  check('a room the last one left comes back fresh', back && b.state.seq === 1, back ? `seq ${b.state.seq}` : `closed ${b.closed}`)
+  b.send({ t: 'leave' })
+  await sleep(0.5)
+  b.ws.close()
+}
+
 async function run() {
   console.log(`room ${room} on ${base}`)
   if (mode === 'budget') await budget(Number(arg ?? 20))
@@ -219,5 +236,6 @@ async function run() {
   if (mode === 'drop') await drop()
   if (mode === 'sleep') await hibernate()
   if (mode === 'abuse') await abuse()
+  if (mode === 'clear') await clear()
   return results.every(Boolean)
 }
