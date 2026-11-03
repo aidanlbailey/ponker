@@ -862,8 +862,10 @@ button {
   --hand-height: min(100dvh, 900px);
   --card-width: min(72vw, 62dvh, 440px);
   --card-height: calc(var(--card-width) * 0.714);
-  --step: 5deg;
-  --spread: calc(var(--step) * 3.5);
+  /* --last is the top card's index, CardMenu sets it. the step is picked so any size of hand fans as wide as eight cards */
+  --last: 7;
+  --step: calc(35deg / var(--last));
+  --spread: calc(var(--step) * var(--last) / 2);
   --label-size: clamp(1.05rem, calc(var(--card-width) * 0.065), 1.4rem);
   /* solved so the end cards' corners just reach the top and bottom of the hand */
   --pivot: calc(
@@ -885,7 +887,7 @@ button {
   .card-hand {
     --card-width: min(60vw, 360px);
     --card-height: calc(var(--card-width) * 0.3);
-    --step: 1.5deg;
+    --step: calc(10.5deg / var(--last));
     --label-size: 0.9rem;
   }
 
@@ -910,11 +912,11 @@ button {
 }
 
 .playing-card {
-  --angle: calc((var(--i) - 3.5) * var(--step));
+  --angle: calc((var(--i) - var(--last) / 2) * var(--step));
   --lift: 0px;
   /* where this card rests in the deck, fanned a hair so the pile matches the button's edge */
-  --deck-pose-x: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2 + (var(--i) - 7) * 0.43px);
-  --deck-pose-y: calc(var(--deck-y) + (7 - var(--i)) * 0.43px);
+  --deck-pose-x: calc(var(--deck-x) - var(--hand-left) - var(--card-width) / 2 + (var(--i) - var(--last)) * 0.43px);
+  --deck-pose-y: calc(var(--deck-y) + (var(--last) - var(--i)) * 0.43px);
 
   grid-area: 1 / 1;
   display: block;
@@ -938,7 +940,7 @@ button {
   /* keeps the card on one layer so it doesn't re-render and snap when it comes to rest */
   will-change: translate, rotate, scale;
   -webkit-tap-highlight-color: transparent;
-  animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc((7 - var(--i)) * 45ms) backwards;
+  animation: deal 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) calc((var(--last) - var(--i)) * 45ms) backwards;
 
   .dealt &:focus-visible {
     --lift: 32px;
@@ -979,7 +981,7 @@ button {
   display: block;
   height: 100%;
   transform-style: preserve-3d;
-  animation: flip-up 0.55s cubic-bezier(0.3, 0, 0.3, 1) calc((7 - var(--i)) * 45ms) backwards;
+  animation: flip-up 0.55s cubic-bezier(0.3, 0, 0.3, 1) calc((var(--last) - var(--i)) * 45ms) backwards;
 
   .card-back {
     --hatch: calc(var(--card-height) / 7);
@@ -988,7 +990,7 @@ button {
     inset: 0;
     backface-visibility: hidden;
     transform: rotateY(180deg);
-    animation: corner-from-deck 0.55s ease-out calc((7 - var(--i)) * 45ms) backwards;
+    animation: corner-from-deck 0.55s ease-out calc((var(--last) - var(--i)) * 45ms) backwards;
   }
 }
 

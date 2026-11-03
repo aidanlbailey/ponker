@@ -1,5 +1,5 @@
 import { lazy, Suspense, useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { CardMenu, type Theme } from './components/CardMenu'
+import { CardMenu, CLUBS, DIAMONDS, HEARTS, NEXT_THEME, SPADES, type MenuCard, type Theme } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
 import { ChipToss, createToss, type Toss } from './components/ChipToss'
@@ -129,65 +129,91 @@ export function App() {
   }
 
   // the hub is home, the tracker lives behind it on #chips
-  if (hash !== '#chips') return <Hub />
+  const home = hash !== '#chips'
+
+  const deckButton = (
+    <button
+      className={`deck ${panel === 'menu' ? 'dealt' : ''}`}
+      aria-label={home ? 'Settings' : 'Open menu'}
+      onClick={(e) => {
+        setDeck(e.currentTarget.getBoundingClientRect())
+        setPanel('menu')
+        haptic('light')
+      }}
+    >
+      <span className="card-back" />
+      <span className="card-back" />
+      <span className="card-back" />
+      {home && <span className="deck-caption">Settings</span>}
+    </button>
+  )
+
+  // the hub only gets what applies to the whole app, the chip stuff stays with the tracker
+  const next = NEXT_THEME[theme]
+  const nameCard = { label: userName ? 'Change name' : 'Set your name', run: () => setPanel('name'), opensPanel: true }
+  const themeCard = { label: next.label, run: () => smoothly(() => setTheme(next.theme)) }
+  const about = { label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' }
+  const coffee = { label: 'Buy me a coffee', href: 'https://ko-fi.com/aidanlbailey' }
+  const cards: MenuCard[] = home
+    ? [
+        { rank: 'A', suit: SPADES, ...nameCard },
+        { rank: 'K', suit: DIAMONDS, ...themeCard },
+        { rank: 'Q', suit: CLUBS, ...about },
+        { rank: 'J', suit: HEARTS, ...coffee },
+      ]
+    : [
+        { rank: 'A', suit: SPADES, label: 'Add chip type', run: addChipType },
+        { rank: 'K', suit: DIAMONDS, label: 'Cash out', run: shareCashout },
+        { rank: 'Q', suit: HEARTS, ...nameCard },
+        { rank: 'J', suit: CLUBS, label: 'Chip presets', run: () => setPanel('presets'), opensPanel: true },
+        {
+          rank: '10',
+          suit: SPADES,
+          label: showValues ? 'Hide values' : 'Show values',
+          run: () => smoothly(() => setShowValues(!showValues)),
+        },
+        { rank: '9', suit: DIAMONDS, ...themeCard },
+        { rank: '8', suit: CLUBS, ...about },
+        { rank: '7', suit: HEARTS, ...coffee },
+      ]
 
   return (
     <>
-      <main className="app">
-        <Title />
+      {home ? (
+        <Hub deck={deckButton} />
+      ) : (
+        <main className="app">
+          <Title />
 
-        <div className="top-bar">
-          <button
-            className={`deck ${panel === 'menu' ? 'dealt' : ''}`}
-            aria-label="Open menu"
-            onClick={(e) => {
-              setDeck(e.currentTarget.getBoundingClientRect())
-              setPanel('menu')
-              haptic('light')
-            }}
-          >
-            <span className="card-back" />
-            <span className="card-back" />
-            <span className="card-back" />
-          </button>
-          {showValues && <output className="total">{total}</output>}
-          <a className="button primary play-link" href="#">
-            Play poker
-          </a>
-        </div>
+          <div className="top-bar">
+            {deckButton}
+            {showValues && <output className="total">{total}</output>}
+            <a className="button primary play-link" href="#">
+              Play poker
+            </a>
+          </div>
 
-        <section className="chip-grid" aria-label="Chips">
-          {entries.map(([id, chip]) => (
-            <ChipCard
-              key={id}
-              id={id}
-              chip={chip}
-              showValue={showValues}
-              onAdd={(from) => addChip(id, chip, from)}
-              onRemove={(from) => removeChip(id, chip, from)}
-              onEdit={() => setEditingId(id)}
-              onValueChange={(value) => updateChip(id, { value })}
-            />
-          ))}
-        </section>
-      </main>
+          <section className="chip-grid" aria-label="Chips">
+            {entries.map(([id, chip]) => (
+              <ChipCard
+                key={id}
+                id={id}
+                chip={chip}
+                showValue={showValues}
+                onAdd={(from) => addChip(id, chip, from)}
+                onRemove={(from) => removeChip(id, chip, from)}
+                onEdit={() => setEditingId(id)}
+                onValueChange={(value) => updateChip(id, { value })}
+              />
+            ))}
+          </section>
+        </main>
+      )}
 
       <ChipToss tosses={tosses} onDone={(id) => setTosses((prev) => prev.filter((toss) => toss.id !== id))} />
 
       {panel === 'menu' && deck && (
-        <CardMenu
-          deck={deck}
-          theme={theme}
-          userName={userName}
-          showValues={showValues}
-          onClose={() => setPanel(null)}
-          onAddChipType={addChipType}
-          onOpenPresets={() => setPanel('presets')}
-          onOpenName={() => setPanel('name')}
-          onCashout={shareCashout}
-          onToggleValues={() => smoothly(() => setShowValues(!showValues))}
-          onThemeChange={(next) => smoothly(() => setTheme(next))}
-        />
+        <CardMenu deck={deck} cards={cards} onClose={() => setPanel(null)} />
       )}
 
       {panel === 'presets' && (

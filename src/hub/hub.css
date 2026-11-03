@@ -3,13 +3,15 @@
 .hub {
   --hub-font: 'Manrope Variable', system-ui, sans-serif;
 
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: clamp(1.25rem, 5vh, 2.75rem);
   min-height: 100dvh;
-  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+  /* the top keeps a band clear for the settings deck in the corner */
+  padding: calc(max(1rem, env(safe-area-inset-top)) + var(--deck-height) + 1rem) max(1rem, env(safe-area-inset-right))
     max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   font-family: var(--hub-font);
   animation: slide-in 0.5s ease-out;
@@ -99,6 +101,29 @@
   min-height: 44px;
   background: var(--surface-raised);
   font-weight: 600;
+}
+
+/* out of the flow, so it never pushes the logo or the menu around */
+.hub-corner {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
+}
+
+/* inside the deck button so tapping the word opens it too, but absolute so the deal still starts from the cards.
+   the deck hides itself while its cards are out, the caption stays put */
+.deck-caption {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.7rem);
+  translate: 0 -50%;
+  visibility: visible;
+  color: var(--text-soft);
+  font-family: var(--hub-font);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-shadow: var(--label-shadow);
+  white-space: nowrap;
 }
 
 /* phones on their side: logo on the left, menu on the right, nothing scrolls */

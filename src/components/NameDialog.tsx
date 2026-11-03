@@ -24,7 +24,7 @@ export function NameDialog({ name, onChange, onClose, onRenamed }: NameDialogPro
     <Dialog title="Set Your Name" continuesBackdrop onClose={finish}>
       {(close) => (
         <>
-          <p>Your name will be included when you share your cashout.</p>
+          <p>Shown at the poker table and on cashouts you share.</p>
           <form
             className="name-form"
             onSubmit={(e) => {

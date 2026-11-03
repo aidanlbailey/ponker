@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import '@fontsource-variable/manrope'
 import { Title } from '../components/Title'
 import './hub.css'
@@ -9,9 +10,11 @@ const MODES = [
   { href: '#race', icon: '♦︎', name: 'Daily Race', blurb: 'Same bankroll for everyone, one day' },
 ]
 
-export function Hub() {
+// the deck comes from App, which owns the menu it deals
+export function Hub({ deck }: { deck: ReactNode }) {
   return (
     <main className="hub">
+      <div className="hub-corner">{deck}</div>
       <Title />
       <nav className="hub-menu" aria-label="Play">
         <a className="button primary hub-quick" href="#quick">

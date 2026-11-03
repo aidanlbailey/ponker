@@ -3,17 +3,17 @@ import { haptic } from '../lib/haptics'
 
 export type Theme = 'dark' | 'light' | 'felt'
 
-const NEXT_THEME = {
+export const NEXT_THEME = {
   dark: { theme: 'light', label: 'Light mode' },
   light: { theme: 'felt', label: 'Felt mode' },
   felt: { theme: 'dark', label: 'Dark mode' },
 } as const
 
 // ︎ keeps these as text, otherwise phones swap in emoji suits
-const SPADES = '♠︎'
-const HEARTS = '♥︎'
-const DIAMONDS = '♦︎'
-const CLUBS = '♣︎'
+export const SPADES = '♠︎'
+export const HEARTS = '♥︎'
+export const DIAMONDS = '♦︎'
+export const CLUBS = '♣︎'
 
 type CardProps = { rank: string; suit: string; label: string }
 
@@ -43,22 +43,10 @@ function CardFace({ rank, suit, label }: CardProps) {
   )
 }
 
-type CardMenuProps = {
-  deck: DOMRect
-  theme: Theme
-  showValues: boolean
-  userName: string
-  onClose: () => void
-  onAddChipType: () => void
-  onOpenPresets: () => void
-  onOpenName: () => void
-  onCashout: () => void
-  onToggleValues: () => void
-  onThemeChange: (theme: Theme) => void
-}
+// opensPanel: the card hands the backdrop to a dialog instead of fading it out
+export type MenuCard = CardProps & { run?: () => void; opensPanel?: boolean; href?: string }
 
-export function CardMenu(props: CardMenuProps) {
-  const { deck, theme, showValues, userName, onClose, onThemeChange } = props
+export function CardMenu({ deck, cards, onClose }: { deck: DOMRect; cards: MenuCard[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const afterCollect = useRef<() => void>(undefined)
   const [leaving, setLeaving] = useState(false)
@@ -97,19 +85,8 @@ export function CardMenu(props: CardMenuProps) {
     }
   }
 
-  const next = NEXT_THEME[theme]
-  const cards: (CardProps & { run?: () => void; opensPanel?: boolean; href?: string })[] = [
-    { rank: 'A', suit: SPADES, label: 'Add chip type', run: props.onAddChipType },
-    { rank: 'K', suit: DIAMONDS, label: 'Cash out', run: props.onCashout },
-    { rank: 'Q', suit: HEARTS, label: userName ? 'Change name' : 'Set your name', run: props.onOpenName, opensPanel: true },
-    { rank: 'J', suit: CLUBS, label: 'Chip presets', run: props.onOpenPresets, opensPanel: true },
-    { rank: '10', suit: SPADES, label: showValues ? 'Hide values' : 'Show values', run: props.onToggleValues },
-    { rank: '9', suit: DIAMONDS, label: next.label, run: () => onThemeChange(next.theme) },
-    { rank: '8', suit: CLUBS, label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' },
-    { rank: '7', suit: HEARTS, label: 'Buy me a coffee', href: 'https://ko-fi.com/aidanlbailey' },
-  ]
-
   const origin = {
+    '--last': cards.length - 1,
     '--deck-x': `${deck.left + deck.width / 2}px`,
     '--deck-y': `${deck.top + deck.height / 2 - innerHeight / 2}px`,
   } as CSSProperties
