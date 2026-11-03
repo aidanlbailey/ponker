@@ -16,7 +16,15 @@ import './game.css'
 const percent = (share: number) => `${Math.round(share * 100)}%`
 const cx = (...names: (string | false)[]) => names.filter(Boolean).join(' ')
 const botName = (view: TableState, seat: number) => botById(view.seats[seat]!.id)?.name ?? 'Bot'
-const angleOf = (seat: number, seats: number) => Math.PI / 2 + (2 * Math.PI * ((seat - HERO + seats) % seats)) / seats
+// Smaller rings sit in the six-max spots, clockwise from you at 0. Spaced evenly, four players put
+// the side seats level with the board, right over its end cards on a phone
+const SPOTS: Record<number, number[]> = { 3: [0, 2, 4], 4: [0, 2, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] }
+
+function angleOf(seat: number, seats: number) {
+  const place = (seat - HERO + seats) % seats
+  const spot = seats === 2 ? place * 3 : SPOTS[seats]![place]!
+  return Math.PI / 2 + (2 * Math.PI * spot) / 6
+}
 
 // Round the oval from the hero at the bottom. reach is how far out from the middle, 1 is the rail.
 function around(seat: number, seats: number, reach: number, reachY = reach) {
