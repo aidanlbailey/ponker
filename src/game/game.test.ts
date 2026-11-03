@@ -15,6 +15,7 @@ import { advice, describeHand, priceToCall } from './helpers'
 import { progress, route } from './route'
 import {
   botAction,
+  busted,
   BUY_IN,
   chipMoves,
   endOfHand,
@@ -479,10 +480,27 @@ describe('six handed', () => {
     expect(isSolo({ table, leaving: false, topUp: false })).toBe(true)
   })
 
-  it('refills any bust seat before dealing', () => {
-    const table = newSolo(lineup).table
+  it('swaps a bust bot for one it has not met, and keeps the bust one in its seat until then', () => {
+    let table = newSolo(lineup).table
     table.seats[3]!.chips = 0
-    expect(startHand(table, ordered).seats[3]!.committed + startHand(table, ordered).seats[3]!.chips).toBe(BUY_IN)
+    table = { ...table, street: 'complete' }
+    expect(busted(table, 3)).toBe(true)
+    expect(busted(table, 2)).toBe(false)
+
+    const next = startHand(table, ordered, seeded(4))
+    const fresh = next.seats[3]!
+    expect(['you', ...lineup]).not.toContain(fresh.id)
+    expect(fresh.chips + fresh.committed).toBe(BUY_IN)
+    expect(next.seats.map((seat) => seat!.id).filter((id) => id !== fresh.id)).toEqual(['you', 'bot:xi', 'bot:omega', 'bot:chi', 'bot:psi'])
+  })
+
+  it('never calls you out, a bust hero is only dealt back in by the rebuy', () => {
+    const table = { ...newSolo(lineup).table, street: 'complete' as const }
+    table.seats[HERO]!.chips = 0
+    expect(busted(table, HERO)).toBe(false)
+    const next = startHand(table, ordered)
+    expect(next.seats[HERO]!.id).toBe('you')
+    expect(next.seats[HERO]!.chips + next.seats[HERO]!.committed).toBe(BUY_IN)
   })
 
   it('takes answers for whichever bot is on the clock, and nobody else', () => {

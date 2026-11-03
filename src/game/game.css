@@ -472,6 +472,23 @@
   bottom: auto;
 }
 
+/* a bust bot shows it's out, then gets up and leaves. A new one sits down there on the next deal */
+.seat.out {
+  opacity: 0;
+  transition: opacity 0.8s ease 1.6s;
+}
+
+.seat.arrive .seat-plate {
+  animation: sit-down 0.45s ease-out backwards;
+}
+
+@keyframes sit-down {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+
 /* three or more round the table: bots stack their cards behind the plate so a seat is only as
    wide as its plate, and five of them fit round a phone */
 .felt.ring {
@@ -1043,6 +1060,7 @@
   .seat.turn .seat-plate::before,
   .seat.turn .seat-plate::after,
   .seat.winner .seat-plate,
+  .seat.arrive .seat-plate,
   .result,
   .said {
     animation: none;

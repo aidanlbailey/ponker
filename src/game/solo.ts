@@ -3,6 +3,7 @@
 
 import { applyAction, createTable, type Action, type Card, type PlayerAction, type TableState } from '../engine/engine'
 import { potSize } from './betting'
+import { randomBots } from './roster'
 
 export const HERO = 0
 export const MAX_SEATS = 6
@@ -44,11 +45,23 @@ export const isSolo = (data: unknown): data is Solo => {
 const refill = (s: TableState, seat: number) =>
   applyAction(s, { type: 'topUp', seat, chips: BUY_IN - s.seats[seat]!.chips })
 
-// Top-ups are free, so nobody stays bust. Only the hero can top up early.
-export function startHand(s: TableState, deck: Card[]) {
-  const ready = s.seats.reduce((table, seat, i) => (seat!.chips ? table : refill(table, i)), s)
+// A bust bot is out, and a fresh one it hasn't met takes the seat. You only get dealt in bust by
+// pressing rebuy, so a bust hero is refilled here. Only the hero can top up early.
+export function startHand(s: TableState, deck: Card[], random = Math.random) {
+  const taken = s.seats.map((seat) => seat!.id)
+  const ready = s.seats.reduce((table, seat, i) => {
+    if (seat!.chips) return table
+    if (i === HERO) return refill(table, i)
+    const [fresh] = randomBots(1, taken, random)
+    taken.push(fresh!.id)
+    return applyAction(applyAction(table, { type: 'leave', seat: i }), { type: 'sit', seat: i, id: fresh!.id, chips: BUY_IN })
+  }, s)
   return applyAction(ready, { type: 'deal', deck })
 }
+
+// still holding the seat after the payout, but not for the next hand
+export const busted = (s: TableState, seat: number) =>
+  s.street === 'complete' && seat !== HERO && s.seats[seat]!.chips === 0
 
 export function endOfHand(solo: Solo): Solo {
   const table = solo.topUp && solo.table.seats[HERO]!.chips < BUY_IN ? refill(solo.table, HERO) : solo.table

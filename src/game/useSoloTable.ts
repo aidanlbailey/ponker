@@ -82,6 +82,8 @@ export function useSoloTable() {
   const [flights, setFlights] = useState<Flight[]>([])
   const [piles, setPiles] = useState<Piles>({})
   const [odds, setOdds] = useState<{ key: string; chance: number } | null>(null)
+  // seats a new bot sat down in on the last deal
+  const [arrivals, setArrivals] = useState<number[]>([])
   const worker = useRef<Worker>(null)
 
   const dealing = shown < table.board.length
@@ -131,6 +133,7 @@ export function useSoloTable() {
   const deal = () => {
     if (!idle) return
     const next = startHand(table, shuffledDeck())
+    setArrivals(next.seats.flatMap((seat, i) => (seat!.id === table.seats[i]!.id ? [] : [i])))
     setHand((n) => n + 1)
     setShown(0)
     setPaid(false)
@@ -267,6 +270,7 @@ export function useSoloTable() {
     land,
     act,
     deal,
+    arrivals,
     toggleTopUp,
     toggleLeaving,
   }

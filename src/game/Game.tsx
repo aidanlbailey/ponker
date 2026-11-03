@@ -7,7 +7,7 @@ import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
 import { Avatar, ChipFlight, ChipPile, PlayingCard, SHOWN } from './Pieces'
 import { botById } from './roster'
-import { BIG_BLIND, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
+import { BIG_BLIND, busted, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
 import { total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import '@fontsource-variable/manrope'
@@ -161,6 +161,7 @@ export default function Game({ name }: { name: string }) {
             const isMe = i === HERO
             const blind = blindOf(view, i)
             const won = finished && winnings(view, i) > 0
+            const out = finished && busted(view, i)
             const betChips = game.pile(`bet-${i}`)
             const bet = total(betChips)
             const spot = betSpot(i, seats)
@@ -176,7 +177,7 @@ export default function Game({ name }: { name: string }) {
                   {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
                 <div
-                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner')}
+                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive')}
                   style={around(i, seats, 1)}
                   data-spot={`seat-${i}`}
                 >
@@ -189,7 +190,7 @@ export default function Game({ name }: { name: string }) {
                     <Avatar id={seat!.id} />
                     <div className="seat-info">
                       <span className="seat-name">{isMe ? heroName : botName(view, i)}</span>
-                      <span className="seat-stack">{game.stack(i).toLocaleString('en-US')}</span>
+                      <span className="seat-stack">{out ? 'Out' : game.stack(i).toLocaleString('en-US')}</span>
                     </div>
                     {view.button === i && view.street !== 'waiting' && (
                       <span className="dealer" title="Dealer button">
@@ -230,7 +231,7 @@ export default function Game({ name }: { name: string }) {
               </button>
             )}
             <button className="button primary" onClick={game.deal}>
-              {over ? 'Next hand' : 'Deal me in'}
+              {me.chips === 0 ? `Rebuy ${BUY_IN.toLocaleString('en-US')}` : over ? 'Next hand' : 'Deal me in'}
             </button>
           </div>
         )}
