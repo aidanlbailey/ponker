@@ -152,16 +152,17 @@
 
 }
 
+/* centred with auto margins, not translate. A transform would make this its own layer, and the
+   result line has to go over the seats while the board stays under the bets */
 .felt-center {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  width: 100%;
-  translate: -50% -50%;
+  height: fit-content;
+  margin-block: auto;
 }
 
 .pot {
@@ -182,6 +183,7 @@
 .result {
   position: absolute;
   top: 100%;
+  z-index: 3; /* over the seats, a long win line runs under the lower corners round a full table */
   max-width: 92%;
   margin-top: 0.4rem;
   padding: 0.2rem 0.8rem;
@@ -472,6 +474,13 @@
   bottom: auto;
 }
 
+/* the top seat and upper corners bet right by their plate and the pot sits under them, so their
+   bubble goes up over their cards or the chips coming in cover it */
+.felt.ring .seat.upper .said {
+  top: auto;
+  bottom: calc(100% + 3px);
+}
+
 /* a bust bot shows it's out, then gets up and leaves. A new one sits down there on the next deal */
 .seat.out {
   opacity: 0;
@@ -495,17 +504,40 @@
   --card-w: clamp(32px, min(11.5cqw, 10.5cqh), 80px);
 }
 
+/* the pot's amount rides over its tallest stack, beside the stacks it ran into the upper corners' bets.
+   4px a chip, same rise as .pile */
+.felt.ring .pot .pile-label {
+  top: auto;
+  bottom: calc(100% + 3px + (var(--tall, 1) - 1) * 4px);
+  left: 50%;
+  translate: -50% 0;
+  transition: bottom 0.25s ease-out;
+}
+
 /* a side seat held in off the rail pushes its bet in too, so the chips land past the plate */
 .felt.ring .bet {
   --room: calc(2 * 3.3rem + var(--chip-size) / 2 + 4px);
 
   left: clamp(var(--room), var(--x), 100% - var(--room));
 
-  /* under the chips, not beside them. Beside, the right hand seats' amounts ran under their own cards */
-  .pile-label {
+  /* under the chips, not beside them. Beside, the right hand seats' amounts ran under their own cards.
+     Yours can't go under, your cards are there */
+  &:not(.mine) .pile-label {
     top: calc(100% + 3px);
     left: 50%;
     translate: -50% 0;
+  }
+
+  /* the top seat's, off to the right of its plate, level with it. Its cards stack above, so the plate
+     sits a little under the seat's middle */
+  &.beside {
+    top: calc(var(--y) + 0.6rem);
+    left: calc(var(--x) + 3rem + var(--chip-size) / 2 + 6px);
+  }
+
+  /* level with a lower corner's plate rather than the middle of the seat, as far from the board as it goes */
+  &.side {
+    top: calc(var(--y) + 0.6rem);
   }
 
   /* in front of an upper corner seat, held in off the rail exactly like the seat itself */
@@ -514,10 +546,28 @@
     left: clamp(3.3rem, var(--x), 100% - 3.3rem);
   }
 
-  /* the lower corners' amounts ride on top of the pile, the board's above them. 4px a chip, same rise as .pile */
-  &.side .pile-label {
+  /* the lower corners' and top seat's amounts ride on top of the pile, there's no room under.
+     4px a chip, same rise as .pile */
+  &.side .pile-label,
+  &.beside .pile-label {
     top: auto;
     bottom: calc(100% + 3px + (var(--chips, 1) - 1) * 4px);
+    transition: bottom 0.25s ease-out;
+  }
+}
+
+/* on a narrow felt the lower corners bet level with you, and your amount beside the chips ran under theirs */
+@container (max-width: 480px) {
+  /* and on the smallest phones it still touches theirs, so yours is the one on top */
+  .felt.ring .bet.mine {
+    z-index: 2;
+  }
+
+  .felt.ring .bet.mine .pile-label {
+    top: auto;
+    bottom: calc(100% + 3px + (var(--chips, 1) - 1) * 4px);
+    left: 50%;
+    translate: -50% 0;
     transition: bottom 0.25s ease-out;
   }
 }

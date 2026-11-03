@@ -26,15 +26,15 @@ function around(seat: number, seats: number, reach: number, reachY = reach) {
   return { '--x': `${50 + 43 * reach * Math.cos(angle)}%`, '--y': `${50 + tall * reachY * Math.sin(angle)}%` } as CSSProperties
 }
 
-// Heads-up the bets sit halfway in, and so does yours. Round a full ring the board's in the way:
-// the top seat comes straight in, the upper corners bet just under their plate, and the lower ones
-// bet sideways with the amount riding on the pile, so no two amounts share a row
+// Heads-up the bets sit halfway in, and so does yours. Round a full ring the middle's taken by the
+// pot and board: the top seat bets beside its plate, the upper corners just under theirs, and the
+// lower ones sideways with the amount riding on the pile, so no two amounts share a row
 function betSpot(seat: number, seats: number) {
   const angle = angleOf(seat, seats)
-  if (seats === 2 || seat === HERO) return { className: 'bet', style: around(seat, seats, 0.52) }
-  if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet', style: around(seat, seats, 0.62, 0.6) }
+  if (seats === 2 || seat === HERO) return { className: 'bet mine', style: around(seat, seats, 0.52) }
+  if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet beside', style: around(seat, seats, 1) }
   if (Math.sin(angle) < 0) return { className: 'bet under', style: around(seat, seats, 1) }
-  return { className: 'bet side', style: around(seat, seats, 0.62, 0.95) }
+  return { className: 'bet side', style: around(seat, seats, 0.62, 1) }
 }
 
 // solo tables have every seat filled, so the blinds are just the next seats round
@@ -135,7 +135,10 @@ export default function Game({ name }: { name: string }) {
       <main className="table-wrap">
         <div className={cx('felt', seats > 2 && 'ring')}>
           <div className="felt-center">
-            <output className="pot" style={{ '--of': game.potStacks.length } as CSSProperties}>
+            <output
+              className="pot"
+              style={{ '--of': game.potStacks.length, '--tall': Math.min(Math.max(1, ...game.potStacks.map((stack) => stack.count)), SHOWN) } as CSSProperties}
+            >
               <span className="pile-slot pot-slot" data-spot="pot">
                 {game.potStacks.map(({ value, count }, i) => (
                   <span key={value} className="pot-stack" style={{ '--stack': i } as CSSProperties}>
@@ -177,7 +180,7 @@ export default function Game({ name }: { name: string }) {
                   {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
                 <div
-                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive')}
+                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', (spot.className === 'bet under' || spot.className === 'bet beside') && 'upper')}
                   style={around(i, seats, 1)}
                   data-spot={`seat-${i}`}
                 >
