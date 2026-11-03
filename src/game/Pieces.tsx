@@ -9,7 +9,7 @@ import { progress, route, type Box, type Point } from './route'
 import type { At } from './piles'
 import { BOTS } from './roster'
 import type { Spot } from './solo'
-import type { Flight } from './useSoloTable'
+import type { Flight } from './useStage'
 
 const THROW_MS = 850
 const LAND = 0.62 // share of the throw spent in the air, the rest is the bounce

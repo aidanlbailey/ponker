@@ -1,10 +1,10 @@
 {
-  "name": "ponker-test-table",
+  "name": "ponker-rooms",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "durable_objects": {
-    "bindings": [{ "name": "TABLE", "class_name": "TestTable" }]
+    "bindings": [{ "name": "TABLE", "class_name": "Table" }]
   },
   // free plan only allows sqlite backed objects
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TestTable"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Table"] }]
 }

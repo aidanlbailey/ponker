@@ -425,10 +425,12 @@
   font-weight: 600;
 }
 
+/* z-index so your turn's glow, the plate's ::after, goes behind them and not through them */
 .dealer,
 .seat-blind {
   position: absolute;
   top: -12px;
+  z-index: 1;
   display: grid;
   place-items: center;
   height: 19px;
@@ -480,6 +482,66 @@
 .felt.ring .seat.upper .said {
   top: auto;
   bottom: calc(100% + 3px);
+}
+
+/* a room's empty chair, there so the ring doesn't reshuffle every time someone sits down */
+.seat.open .seat-plate {
+  padding: 0.55rem 0.8rem;
+  border: 1px dashed rgb(255 255 255 / 0.22);
+  background: rgb(0 0 0 / 0.25);
+  box-shadow: none;
+
+  .seat-name {
+    color: rgb(223 232 226 / 0.55);
+  }
+}
+
+/* Bot, Away, Sitting out. Hung off the top left corner, the way the dealer button hangs off the right,
+   so a long one can't run into the blind */
+.seat-tag {
+  position: absolute;
+  top: -12px;
+  z-index: 1;
+  left: -6px;
+  white-space: nowrap;
+  display: grid;
+  place-items: center;
+  height: 19px;
+  padding-inline: 0.35rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.75);
+  color: #dfe8e2;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* the turn clock drains along the bottom of the plate. It starts from wherever the clock already
+   was, so a state that comes in mid-turn carries on rather than refilling */
+.seat-clock {
+  position: absolute;
+  right: 14px;
+  bottom: -3px;
+  left: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--table-line);
+  transform-origin: left;
+  animation: clock-drain var(--ms) linear forwards;
+
+  &.banked {
+    background: #ff8a5c;
+  }
+}
+
+@keyframes clock-drain {
+  from {
+    scale: var(--from) 1;
+  }
+  to {
+    scale: 0 1;
+  }
 }
 
 /* a bust bot shows it's out, then gets up and leaves. A new one sits down there on the next deal */

@@ -1,33 +1,13 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 import { applyAction, shuffledDeck, viewFor, type Action, type PlayerAction } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { haptic } from '../lib/haptics'
+import { botById } from './roster'
+import { botAction, endOfHand, HERO, isSolo, newSolo, setLeaving, startHand, STORAGE_KEY, type Solo } from './solo'
+import { ask, useStage, type TableGame } from './useStage'
 import { save } from '../lib/storage'
-import { actionText } from './betting'
-import { liveOpponents } from './bot'
-import { plan, settle, stackValues, total, type Piles, type Trip } from './piles'
-import {
-  botAction,
-  chipMoves,
-  endOfHand,
-  HERO,
-  isSolo,
-  newSolo,
-  payouts,
-  setLeaving,
-  startHand,
-  STORAGE_KEY,
-  winnings,
-  type Move,
-  type Solo,
-  type Spot,
-  type WorkerRequest,
-} from './solo'
 
 const FRESH = newSolo()
-const STREET_MS = 550
-const RUN_OUT_MS = 1100 // an all-in is the good bit, so let each card land
-const PAY_MS = 900
 const THINK_MS = 700
 const THINK_SPREAD_MS = 900
 // folds come quick or a six handed orbit drags
@@ -35,94 +15,22 @@ const FOLD_MS = 350
 const FOLD_SPREAD_MS = 400
 const SITTING_OUT_MS = 500
 
-// one chip in the air. start is where a flick let go of it, if it was flicked
-export type Flight = Trip & { id: number; delay: number; start?: DOMRect }
-
-const STAGGER_MS = 40
-const MAX_STAGGER_MS = 420
-const MOVE_GAP_MS = 90
-
-let nextId = 0
-
 const wait = (ms: number) => new Promise((done) => setTimeout(done, ms))
 
-function ask<T>(worker: Worker | null, request: WorkerRequest) {
-  return new Promise<T>((resolve, reject) => {
-    if (!worker) return reject(new Error('no worker'))
-    const id = nextId++
-    const finish = (run: () => void) => {
-      worker.removeEventListener('message', onMessage)
-      worker.removeEventListener('error', onError)
-      run()
-    }
-    const onMessage = ({ data }: MessageEvent<{ id: number; result: T }>) => {
-      if (data.id === id) finish(() => resolve(data.result))
-    }
-    const onError = () => finish(() => reject(new Error('worker failed')))
-    worker.addEventListener('message', onMessage)
-    worker.addEventListener('error', onError)
-    worker.postMessage({ ...request, id })
-  })
-}
-
-// The engine jumps straight to a state, so everything between two states is
-// staged here. An all-in comes back with the whole board and the chips already
-// paid, and the table walks up to that one street at a time.
-export function useSoloTable() {
+// The table loop for a solo game, with the bots in a worker. The staging is all useStage's.
+export function useSoloTable(): TableGame {
   const [solo, setSolo] = useStoredState<Solo>(STORAGE_KEY, FRESH, isSolo)
   const { table } = solo
-  const view = useMemo(() => viewFor(table, HERO), [table])
-
-  const [hand, setHand] = useState(0)
-  const [shown, setShown] = useState(table.board.length)
   // a reload after the payout shouldn't play it again. A held leave or top-up means the hand
   // end never ran though, so that one does replay, it's what applies them
-  const [paid, setPaid] = useState(() => table.street === 'complete' && !solo.leaving && !solo.topUp)
-  const [said, setSaid] = useState<Record<number, string>>({})
-  const [flights, setFlights] = useState<Flight[]>([])
-  const [piles, setPiles] = useState<Piles>({})
-  const [odds, setOdds] = useState<{ key: string; chance: number } | null>(null)
-  // seats a new bot sat down in on the last deal
-  const [arrivals, setArrivals] = useState<number[]>([])
-  const worker = useRef<Worker>(null)
-
-  const dealing = shown < table.board.length
-  const over = table.street === 'complete'
-  const idle = table.street === 'waiting' || (over && paid)
-  const board = view.board.slice(0, shown)
-  const me = view.seats[HERO]!
-  const inHand = me.cards.length > 0 && !me.folded
-
-  // the chips really on the felt. Only falls back to the engine's amounts with nothing moving
-  const onFelt = flights.length ? piles : settle(piles, table, paid)
-  const inbound: Piles = {}
-  for (const flight of flights) (inbound[flight.to] ??= []).push(flight.value)
-
-  const fly = (moves: Move[], from?: DOMRect, felt = onFelt) => {
-    const { piles: left, trips } = plan(felt, moves, inbound)
-    setPiles(left)
-    setFlights((prev) => [
-      ...prev,
-      ...trips.map((trip) => ({
-        ...trip,
-        id: nextId++,
-        delay: Math.min(trip.order * STAGGER_MS, MAX_STAGGER_MS) + trip.move * MOVE_GAP_MS,
-        start: from && trip.move === 0 && trip.from === `seat-${HERO}` ? from : undefined,
-      })),
-    ])
-  }
-
-  const land = (flight: Flight) => {
-    setFlights((prev) => prev.filter((f) => f.id !== flight.id))
-    if (!flight.to.startsWith('seat')) setPiles((prev) => ({ ...prev, [flight.to]: [...(prev[flight.to] ?? []), flight.value] }))
-  }
+  const stage = useStage(table, HERO, table.street === 'complete' && !solo.leaving && !solo.topUp, () => {
+    if (!solo.leaving) setSolo(endOfHand)
+  })
 
   const run = (action: Action, seat: number, from?: DOMRect) => {
-    const text = actionText(table, action)
     const next = applyAction(table, action)
+    stage.acted(next, action, seat, from)
     setSolo((prev) => ({ ...prev, table: next }))
-    fly(chipMoves(table, next), from)
-    if (text) setSaid((prev) => (next.street === table.street ? { ...prev, [seat]: text } : { [seat]: text }))
   }
 
   const act = (action: PlayerAction, from?: DOMRect) => {
@@ -131,21 +39,14 @@ export function useSoloTable() {
   }
 
   const deal = () => {
-    if (!idle) return
+    if (!stage.idle) return
     const next = startHand(table, shuffledDeck())
-    setArrivals(next.seats.flatMap((seat, i) => (seat!.id === table.seats[i]!.id ? [] : [i])))
-    setHand((n) => n + 1)
-    setShown(0)
-    setPaid(false)
-    setSaid({})
-    setOdds(null)
+    stage.dealt(next)
     setSolo((prev) => ({ ...prev, table: next }))
-    fly(chipMoves(table, next, true), undefined, {})
-    haptic('light')
   }
 
   const toggleTopUp = () => {
-    if (idle) setSolo((prev) => endOfHand({ ...prev, topUp: true }))
+    if (stage.idle) setSolo((prev) => endOfHand({ ...prev, topUp: true }))
     else setSolo((prev) => ({ ...prev, topUp: !prev.topUp }))
   }
 
@@ -157,41 +58,21 @@ export function useSoloTable() {
   }
 
   const toggleLeaving = () => {
-    if (idle) exit()
+    if (stage.idle) exit()
     else setSolo((prev) => setLeaving(prev, !prev.leaving))
   }
 
-  useEffect(() => {
-    const created = new Worker(new URL('./bot.worker.ts', import.meta.url), { type: 'module' })
-    worker.current = created
-    return () => created.terminate()
-  }, [])
-
-  useEffect(() => {
-    if (!dealing) return
-    const timer = setTimeout(() => setShown((n) => (n ? n + 1 : 3)), over ? RUN_OUT_MS : STREET_MS)
-    return () => clearTimeout(timer)
-  }, [dealing, shown, over])
-
   const onBotAnswer = useEffectEvent((answer: PlayerAction | null) => run(botAction(table, answer), table.toAct))
   const onSittingOut = useEffectEvent(() => run({ type: 'timeout' }, table.toAct))
-  const onSettled = useEffectEvent(() => {
-    fly(payouts(table))
-    setPaid(true)
-    if (!solo.leaving) setSolo(endOfHand)
-    haptic(winnings(table, HERO) ? 'success' : 'light')
-  })
 
-  // Nobody acts and nothing pays out while a chip is moving. Every move picks up the chips that
-  // are sitting somewhere, so one that starts before the last lands would miss the late ones
-  const moving = flights.length > 0
-  const toAct = dealing || moving ? -1 : table.toAct
+  // nobody acts while anything's staged
+  const toAct = stage.dealing || stage.moving ? -1 : table.toAct
 
   useEffect(() => {
     if (toAct < 0 || toAct === HERO) return
     let stale = false
     const started = performance.now()
-    ask<PlayerAction>(worker.current, { kind: 'decide', view: viewFor(table, toAct), bot: table.seats[toAct]!.id })
+    ask<PlayerAction>(stage.worker.current, { kind: 'decide', view: viewFor(table, toAct), bot: table.seats[toAct]!.id })
       .catch(() => null)
       .then(async (answer) => {
         const think =
@@ -204,7 +85,7 @@ export function useSoloTable() {
     return () => {
       stale = true
     }
-  }, [toAct, table])
+  }, [toAct, table, stage.worker])
 
   useEffect(() => {
     if (toAct < 0 || !table.seats[toAct]!.sittingOut) return
@@ -212,65 +93,21 @@ export function useSoloTable() {
     return () => clearTimeout(timer)
   }, [toAct, table])
 
-  useEffect(() => {
-    if (!over || dealing || paid || moving) return
-    const timer = setTimeout(onSettled, PAY_MS)
-    return () => clearTimeout(timer)
-  }, [over, dealing, paid, moving])
-
   // leaving waits for the winnings to land, not just to set off
   const onLeft = useEffectEvent(exit)
   useEffect(() => {
-    if (over && paid && solo.leaving && !moving) onLeft()
-  }, [over, paid, solo.leaving, moving])
-
-  // from what's on screen, or the helper would give away a run out. Stops once the hand's
-  // over too, a number against a random hand is nonsense with both hands face up
-  const cards = inHand ? me.cards : null
-  const oddsKey = cards && !over && !idle ? `${cards.join()}/${board.join()}` : null
-  const opponents = liveOpponents(view, HERO)
-  const onOdds = useEffectEvent(() => cards && { kind: 'equity' as const, cards, board, opponents })
-
-  useEffect(() => {
-    const request = oddsKey ? onOdds() : null
-    if (!request) return
-    let stale = false
-    ask<number>(worker.current, request)
-      .then((chance) => {
-        if (!stale) setOdds({ key: oddsKey!, chance })
-      })
-      .catch(() => {}) // the helper just stays blank
-    return () => {
-      stale = true
-    }
-  }, [oddsKey])
+    if (stage.over && stage.paid && solo.leaving && !stage.moving) onLeft()
+  }, [stage.over, stage.paid, solo.leaving, stage.moving])
 
   return {
-    view,
-    hand,
-    board,
-    said,
-    flights,
-    paid,
-    over,
-    idle,
-    dealing,
-    moving,
-    leaving: solo.leaving,
-    topUp: solo.topUp,
-    chance: odds?.key === oddsKey ? (odds?.chance ?? null) : null,
-    // nothing counts at its destination until the flight has landed it there
-    stack: (seat: number) => view.seats[seat]!.chips - (over && !paid ? winnings(table, seat) : 0) - total(inbound[`seat-${seat}`]),
-    pile: (spot: Spot) => onFelt[spot] ?? [],
-    // stacks are laid out for chips still on their way too, so the row opens up as they set off
-    potStacks: stackValues([...(onFelt.pot ?? []), ...(inbound.pot ?? [])]).map((value) => ({
-      value,
-      count: (onFelt.pot ?? []).filter((v) => v === value).length,
-    })),
-    land,
+    ...stage,
+    me: HERO,
     act,
     deal,
-    arrivals,
+    bustLeaves: true,
+    nameOf: (seat) => botById(table.seats[seat]?.id ?? '')?.name ?? 'Bot',
+    leaving: solo.leaving,
+    topUp: solo.topUp,
     toggleTopUp,
     toggleLeaving,
   }

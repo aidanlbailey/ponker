@@ -1,144 +1,150 @@
-// Milestone 1 spike. Throwaway: proves hibernation and measures cost, then the
-// real table replaces it.
+// The Cloudflare side of a room, kept thin: sockets in, room.ts does the poker, sql.ts saves it.
+// One Durable Object per room. Hibernation wipes memory, so everything that matters is in the row.
 
 import { DurableObject } from 'cloudflare:workers'
-import { monteCarloEquity, tableDecision } from './botBench'
+import { command, join, newRoom, nextWake, tick, viewOf, type Command, type Room } from './room'
+import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
-  TABLE: DurableObjectNamespace<TestTable>
-  PROBE_KEY: string
+  TABLE: DurableObjectNamespace<Table>
 }
 
-type Seat = { seat: number }
+type Attachment = { token: string }
 
-// roughly what a 6-max table has to save after each action
-const blankState = () => ({
-  actions: 0,
-  alarms: 0,
-  left: 0,
-  seats: Array.from({ length: 6 }, (_, i) => ({
-    id: `player-${i}-${'x'.repeat(32)}`,
-    name: `Player ${i}`,
-    stack: 10000,
-    bet: 0,
-    hole: [0, 0],
-    avatar: 'a'.repeat(300),
-  })),
-  board: [0, 0, 0, 0, 0],
-  deck: Array.from({ length: 52 }, (_, i) => i),
-  pots: [0],
-})
+const CHAT_GAP_MS = 400
+const TOKEN = /^[\w-]{16,64}$/
 
-// tiny spot both bench modes share: top pair on a flop against five players
-const HERO = [50, 45]
-const BOARD = [51, 20, 9]
+const send = (ws: WebSocket, data: object) => {
+  try {
+    ws.send(JSON.stringify(data))
+  } catch {
+    // closing already, the close handler tidies up
+  }
+}
 
-export class TestTable extends DurableObject<Env> {
-  // memory only on purpose. A new id on a later reply means the object was wiped
-  instance = crypto.randomUUID().slice(0, 8)
-  bootedAt = Date.now()
-  handled = 0
-  state: ReturnType<typeof blankState> | null = null
-  lastRows = { read: 0, written: 0 }
+export class Table extends DurableObject<Env> {
+  loaded: Room | null = null
+  alarmAt: number | null | undefined // undefined until we know, after a wake
+  lastChat = new Map<string, number>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
-    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY, json TEXT NOT NULL)')
+    setup(ctx.storage.sql)
+    // answered without waking the object, so the clients' heartbeat costs nothing
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
   }
 
-  load() {
-    if (this.state) return this.state
-    const row = this.ctx.storage.sql.exec<{ json: string }>('SELECT json FROM state WHERE id = 1').toArray()[0]
-    return (this.state = row ? JSON.parse(row.json) : blankState())!
+  get room() {
+    return (this.loaded ??= loadRoom(this.ctx.storage.sql) ?? newRoom())
   }
 
-  save() {
-    const cursor = this.ctx.storage.sql.exec(
-      'INSERT INTO state (id, json) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET json = excluded.json',
-      JSON.stringify(this.state),
-    )
-    cursor.toArray()
-    this.lastRows = { read: cursor.rowsRead, written: cursor.rowsWritten }
+  sockets(except?: WebSocket) {
+    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN)
   }
 
-  snapshot(ws?: WebSocket) {
-    return {
-      instance: this.instance,
-      upMs: Date.now() - this.bootedAt,
-      handled: this.handled,
-      sockets: this.ctx.getWebSockets().length,
-      seat: (ws?.deserializeAttachment() as Seat | null)?.seat,
-      actions: this.load().actions,
-      alarms: this.load().alarms,
-      left: this.load().left,
-      rows: this.lastRows,
-      stateBytes: JSON.stringify(this.state).length,
+  online(except?: WebSocket) {
+    return new Set(this.sockets(except).map((ws) => (ws.deserializeAttachment() as Attachment).token))
+  }
+
+  broadcast(except?: WebSocket) {
+    const online = this.online(except)
+    const now = Date.now()
+    for (const ws of this.sockets(except)) {
+      send(ws, viewOf(this.room, (ws.deserializeAttachment() as Attachment).token, online, now))
     }
   }
 
-  broadcast(event: string, except?: WebSocket) {
-    for (const ws of this.ctx.getWebSockets()) {
-      if (ws !== except) ws.send(JSON.stringify({ event, ...this.snapshot(ws) }))
-    }
+  async commit(except?: WebSocket) {
+    const room = this.room
+    room.stats.rows += saveRoom(this.ctx.storage.sql, room)
+    this.broadcast(except)
+    const at = nextWake(room)
+    if (at === this.alarmAt) return
+    if (at === null) await this.ctx.storage.deleteAlarm()
+    else await this.ctx.storage.setAlarm(at)
+    this.alarmAt = at
+    // the alarm write is a row too. counted on the next save, near enough for a budget
+    room.stats.rows++
   }
 
   async fetch(request: Request) {
+    const url = new URL(request.url)
+    const token = url.searchParams.get('token') ?? ''
+    if (!TOKEN.test(token)) return new Response('bad token', { status: 400 })
+    // a socket lost with no close frame still looks open here, so the newest one for a token wins.
+    // 4000 tells the old tab it was replaced and not to fight back
+    for (const old of this.sockets()) {
+      if ((old.deserializeAttachment() as Attachment).token === token) old.close(4000, 'replaced')
+    }
     const { 0: client, 1: server } = new WebSocketPair()
-    const seat = Number(new URL(request.url).searchParams.get('seat') ?? 0)
     this.ctx.acceptWebSocket(server)
-    server.serializeAttachment({ seat } satisfies Seat)
+    server.serializeAttachment({ token } satisfies Attachment)
+    join(this.room, token, url.searchParams.get('name') ?? '', Date.now())
+    await this.commit()
+    // the chat so far, only to the one who just arrived
+    send(server, { t: 'chat', lines: this.room.chat })
     return new Response(null, { status: 101, webSocket: client })
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
-    this.handled++
-    const msg = JSON.parse(message as string) as { t: string; n?: number; ms?: number; id?: number }
-    const reply = (extra: object) => ws.send(JSON.stringify({ id: msg.id, ...this.snapshot(ws), ...extra }))
+    if (typeof message !== 'string' || message.length > 1000) return
+    const { token } = ws.deserializeAttachment() as Attachment
+    let cmd: Command
+    try {
+      cmd = JSON.parse(message)
+    } catch {
+      return
+    }
+    const now = Date.now()
 
-    if (msg.t === 'hello') return reply({})
-
-    if (msg.t === 'act') {
-      this.load().actions++
-      this.save()
-      reply({})
-      return this.broadcast('action', ws)
+    if ((cmd as { t: string }).t === 'stats') return send(ws, { t: 'stats', ...this.room.stats })
+    if (cmd.t === 'chat') {
+      if (now - (this.lastChat.get(token) ?? 0) < CHAT_GAP_MS) return send(ws, { t: 'nope', why: 'slow down' })
+      this.lastChat.set(token, now)
     }
 
-    if (msg.t === 'timer') {
-      await this.ctx.storage.setAlarm(Date.now() + msg.ms!)
-      return reply({ alarmIn: msg.ms })
+    let kind
+    try {
+      kind = command(this.room, token, cmd, now)
+    } catch (e) {
+      // the client was a beat behind, it gets the real state back
+      send(ws, { t: 'nope', why: (e as Error).message })
+      return send(ws, viewOf(this.room, token, this.online(), now))
     }
-
-    if (msg.t === 'bench-table') {
-      const results: string[] = []
-      for (let i = 0; i < msg.n!; i++) results.push(tableDecision(HERO, BOARD, 100 + i, 50))
-      return reply({ answer: results[0] })
+    if (kind === 'chat') {
+      this.room.stats.rows += saveRoom(this.ctx.storage.sql, this.room)
+      for (const other of this.sockets()) send(other, { t: 'chat', lines: this.room.chat.slice(-1) })
+      return
     }
-
-    if (msg.t === 'bench-mc') return reply({ answer: monteCarloEquity(HERO, BOARD, 5, msg.n!) })
+    await this.commit()
   }
 
-  // the real 20 second turn clock needs this to fire and reach sockets from hibernation
   async alarm() {
-    this.load().alarms++
-    this.save()
-    this.broadcast('alarm')
+    this.alarmAt = null
+    if (tick(this.room, Date.now(), this.online())) await this.commit()
+    else {
+      // woke early or for nothing, still keep the next one set
+      const at = nextWake(this.room)
+      if (at !== null) await this.ctx.storage.setAlarm(at)
+      this.alarmAt = at
+    }
   }
 
-  async webSocketClose() {
-    this.load().left++
-    this.save()
-    this.broadcast('left')
+  // nothing to save, who's away comes from the sockets
+  async webSocketClose(ws: WebSocket) {
+    this.broadcast(ws)
+  }
+
+  async webSocketError(ws: WebSocket) {
+    this.broadcast(ws)
   }
 }
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url)
-    // ponytail: shared key is enough for a throwaway endpoint that burns CPU on demand
-    if (url.searchParams.get('key') !== env.PROBE_KEY) return new Response('nope', { status: 403 })
+    const id = new URL(request.url).pathname.match(/^\/room\/([a-z0-9]{8,16})$/)?.[1]
+    if (!id) return new Response('not found', { status: 404 })
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 })
-    return env.TABLE.getByName(url.searchParams.get('table') ?? 'test').fetch(request)
+    return env.TABLE.getByName(id).fetch(request)
   },
 } satisfies ExportedHandler<Env>

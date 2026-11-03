@@ -60,8 +60,8 @@ export function startHand(s: TableState, deck: Card[], random = Math.random) {
 }
 
 // still holding the seat after the payout, but not for the next hand
-export const busted = (s: TableState, seat: number) =>
-  s.street === 'complete' && seat !== HERO && s.seats[seat]!.chips === 0
+export const busted = (s: TableState, seat: number, me: number | null = HERO) =>
+  s.street === 'complete' && seat !== me && s.seats[seat]?.chips === 0
 
 export function endOfHand(solo: Solo): Solo {
   const table = solo.topUp && solo.table.seats[HERO]!.chips < BUY_IN ? refill(solo.table, HERO) : solo.table
@@ -92,19 +92,22 @@ export function botAction(s: TableState, answer: PlayerAction | null) {
 }
 
 // Where the chips went between two states, for the flights. The caller says when it dealt, the
-// street can't: a blind can put someone all in and finish the hand on the deal, complete to complete
+// street can't: a blind can put someone all in and finish the hand on the deal, complete to complete.
+// An open seat, or one that just changed hands, has nothing to move
 export function chipMoves(prev: TableState, next: TableState, newHand = false) {
   const moves: Move[] = []
   const closed = !newHand && prev.street !== next.street
   next.seats.forEach((seat, i) => {
-    const before = prev.seats[i]!
+    const before = prev.seats[i]
+    if (!seat) return
     if (newHand) {
-      const swept = seat!.committed - seat!.bet
-      if (seat!.bet) moves.push({ from: `seat-${i}`, to: `bet-${i}`, amount: seat!.bet })
+      const swept = seat.committed - seat.bet
+      if (seat.bet) moves.push({ from: `seat-${i}`, to: `bet-${i}`, amount: seat.bet })
       if (swept > 0) moves.push({ from: `seat-${i}`, to: 'pot', amount: swept })
       return
     }
-    const added = seat!.committed - before.committed
+    if (before?.id !== seat.id) return
+    const added = seat.committed - before.committed
     // nobody called the top of the bet, so that part goes home instead of into the pot
     const returned = Math.max(-added, 0)
     const swept = before.bet - returned
@@ -118,8 +121,8 @@ export function chipMoves(prev: TableState, next: TableState, newHand = false) {
 
 // the pile sitting at a spot in this state, seats don't have one
 export function pileAt(s: TableState, spot: Spot) {
-  if (spot === 'pot') return potSize(s) - s.seats.reduce((sum, seat) => sum + seat!.bet, 0)
-  return spot.startsWith('bet') ? s.seats[Number(spot.slice(4))]!.bet : 0
+  if (spot === 'pot') return potSize(s) - s.seats.reduce((sum, seat) => sum + (seat?.bet ?? 0), 0)
+  return spot.startsWith('bet') ? (s.seats[Number(spot.slice(4))]?.bet ?? 0) : 0
 }
 
 export function payouts(s: TableState) {

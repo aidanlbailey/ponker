@@ -1,19 +1,22 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Avatar } from '../game/Pieces'
+import { newRoomId } from '../room/useRoom'
 import '@fontsource-variable/manrope'
 import '../game/game.css'
 import '../game/picker.css'
 import './previews.css'
 
 // Filler screens so the whole hub can be clicked through before the real ones exist. All the data
-// is made up. Each screen goes when its milestone lands: Rooms 5, Quick Play 6, Profile 7, Daily Race 8
+// is made up. Each screen goes when its milestone lands: private rooms went live in 5, public tables and Quick Play 6, Profile 7, Daily Race 8
 
 export type PreviewName = 'quick' | 'rooms' | 'race' | 'profile'
 
 const SOON = "Coming soon, this part isn't built yet"
 
-function Screen({ title, children }: { title: string; children: (soon: () => void) => ReactNode }) {
-  const [note, setNote] = useState('Preview, everything here is made up')
+type ScreenProps = { title: string; intro?: string; children: (soon: () => void) => ReactNode }
+
+function Screen({ title, intro = 'Preview, everything here is made up', children }: ScreenProps) {
+  const [note, setNote] = useState(intro)
   return (
     <div className="poker picker preview">
       <header className="poker-bar">
@@ -78,9 +81,19 @@ const TABLES = [
   { name: 'Riverboat', stakes: '1/2', seated: 1 },
 ]
 
+// a pasted link or just the code on the end of it
+const roomIn = (text: string) => text.trim().match(/([a-z0-9]{8,16})\/?$/)?.[1]
+
+// public tables are still filler until milestone 6, private rooms are real
 function Rooms() {
+  const [link, setLink] = useState('')
+  const join = (e: FormEvent) => {
+    e.preventDefault()
+    const id = roomIn(link)
+    if (id) location.hash = `#room/${id}`
+  }
   return (
-    <Screen title="Rooms">
+    <Screen title="Rooms" intro="Public tables are a preview with made up tables. Private rooms are live.">
       {(soon) => (
         <>
           <section>
@@ -101,15 +114,16 @@ function Rooms() {
           </section>
           <section className="picker-seats">
             <h2>Private room</h2>
-            <button className="button primary" onClick={soon}>
+            <p>5/10, 1,000 to sit, free top-ups. Share the link and friends drop straight into a seat.</p>
+            <a className="button primary" href={`#room/${newRoomId()}`}>
               Create a room
-            </button>
-            <div className="preview-join">
-              <input aria-label="Invite link" placeholder="Paste an invite link" />
-              <button className="poker-toggle" onClick={soon}>
+            </a>
+            <form className="preview-join" onSubmit={join}>
+              <input aria-label="Invite link" placeholder="Paste an invite link" value={link} onChange={(e) => setLink(e.target.value)} />
+              <button className="poker-toggle" disabled={!roomIn(link)}>
                 Join
               </button>
-            </div>
+            </form>
           </section>
         </>
       )}

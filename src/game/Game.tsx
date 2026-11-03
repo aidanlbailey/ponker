@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
@@ -7,29 +7,28 @@ import { BetControls } from './BetControls'
 import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
 import { Avatar, ChipFlight, ChipPile, PlayingCard, SHOWN } from './Pieces'
-import { botById } from './roster'
-import { BIG_BLIND, busted, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
+import { BIG_BLIND, busted, BUY_IN, SMALL_BLIND, winnings } from './solo'
 import { total } from './piles'
 import { useSoloTable } from './useSoloTable'
+import type { TableGame } from './useStage'
 import '@fontsource-variable/manrope'
 import './game.css'
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
 const cx = (...names: (string | false)[]) => names.filter(Boolean).join(' ')
-const botName = (view: TableState, seat: number) => botById(view.seats[seat]!.id)?.name ?? 'Bot'
-// Smaller rings sit in the six-max spots, clockwise from you at 0. Spaced evenly, four players put
-// the side seats level with the board, right over its end cards on a phone
+// Smaller rings sit in the six-max spots, clockwise from you at place 0 (place is seats round from you,
+// so you're always at the bottom). Spaced evenly, four players put the side seats level with the board,
+// right over its end cards on a phone
 const SPOTS: Record<number, number[]> = { 3: [0, 2, 4], 4: [0, 2, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] }
 
-function angleOf(seat: number, seats: number) {
-  const place = (seat - HERO + seats) % seats
+function angleOf(place: number, seats: number) {
   const spot = seats === 2 ? place * 3 : SPOTS[seats]![place]!
   return Math.PI / 2 + (2 * Math.PI * spot) / 6
 }
 
 // Round the oval from the hero at the bottom. reach is how far out from the middle, 1 is the rail.
-function around(seat: number, seats: number, reach: number, reachY = reach) {
-  const angle = angleOf(seat, seats)
+function around(place: number, seats: number, reach: number, reachY = reach) {
+  const angle = angleOf(place, seats)
   // the top half of a full ring sits a touch lower, a bot's cards stack above its plate
   const tall = seats > 2 && Math.sin(angle) < 0 ? 37 : 40
   return { '--x': `${50 + 43 * reach * Math.cos(angle)}%`, '--y': `${50 + tall * reachY * Math.sin(angle)}%` } as CSSProperties
@@ -38,27 +37,30 @@ function around(seat: number, seats: number, reach: number, reachY = reach) {
 // Heads-up the bets sit halfway in, and so does yours. Round a full ring the middle's taken by the
 // pot and board: the top seat bets beside its plate, the upper corners just under theirs, and the
 // lower ones sideways with the amount riding on the pile, so no two amounts share a row
-function betSpot(seat: number, seats: number) {
-  const angle = angleOf(seat, seats)
-  if (seats === 2 || seat === HERO) return { className: 'bet mine', style: around(seat, seats, 0.52) }
-  if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet beside', style: around(seat, seats, 1) }
-  if (Math.sin(angle) < 0) return { className: 'bet under', style: around(seat, seats, 1) }
-  return { className: 'bet side', style: around(seat, seats, 0.62, 1) }
+function betSpot(place: number, seats: number) {
+  const angle = angleOf(place, seats)
+  if (seats === 2 || place === 0) return { className: 'bet mine', style: around(place, seats, 0.52) }
+  if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet beside', style: around(place, seats, 1) }
+  if (Math.sin(angle) < 0) return { className: 'bet under', style: around(place, seats, 1) }
+  return { className: 'bet side', style: around(place, seats, 0.62, 1) }
 }
 
-// solo tables have every seat filled, so the blinds are just the next seats round
+// the next seats round that were dealt in, since a room can have open chairs or someone sat out
 function blindOf(view: TableState, seat: number) {
   if (view.street === 'waiting') return null
   const n = view.seats.length
+  const next = (from: number) => {
+    for (let k = 1; k <= n; k++) if (view.seats[(from + k) % n]?.cards.length) return (from + k) % n
+    return -1
+  }
   // heads-up the button is the small blind
-  const small = n === 2 ? view.button : (view.button + 1) % n
-  return seat === small ? 'SB' : seat === (small + 1) % n ? 'BB' : null
+  const small = view.seats.filter((s) => s?.cards.length).length === 2 ? view.button : next(view.button)
+  return seat === small ? 'SB' : seat === next(small) ? 'BB' : null
 }
 
-function resultText(view: TableState, heroName: string) {
+function resultText(view: TableState, me: number | null, nameOf: (seat: number) => string) {
   const won = view.seats.map((_, i) => winnings(view, i))
   const winners = won.flatMap((amount, i) => (amount ? [i] : []))
-  const nameOf = (seat: number) => (seat === HERO ? heroName : botName(view, seat))
   if (winners.length > 1) {
     const first = won[winners[0]!]!
     if (winners.every((seat) => won[seat] === first)) return `Split pot, ${first} each`
@@ -69,7 +71,7 @@ function resultText(view: TableState, heroName: string) {
   if (seat === undefined) return ''
   const hand = view.result?.flatMap((pot) => pot.winners).find((winner) => winner.seat === seat && winner.hand)?.hand
   const tail = hand ? ` with ${hand.toLowerCase()}` : ''
-  const verb = seat === HERO && heroName === 'You' ? 'win' : 'wins'
+  const verb = seat === me && nameOf(seat) === 'You' ? 'win' : 'wins'
   return `${nameOf(seat)} ${verb} ${won[seat]}${tail}`
 }
 
@@ -96,43 +98,54 @@ function CheatSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
-export default function Game({ name }: { name: string }) {
-  const game = useSoloTable()
+type TableProps = {
+  game: TableGame
+  name: string
+  bar?: ReactNode // extra buttons in the top bar
+  dock?: ReactNode // under the bet controls
+  children?: ReactNode
+}
+
+export function Table({ game, name, bar, dock, children }: TableProps) {
   const { view, board, over, paid, idle } = game
   const [hints, setHints] = useStoredState('ponker-hints', true)
   const [sheet, setSheet] = useState(false)
   const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
 
   const heroName = name || 'You'
+  const nameOf = (seat: number) => (seat === game.me ? heroName : game.nameOf(seat))
   const seats = view.seats.length
-  const me = view.seats[HERO]!
+  const bottom = game.me ?? 0
+  const me = game.me === null ? null : view.seats[game.me]!
   const live = view.street !== 'waiting' && !idle
-  const inHand = me.cards.length > 0 && !me.folded
+  const inHand = !!me && me.cards.length > 0 && !me.folded
   const legal = game.dealing || game.moving ? null : legalActions(view)
-  const myTurn = legal?.seat === HERO && !me.sittingOut ? legal : null
+  const myTurn = me && legal?.seat === game.me && !me.sittingOut ? legal : null
   const pot = potSize(view)
   const shownPot = total(game.pile('pot'))
   const finished = over && paid
   const canShow = finished && inHand && !me.shown
   const newest = Object.values(game.said).at(-1)
+  const quiet = game.dealing || view.toAct < 0 || view.toAct === game.me
 
   return (
     <div className="poker">
       <header className="poker-bar">
-        <a href="#" className="poker-link">
-          <span aria-hidden="true">{'‹'}</span> Home
+        <a href="#" className="poker-link" aria-label="Home">
+          <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">Home</span>
         </a>
         <span className="poker-stakes">
           {SMALL_BLIND}/{BIG_BLIND}
         </span>
         <span className="poker-spacer" />
+        {bar}
         <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
           Hints
         </button>
         <button className="poker-toggle" aria-label="Hand rankings" onClick={() => setSheet(true)}>
           ?
         </button>
-        {me.chips < BUY_IN && (
+        {me && me.chips < BUY_IN && game.toggleTopUp && (
           <button className={cx('poker-toggle', game.topUp && 'on')} aria-pressed={game.topUp} onClick={game.toggleTopUp}>
             {game.topUp ? 'Topping up' : 'Top up'}
           </button>
@@ -165,21 +178,34 @@ export default function Game({ name }: { name: string }) {
             </div>
             {finished && (
               <p key={game.hand} className="result">
-                {resultText(view, heroName)}
+                {resultText(view, game.me, nameOf)}
               </p>
             )}
           </div>
 
           {view.seats.map((seat, i) => {
-            const isMe = i === HERO
+            const place = (i - bottom + seats) % seats
+            if (!seat) {
+              return (
+                <div key={`open-${i}`} className="seat open" style={around(place, seats, 1)}>
+                  <div className="seat-plate">
+                    <span className="seat-name">Open seat</span>
+                  </div>
+                </div>
+              )
+            }
+            const isMe = i === game.me
             const blind = blindOf(view, i)
             const won = finished && winnings(view, i) > 0
-            const out = finished && busted(view, i)
+            const out = finished && !!game.bustLeaves && busted(view, i, game.me)
             const betChips = game.pile(`bet-${i}`)
             const bet = total(betChips)
-            const spot = betSpot(i, seats)
+            const spot = betSpot(place, seats)
+            const turn = view.toAct === i && !game.dealing && !game.moving
+            const clock = turn && game.clock?.seat === i ? game.clock : null
+            const tag = game.tagOf?.(i)
             return (
-              <div key={seat!.id}>
+              <div key={seat.id}>
                 <div
                   className={spot.className}
                   style={{ ...spot.style, '--chips': Math.min(betChips.length, SHOWN) } as CSSProperties}
@@ -190,19 +216,19 @@ export default function Game({ name }: { name: string }) {
                   {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
                 <div
-                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', (spot.className === 'bet under' || spot.className === 'bet beside') && 'upper')}
-                  style={around(i, seats, 1)}
+                  className={cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', (spot.className === 'bet under' || spot.className === 'bet beside') && 'upper')}
+                  style={around(place, seats, 1)}
                   data-spot={`seat-${i}`}
                 >
                   <div className="seat-cards">
-                    {seat!.cards.map((card, k) => (
+                    {seat.cards.map((card, k) => (
                       <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} />
                     ))}
                   </div>
                   <div className="seat-plate">
-                    <Avatar id={seat!.id} />
+                    <Avatar id={seat.id} />
                     <div className="seat-info">
-                      <span className="seat-name">{isMe ? heroName : botName(view, i)}</span>
+                      <span className="seat-name">{nameOf(i)}</span>
                       <span className="seat-stack">{out ? 'Out' : game.stack(i).toLocaleString('en-US')}</span>
                     </div>
                     {view.button === i && view.street !== 'waiting' && (
@@ -211,6 +237,14 @@ export default function Game({ name }: { name: string }) {
                       </span>
                     )}
                     {hints && blind && <span className="seat-blind">{blind}</span>}
+                    {tag && <span className="seat-tag">{tag}</span>}
+                    {clock && (
+                      <span
+                        key={clock.key}
+                        className={cx('seat-clock', clock.banked && 'banked')}
+                        style={{ '--from': clock.ms / clock.of, '--ms': `${clock.ms}ms` } as CSSProperties}
+                      />
+                    )}
                   </div>
                   {game.said[i] && (
                     <span key={game.said[i]} className="said">
@@ -235,22 +269,27 @@ export default function Game({ name }: { name: string }) {
           </div>
         )}
 
-        {myTurn && <BetControls key={`${view.street}-${view.currentBet}-${me.bet}`} view={view} legal={myTurn} onAct={game.act} />}
+        {myTurn && me && <BetControls key={`${view.street}-${view.currentBet}-${me.bet}`} view={view} legal={myTurn} onAct={game.act} />}
 
-        {idle && (
+        {idle && me && (canShow || game.deal) && (
           <div className="bet-actions">
             {canShow && (
-              <button className="button neutral" onClick={() => game.act({ type: 'show', seat: HERO })}>
+              <button className="button neutral" onClick={() => game.act({ type: 'show', seat: game.me! })}>
                 Show cards
               </button>
             )}
-            <button className="button primary" onClick={game.deal}>
-              {me.chips === 0 ? `Rebuy ${BUY_IN.toLocaleString('en-US')}` : over ? 'Next hand' : 'Deal me in'}
-            </button>
+            {game.deal && (
+              <button className="button primary" onClick={game.deal}>
+                {me.chips === 0 ? `Rebuy ${BUY_IN.toLocaleString('en-US')}` : over ? 'Next hand' : 'Deal me in'}
+              </button>
+            )}
           </div>
         )}
 
-        {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing || view.toAct < 0 || view.toAct === HERO ? '' : `${botName(view, view.toAct)} to act`}</p>}
+        {dock ??
+          (live && !myTurn && (
+            <p className="dock-wait">{me?.sittingOut ? 'Leaving after this hand' : quiet ? '' : `${nameOf(view.toAct)} to act`}</p>
+          ))}
       </aside>
 
       {game.flights.map((flight) => {
@@ -262,10 +301,15 @@ export default function Game({ name }: { name: string }) {
       })}
 
       <p className="sr-only" aria-live="polite">
-        {finished ? resultText(view, heroName) : newest}
+        {finished ? resultText(view, game.me, nameOf) : newest}
       </p>
 
       {sheet && <CheatSheet onClose={() => setSheet(false)} />}
+      {children}
     </div>
   )
+}
+
+export default function Game({ name }: { name: string }) {
+  return <Table game={useSoloTable()} name={name} />
 }

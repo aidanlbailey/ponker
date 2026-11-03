@@ -20,6 +20,7 @@ import { smoothly } from './lib/smoothly'
 const Game = lazy(() => import('./game/Game'))
 const BotPicker = lazy(() => import('./game/BotPicker'))
 const Previews = lazy(() => import('./hub/Previews'))
+const Room = lazy(() => import('./room/Room'))
 
 const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
 
@@ -131,6 +132,15 @@ export function App() {
     return (
       <Suspense>
         <Game name={userName} />
+      </Suspense>
+    )
+  }
+
+  const roomId = hash.match(/^#room\/([a-z0-9]{8,16})$/)?.[1]
+  if (roomId) {
+    return (
+      <Suspense>
+        <Room key={roomId} id={roomId} name={userName} onName={setUserName} />
       </Suspense>
     )
   }

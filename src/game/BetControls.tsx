@@ -3,7 +3,7 @@ import type { Legal, PlayerAction, TableState } from '../engine/engine'
 import { releaseVelocity, type Sample } from '../lib/letterPhysics'
 import { actionText, isFlick, raiseTo } from './betting'
 import { ChipPile, reducedMotion } from './Pieces'
-import { HERO } from './solo'
+
 
 const PRESETS = [
   ['½ pot', 0.5],
@@ -21,7 +21,8 @@ type BetControlsProps = {
 // remounted for every decision, so the size always starts from a fresh half pot
 export function BetControls({ view, legal, onAct }: BetControlsProps) {
   const { toCall, canCheck, canRaise, minTo, maxTo } = legal
-  const me = view.seats[HERO]!
+  const seat = legal.seat
+  const me = view.seats[seat]!
   const [text, setText] = useState(() => String(raiseTo(view, legal, 0.5)))
   const [held, setHeld] = useState<{ x: number; y: number } | null>(null)
   const pile = useRef<HTMLButtonElement>(null)
@@ -31,8 +32,8 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
   const clamped = Math.min(Math.max(Math.round(to) || minTo, minTo), maxTo)
   const valid = Number.isInteger(to) && to >= minTo && to <= maxTo
 
-  const raise: PlayerAction = { type: 'raise', seat: HERO, to: clamped }
-  const call: PlayerAction = { type: 'call', seat: HERO }
+  const raise: PlayerAction = { type: 'raise', seat, to: clamped }
+  const call: PlayerAction = { type: 'call', seat }
   const thrown = canRaise ? raise : call
   const throwable = canRaise ? valid : toCall > 0
   const inThePile = canRaise ? clamped - me.bet : toCall
@@ -63,7 +64,7 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
 
     // the chips themselves, not the button, which keeps empty room above them for a taller pile
     const box = e.currentTarget.querySelector('.pile')!.getBoundingClientRect()
-    const target = document.querySelector(`[data-spot="bet-${HERO}"]`)!.getBoundingClientRect()
+    const target = document.querySelector(`[data-spot="bet-${seat}"]`)!.getBoundingClientRect()
     const aim = { x: target.left - box.left, y: target.top - box.top }
     const moved = { x: e.clientX - now.x, y: e.clientY - now.y }
     if (isFlick(moved, releaseVelocity(now.samples, performance.now()), aim)) {
@@ -145,11 +146,11 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
 
       <div className="bet-actions">
         {!canCheck && (
-          <button type="button" className="button danger" onClick={() => onAct({ type: 'fold', seat: HERO })}>
+          <button type="button" className="button danger" onClick={() => onAct({ type: 'fold', seat })}>
             Fold
           </button>
         )}
-        <button type="button" className="button add" onClick={() => onAct(canCheck ? { type: 'check', seat: HERO } : call)}>
+        <button type="button" className="button add" onClick={() => onAct(canCheck ? { type: 'check', seat } : call)}>
           {canCheck ? 'Check' : actionText(view, call)}
         </button>
         {canRaise && (
