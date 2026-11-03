@@ -1,0 +1,10 @@
+{
+  "name": "ponker-test-table",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "TABLE", "class_name": "TestTable" }]
+  },
+  // free plan only allows sqlite backed objects
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TestTable"] }]
+}
