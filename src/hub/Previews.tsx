@@ -82,7 +82,7 @@ const TABLES = [
 ]
 
 // a pasted link or just the code on the end of it
-const roomIn = (text: string) => text.trim().match(/([a-z0-9]{8,16})\/?$/)?.[1]
+const roomIn = (text: string) => text.trim().toLowerCase().match(/([a-z0-9]{4,16})\/?$/)?.[1]
 
 // public tables are still filler until milestone 6, private rooms are real
 function Rooms() {
@@ -119,7 +119,7 @@ function Rooms() {
               Create a room
             </a>
             <form className="preview-join" onSubmit={join}>
-              <input aria-label="Invite link" placeholder="Paste an invite link" value={link} onChange={(e) => setLink(e.target.value)} />
+              <input aria-label="Invite link" placeholder="Invite link or room code" value={link} onChange={(e) => setLink(e.target.value)} />
               <button className="poker-toggle" disabled={!roomIn(link)}>
                 Join
               </button>

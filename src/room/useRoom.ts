@@ -18,13 +18,14 @@ const MAX_RETRY_MS = 30_000
 const TURN_MS = 20_000 // keep in step with worker/src/room.ts
 const CHAT_KEPT = 30
 
-export const ROOM_ID = /^[a-z0-9]{8,16}$/
+export const ROOM_ID = /^[a-z0-9]{4,16}$/
 
 // getRandomValues and not randomUUID, which only exists on https, and a phone on the wifi is plain http
 const randomText = (length: number) =>
   Array.from(crypto.getRandomValues(new Uint8Array(length)), (b) => (b % 36).toString(36)).join('')
 
-export const newRoomId = () => randomText(10)
+// ponytail: 4 characters is easy to read out, but only 1.7M rooms, so a link is guessable. Lengthen it if that matters
+export const newRoomId = () => randomText(4)
 
 // a guest's seat is held against this, so it has to outlive the tab
 export function guestToken() {

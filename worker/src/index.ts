@@ -14,7 +14,7 @@ interface Env {
 type Attachment = { token: string }
 
 const TOKEN = /^[\w-]{16,64}$/
-const ROOM_PATH = /^\/room\/([a-z0-9]{8,16})$/
+const ROOM_PATH = /^\/room\/([a-z0-9]{4,16})$/
 // the live site, and anything served off this machine or the home wifi for testing. A script can
 // fake an Origin, this only stops someone else's page opening rooms from its visitors' browsers
 const ORIGINS = /^(https:\/\/aidanlbailey\.github\.io|http:\/\/(localhost|127\.0\.0\.1|10(\.\d+){3}|192\.168(\.\d+){2})(:\d+)?)$/

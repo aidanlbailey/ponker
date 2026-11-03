@@ -136,7 +136,7 @@ export function App() {
     )
   }
 
-  const roomId = hash.match(/^#room\/([a-z0-9]{8,16})$/)?.[1]
+  const roomId = hash.match(/^#room\/([a-z0-9]{4,16})$/)?.[1]
   if (roomId) {
     return (
       <Suspense>
