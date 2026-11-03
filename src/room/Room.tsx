@@ -14,7 +14,7 @@ import './room.css'
 const FILLER = Array<number>(52).fill(HIDDEN)
 // a tab that was hidden comes back to a pile of states, past this it just jumps to the last
 const MAX_QUEUE = 8
-const QUOTA_TRIES = 4
+const LOST_TRIES = 4
 
 const EMOTE_GAP_MS = 3000 // same as the worker, it drops anything sooner
 
@@ -59,7 +59,13 @@ function Connected({ path, name }: { path: string; name: string }) {
     return (
       <div className="poker room-gate">
         <p className="room-gate-card" role="status">
-          {room.tries >= QUOTA_TRIES ? quotaNote : room.status === 'lost' ? 'Trying to reach the room…' : 'Finding your seat…'}
+          {room.status === 'limit'
+            ? "You've opened a lot of rooms today. Join a friend's, or make a new one tomorrow."
+            : room.tries >= LOST_TRIES
+              ? lostNote
+              : room.status === 'lost'
+                ? 'Trying to reach the room…'
+                : 'Finding your seat…'}
         </p>
       </div>
     )
@@ -67,7 +73,7 @@ function Connected({ path, name }: { path: string; name: string }) {
   return <RoomTable room={room} first={room.first} path={path} name={name} />
 }
 
-const quotaNote = "Can't reach the room. Still trying. If the free servers have used up today's allowance, they're back at 00:00 UTC."
+const lostNote = "Can't reach the room, still trying (ping aidan)"
 
 function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomView; path: string; name: string }) {
   const [cur, setCur] = useState(first)
@@ -157,6 +163,9 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     },
   }
 
+  // the table's name or the room's code, so you can say where you are
+  const [kind, id] = path.split('/') as [string, string]
+  const label = kind === 'table' ? tableName(id) : id
   const toAct = cur.table.toAct
   let dock = null
   if (room.status === 'replaced') {
@@ -169,9 +178,9 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
       </div>
     )
   } else if (room.status !== 'open') {
-    dock = <p className="dock-wait room-lost">{room.tries >= QUOTA_TRIES ? quotaNote : 'Reconnecting…'}</p>
+    dock = <p className="dock-wait room-lost">{room.tries >= LOST_TRIES ? lostNote : 'Reconnecting…'}</p>
   } else if (cur.resting && stage.idle) {
-    dock = <p className="dock-wait">This room has played its fill for today. It deals again after 00:00 UTC.</p>
+    dock = <p className="dock-wait">This {cur.public ? 'table' : 'room'} is closed for today. Back at 00:00 UTC.</p>
   } else if (me === null) {
     // a seat only comes with a fresh connect, so taking one is just that
     dock = cur.waiting ? (
@@ -218,15 +227,15 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     )
   } else if (stage.idle && ready < 2) {
     const why = seated < 2 ? 'Waiting for someone to join' : 'Waiting for another player to sit in'
-    dock = <p className="dock-wait">{why}. Share the invite from Room{cur.host ? ', or add a bot there' : ''}.</p>
+    dock = <p className="dock-wait">{why}. Tap {label} up top to invite{cur.host ? ' or add a bot' : ''}.</p>
   } else if (!stage.idle && toAct >= 0 && toAct !== me && !stage.dealing) {
     dock = <p className="dock-wait">{seat(toAct)?.name ?? 'Player'} to act</p>
   }
 
   const bar = (
     <>
-      <button className="poker-toggle room-toggle" onClick={() => setPanel(true)}>
-        Room
+      <button className="poker-toggle room-toggle" aria-label={`${label}, invite and bots`} onClick={() => setPanel(true)}>
+        {label}
       </button>
       <button
         className={`poker-toggle ${chatOpen ? 'on' : ''}`}
@@ -361,7 +370,7 @@ function RoomPanel({ path, view, send, onClose }: { path: string; view: RoomView
   }
 
   return (
-    <Dialog title={view.public ? tableName(path.split('/')[1]!) : 'This room'} className="room-panel" onClose={onClose}>
+    <Dialog title={view.public ? tableName(path.split('/')[1]!) : `Room ${path.split('/')[1]}`} className="room-panel" onClose={onClose}>
       {me && me.chips < BUY_IN && (
         <>
           <h2>Your stack</h2>

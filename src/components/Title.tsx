@@ -75,7 +75,7 @@ const WALL_DIRECTION: Record<Side, { x: number; y: number }> = {
   bottom: { x: 0, y: -1 },
 }
 
-export function Title() {
+export function Title({ tag }: { tag?: string }) {
   const title = useRef<HTMLHeadingElement>(null)
   const letters = useRef<HTMLSpanElement[]>([])
   const springs = useRef<Spring[]>(LETTERS.map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })))
@@ -398,7 +398,13 @@ export function Title() {
 
   return (
     <header className="title-section">
-      <h1 ref={title} className="title" aria-label="Ponker">
+      <h1 ref={title} className="title" aria-label={tag ? `Ponker ${tag}` : 'Ponker'}>
+        {/* first, so the letters paint over it when one's thrown across */}
+        {tag && (
+          <small className="title-tag" aria-hidden="true">
+            {tag}
+          </small>
+        )}
         {LETTERS.map((letter, i) => (
           <span
             key={i}

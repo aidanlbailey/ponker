@@ -1117,15 +1117,23 @@
   }
 }
 
-/* five buttons and the stakes won't fit across the narrowest phones */
+/* five buttons and the stakes won't fit across the narrowest phones. The picker screens only have Home,
+   so they keep their title */
 @media (max-width: 400px) {
-  .poker-stakes {
+  .poker:not(.picker) .poker-stakes {
     display: none;
   }
 
   .poker-link,
   .poker-toggle {
     padding-inline: 0.45rem;
+  }
+}
+
+/* a public table's bar is six buttons with the table's name in one, a 360 phone runs out */
+@media (max-width: 370px) {
+  .poker-bar .poker-toggle {
+    font-size: 0.9rem;
   }
 }
 

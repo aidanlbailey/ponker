@@ -4,11 +4,12 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
-import { charge, command, join, newRoom, nextWake, seatOf, spent, stalled, tick, viewOf, type Command, type Room } from './room'
+import { addressKey, charge, command, join, newRoom, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
   TABLE: DurableObjectNamespace<Table>
+  OPENED: DurableObjectNamespace<Opened>
   CONNECTS: RateLimit
 }
 
@@ -31,6 +32,7 @@ const REFILL_PER_S = 4
 const STRIKES = 5 // dropped before the socket goes. A real client never trips the bucket, and each drop is still a request
 const MIN_ALARM_MS = 250 // a floor, so no bug can make the alarm fire back to back
 const STUCK_MS = 30_000
+const TOO_MANY_ROOMS = 4029
 
 const send = (ws: WebSocket, data: object) => {
   try {
@@ -146,6 +148,19 @@ export class Table extends DurableObject<Env> {
       if ((old.deserializeAttachment() as Attachment).token === token) old.close(4000, 'replaced')
     }
     if (this.sockets().length >= MAX_SOCKETS) return new Response('room is full', { status: 503 })
+    // a private room nobody has open yet is being made. Only that costs a look at the address's count,
+    // joining one that's going never does. A browser can't read a refused upgrade, so it gets a socket
+    // that says why and closes
+    const isPublic = !!this.ctx.id.name?.startsWith(PUBLIC_PREFIX)
+    if (!isPublic && !this.loaded && !loadRoom(this.ctx.storage.sql)) {
+      const ip = request.headers.get('cf-connecting-ip') ?? 'local'
+      if (!(await this.env.OPENED.getByName(addressKey(ip)).open())) {
+        const { 0: client, 1: server } = new WebSocketPair()
+        server.accept()
+        server.close(TOO_MANY_ROOMS, 'enough rooms today')
+        return new Response(null, { status: 101, webSocket: client })
+      }
+    }
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server)
     server.serializeAttachment({ token } satisfies Attachment)
@@ -230,6 +245,15 @@ export class Table extends DurableObject<Env> {
 
   async webSocketError(ws: WebSocket) {
     await this.webSocketClose(ws)
+  }
+}
+
+// one per address, counting the private rooms it's opened today. Costs a row for each room it lets through
+export class Opened extends DurableObject<Env> {
+  async open() {
+    const next = openRoom(await this.ctx.storage.get<Log>('log'), Date.now())
+    if (next) await this.ctx.storage.put('log', next)
+    return next !== null
   }
 }
 

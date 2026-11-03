@@ -26,8 +26,12 @@ export const ROOM_ID = /^[a-z0-9]{4,16}$/
 const randomText = (length: number) =>
   Array.from(crypto.getRandomValues(new Uint8Array(length)), (b) => (b % 36).toString(36)).join('')
 
-// ponytail: 4 characters is easy to read out, but only 1.7M rooms, so a link is guessable. Lengthen it if that matters
-export const newRoomId = () => randomText(4)
+// no 0 o 1 l i, so a code read off a screen or said out loud comes out right. Typed ones are still
+// let through, older codes have them
+const CODE_LETTERS = '23456789abcdefghjkmnpqrstuvwxyz'
+// ponytail: 4 of those is about 920k rooms, so a link can be guessed. Fine among friends, lengthen it if strangers turn up
+export const newRoomId = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => CODE_LETTERS[b % CODE_LETTERS.length]).join('')
 
 // a guest's seat is held against this, so it has to outlive the tab
 export function guestToken() {
@@ -51,7 +55,7 @@ export type Clock = { seat: number; ms: number; of: number; banked: boolean; key
 
 // path is room/<code> or table/<name>
 export function useRoom(path: string, name: string) {
-  const [status, setStatus] = useState<'connecting' | 'open' | 'lost' | 'replaced'>('connecting')
+  const [status, setStatus] = useState<'connecting' | 'open' | 'lost' | 'replaced' | 'limit'>('connecting')
   const [tries, setTries] = useState(0)
   const [first, setFirst] = useState<RoomView | null>(null)
   const [latest, setLatest] = useState<RoomView | null>(null)
@@ -139,6 +143,11 @@ export function useRoom(path: string, name: string) {
         if ((e as CloseEvent).code === 4000) {
           parked = true
           return setStatus('replaced')
+        }
+        // this address has opened its rooms for the day, knocking again won't change that
+        if ((e as CloseEvent).code === 4029) {
+          parked = true
+          return setStatus('limit')
         }
         setStatus('lost')
         setTries((n) => n + 1)

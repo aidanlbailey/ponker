@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
-import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
+import { addressKey, BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -360,5 +360,24 @@ describe('public table', () => {
     expect(pickTable([t('a', 0), t('b', 0)])?.id).toBe('a')
     expect(pickTable([t('a', 6), t('b', 5, 1)])?.id).toBe('b')
     expect(pickTable([t('a', 6), t('b', 2, 0, true)])).toBeNull()
+  })
+})
+
+describe('rooms an address can open', () => {
+  test('a few a day, then none until the next UTC day', () => {
+    const day = Date.UTC(2026, 10, 3, 12)
+    let log = undefined
+    for (let i = 0; i < ROOMS_PER_DAY; i++) log = openRoom(log, day) ?? undefined
+    expect(log?.rooms).toBe(ROOMS_PER_DAY)
+    expect(openRoom(log, day)).toBeNull()
+    expect(openRoom(log, Date.UTC(2026, 10, 4, 0, 0, 1))).toEqual({ day: '2026-11-04', rooms: 1 })
+  })
+
+  test('v4 counts per address, v6 per /64 however it was written', () => {
+    expect(addressKey('203.0.113.7')).toBe('203.0.113.7')
+    expect(addressKey('2001:db8:0:1:aaaa::1')).toBe('2001:db8:0:1::/64')
+    expect(addressKey('2001:0DB8:0000:0001:bbbb:cccc:dddd:eeee')).toBe('2001:db8:0:1::/64')
+    expect(addressKey('2001:db8::5')).toBe('2001:db8:0:0::/64')
+    expect(addressKey('::1')).toBe('0:0:0:0::/64')
   })
 })

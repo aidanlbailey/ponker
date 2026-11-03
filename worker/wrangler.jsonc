@@ -3,10 +3,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "durable_objects": {
-    "bindings": [{ "name": "TABLE", "class_name": "Table" }]
+    "bindings": [
+      { "name": "TABLE", "class_name": "Table" },
+      { "name": "OPENED", "class_name": "Opened" }
+    ]
   },
   // free plan only allows sqlite backed objects
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Table"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Table"] },
+    { "tag": "v2", "new_sqlite_classes": ["Opened"] }
+  ],
   // socket upgrades per address per minute. A house of friends on one wifi shares this, so it's generous
   "ratelimits": [{ "name": "CONNECTS", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } }]
 }

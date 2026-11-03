@@ -7,7 +7,7 @@ import './hub.css'
 const MODES = [
   { href: '#bots', icon: 'Ξ', name: 'Bots', blurb: 'Pick your bots, play solo' },
   { href: '#rooms', icon: '♠︎', name: 'Rooms', blurb: 'Public tables and private rooms' },
-  { href: '#race', icon: '♦︎', name: 'Daily Race', blurb: 'Same bankroll for everyone, one day' },
+  { href: '#race', icon: '♦︎', name: 'Daily Race', blurb: 'Coming later', later: true },
 ]
 
 // the deck comes from App, which owns the menu it deals
@@ -15,13 +15,13 @@ export function Hub({ deck }: { deck: ReactNode }) {
   return (
     <main className="hub">
       <div className="hub-corner">{deck}</div>
-      <Title />
+      <Title tag="beta" />
       <nav className="hub-menu" aria-label="Play">
         <a className="button primary hub-quick" href="#quick">
           Quick Play
         </a>
         {MODES.map((mode) => (
-          <a key={mode.href} className="hub-mode" href={mode.href}>
+          <a key={mode.href} className={`hub-mode ${mode.later ? 'later' : ''}`} href={mode.href}>
             <span className="hub-icon" aria-hidden="true">
               {mode.icon}
             </span>

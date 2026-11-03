@@ -77,6 +77,12 @@
   }
 }
 
+/* still opens, to say it isn't ready, so it's dimmed rather than disabled */
+.hub-mode.later {
+  opacity: 0.6;
+  box-shadow: none;
+}
+
 .hub-icon {
   grid-row: span 2;
   display: grid;
@@ -101,6 +107,27 @@
   min-height: 44px;
   background: var(--surface-raised);
   font-weight: 600;
+}
+
+/* stuck on the logo's top right corner, the hub's flex shrinks the h1 to the letters. Nothing to grab,
+   and the letters paint over it */
+.title-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  translate: 25% -80%;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1px #000000;
+  color: var(--accent-text);
+  font-family: var(--hub-font);
+  font-size: clamp(0.65rem, 1.6vw, 0.8rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 /* out of the flow, so it never pushes the logo or the menu around */

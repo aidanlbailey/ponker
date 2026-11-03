@@ -25,6 +25,14 @@ const Room = lazy(() => import('./room/Room'))
 
 const ROOM_HASH = new RegExp(`^#(room/[a-z0-9]{4,16}|table/(${PUBLIC_TABLES.join('|')}))$`)
 const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
+const known = (hash: string) => ['', '#', '#chips', '#bots', '#play'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+const badLink = (): ToastMessage => ({ text: "That link doesn't go anywhere", type: 'error', id: Date.now() })
+// a mistyped or broken link goes home, but says so rather than just looking like the wrong page
+function landOn(hash: string) {
+  if (known(hash)) return hash
+  history.replaceState(null, '', location.pathname)
+  return ''
+}
 
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
 
@@ -38,8 +46,8 @@ export function App() {
   const [deck, setDeck] = useState<DOMRect | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
-  const [toast, setToast] = useState<ToastMessage | null>(null)
-  const [hash, setHash] = useState(() => location.hash)
+  const [toast, setToast] = useState<ToastMessage | null>(() => (known(location.hash) ? null : badLink()))
+  const [hash, setHash] = useState(() => landOn(location.hash))
 
   // every page change crossfades. The lazy pages render nothing until their code is in, so the new
   // snapshot waits for something to be on screen, or it would fade to blank and then pop in.
@@ -47,7 +55,8 @@ export function App() {
   useEffect(() => {
     const root = document.getElementById('root')!
     const follow = () => {
-      const next = location.hash
+      if (!known(location.hash)) setToast(badLink())
+      const next = landOn(location.hash)
       if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return setHash(next)
       const transition = document.startViewTransition(async () => {
         flushSync(() => setHash(next))

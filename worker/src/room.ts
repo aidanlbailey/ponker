@@ -30,9 +30,10 @@ const NEXT_HAND_MS = 4500
 const RUN_OUT_MS = 1100 // per card, same as the client's run out
 const READY_MS = 1500
 const CHAT_KEPT = 30
-// ponytail: a flat cap per room per UTC day, so one room (or one script) can't eat the whole free
-// allowance. About 570 four handed hands. A per-IP cap would need its own object, add that if rooms get farmed
+// a flat cap per room per UTC day, so one room (or one script) can't eat the whole free allowance.
+// About 570 four handed hands. ROOMS_PER_DAY stops one address opening room after room to get round it
 export const DAILY_ROWS = 20_000
+export const ROOMS_PER_DAY = 3
 // four of these is 40k, which leaves the rest of the free 100k for private rooms
 export const PUBLIC_DAILY_ROWS = 10_000
 const CHAT_MAX = 200
@@ -106,6 +107,24 @@ const today = (now: number) => new Date(now).toISOString().slice(0, 10)
 
 const grace = (r: Room) => (r.public ? PUBLIC_GRACE_MS : GRACE_MS)
 const cap = (r: Room) => (r.public ? PUBLIC_DAILY_ROWS : DAILY_ROWS)
+
+// The private rooms one address has opened today. null means that's enough for today
+export type Opened = { day: string; rooms: number }
+
+export function openRoom(log: Opened | undefined, now: number): Opened | null {
+  const rooms = log?.day === today(now) ? log.rooms : 0
+  return rooms >= ROOMS_PER_DAY ? null : { day: today(now), rooms: rooms + 1 }
+}
+
+// A home on IPv6 gets a whole /64 to pick addresses from, so v6 counts by its first four groups
+export function addressKey(ip: string) {
+  if (!ip.includes(':')) return ip
+  const [head = '', tail = ''] = ip.toLowerCase().split('::')
+  const left = head ? head.split(':') : []
+  const right = tail ? tail.split(':') : []
+  const groups = ip.includes('::') ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':') + '::/64'
+}
 
 export function spent(r: Room, now: number) {
   return r.budget?.day === today(now) && r.budget.rows >= cap(r)
