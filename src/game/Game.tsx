@@ -142,7 +142,7 @@ export default function Game({ name }: { name: string }) {
                   {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
                 <div
-                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && 'turn', seat!.folded && 'folded', won && 'winner')}
+                  className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && !game.moving && 'turn', seat!.folded && 'folded', won && 'winner')}
                   style={around(i, seats, 1)}
                   data-spot={`seat-${i}`}
                 >

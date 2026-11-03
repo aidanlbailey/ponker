@@ -6,7 +6,7 @@ type Point = { x: number; y: number }
 const FLICK_MIN = 24 // px, so a twitchy tap can't bet
 const FLICK_SPEED = 450 // px/s
 const PUSH_PAST = 120 // px, slid slowly this far it still counts, like pushing chips over the line
-const MAX_PILE = 8
+export const MAX_PILE = 8 // the flick pile, keep in step with its reserved height in game.css
 
 const hex = (name: string) => CHIP_COLORS.find((color) => color.name === name)!.hex
 const DENOMINATIONS = [

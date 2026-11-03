@@ -390,7 +390,7 @@
 
   &.bot {
     background: #fffdf8;
-    color: #0b289d;
+    color: #9c1020; /* the card back red */
     font-family: Georgia, 'Times New Roman', serif;
     font-weight: 700;
   }
@@ -550,11 +550,6 @@
   font-weight: 600;
   text-shadow: var(--text-shadow);
   translate: -50% -50%;
-}
-
-/* the wrapper would otherwise be a grid item, and every chip in the air would squeeze the table */
-.flights {
-  display: contents;
 }
 
 .flight {

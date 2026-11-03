@@ -246,10 +246,28 @@ describe('table loop', () => {
 describe('chip moves', () => {
   it('posts blinds from the seats', () => {
     const { table } = newSolo()
-    expect(chipMoves(table, startHand(table, ordered))).toEqual([
+    expect(chipMoves(table, startHand(table, ordered), true)).toEqual([
       { from: 'seat-0', to: 'bet-0', amount: 5 },
       { from: 'seat-1', to: 'bet-1', amount: 10 },
     ])
+  })
+
+  it('still moves the chips when a blind all in finishes the hand on the deal', () => {
+    let finished = 0
+    for (const button of [HERO, BOT]) {
+      // straight off a finished hand, whose committed chips used to get mixed into the new one
+      const played = dealt()
+      const table = { ...applyAction(played, { type: 'fold', seat: played.toAct }), button }
+      table.seats = table.seats.map((seat, i) => (i === HERO ? { ...seat!, chips: 3 } : seat))
+      const next = startHand(table, ordered)
+      if (next.street === 'complete') finished++
+      const moves = chipMoves(table, next, true)
+      for (const spot of ['pot', 'bet-0', 'bet-1'] as const) {
+        const into = moves.filter((move) => move.to === spot).reduce((sum, move) => sum + move.amount, 0)
+        expect(into).toBe(pileAt(next, spot))
+      }
+    }
+    expect(finished).toBeGreaterThan(0)
   })
 
   it('puts a bet in front of the seat', () => {
@@ -346,6 +364,14 @@ describe('the real chips', () => {
     const green = trips.find((trip) => trip.value === 25)!
     expect(red.toAt).toEqual({ stack: 2, of: 3, level: 1 }) // on top of the red already there
     expect(green.toAt).toEqual({ stack: 1, of: 3, level: 0 }) // a new stack in the middle
+  })
+
+  it('spreads a big flick up the flick pile instead of launching the extras from its top', () => {
+    const { trips } = plan({}, [{ from: 'seat-0', to: 'bet-0', amount: 1999 }], {}) // 15 chips, pile draws 8
+    const levels = trips.map((trip) => trip.fromAt!.level)
+    expect(levels[0]).toBe(0)
+    expect(levels.at(-1)).toBe(7)
+    expect(new Set(levels).size).toBe(8)
   })
 
   it('counts chips already in the air when stacking new ones', () => {

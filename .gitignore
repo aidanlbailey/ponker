@@ -26,3 +26,6 @@ dist-ssr
 .env*.local
 .dev.vars
 .wrangler
+
+# typecheck cache from tsc -b
+*.tsbuildinfo

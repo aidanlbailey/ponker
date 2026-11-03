@@ -2,7 +2,7 @@
 // people threw in, and every move picks real chips up off one pile and puts them on another.
 
 import type { TableState } from '../engine/engine'
-import { breakdown } from './betting'
+import { breakdown, MAX_PILE } from './betting'
 import { pileAt, type Move, type Spot } from './solo'
 
 export type Piles = Partial<Record<Spot, number[]>> // chip values, bottom first
@@ -56,7 +56,11 @@ export function plan(piles: Piles, moves: Move[], inbound: Piles) {
   moves.forEach((move, m) => {
     let chips: { value: number; fromAt: At | null }[]
     if (move.from.startsWith('seat')) {
-      chips = breakdown(move.amount).map((value) => ({ value, fromAt: null }))
+      // a flick lets go of a pile that only draws MAX_PILE chips, so a bigger bet spreads
+      // its chips up that pile instead of all the extras leaving from the top
+      const values = breakdown(move.amount)
+      const spread = Math.min(values.length - 1, MAX_PILE - 1) / Math.max(values.length - 1, 1)
+      chips = values.map((value, i) => ({ value, fromAt: { stack: 0, of: 1, level: Math.round(i * spread) } }))
     } else {
       const pile = next[move.from] ?? []
       const { taken, left } = take(pile, move.amount)

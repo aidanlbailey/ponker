@@ -73,7 +73,9 @@ export function useSoloTable() {
 
   const [hand, setHand] = useState(0)
   const [shown, setShown] = useState(table.board.length)
-  const [paid, setPaid] = useState(false)
+  // a reload after the payout shouldn't play it again. A held leave or top-up means the hand
+  // end never ran though, so that one does replay, it's what applies them
+  const [paid, setPaid] = useState(() => table.street === 'complete' && !solo.leaving && !solo.topUp)
   const [said, setSaid] = useState<Record<number, string>>({})
   const [flights, setFlights] = useState<Flight[]>([])
   const [piles, setPiles] = useState<Piles>({})
@@ -133,7 +135,7 @@ export function useSoloTable() {
     setSaid({})
     setOdds(null)
     setSolo((prev) => ({ ...prev, table: next }))
-    fly(chipMoves(table, next), undefined, {})
+    fly(chipMoves(table, next, true), undefined, {})
     haptic('light')
   }
 
@@ -171,8 +173,7 @@ export function useSoloTable() {
   const onSettled = useEffectEvent(() => {
     fly(payouts(table))
     setPaid(true)
-    if (solo.leaving) exit()
-    else setSolo(endOfHand)
+    if (!solo.leaving) setSolo(endOfHand)
     haptic(winnings(table, HERO) ? 'success' : 'light')
   })
 
@@ -208,6 +209,12 @@ export function useSoloTable() {
     const timer = setTimeout(onSettled, PAY_MS)
     return () => clearTimeout(timer)
   }, [over, dealing, paid, moving])
+
+  // leaving waits for the winnings to land, not just to set off
+  const onLeft = useEffectEvent(exit)
+  useEffect(() => {
+    if (over && paid && solo.leaving && !moving) onLeft()
+  }, [over, paid, solo.leaving, moving])
 
   // from what's on screen, or the helper would give away a run out. Stops once the hand's
   // over too, a number against a random hand is nonsense with both hands face up

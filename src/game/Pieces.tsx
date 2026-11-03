@@ -170,9 +170,9 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const start = flick
       ? {
           x: flick.left + flick.width / 2 - size / 2,
-          y: flick.bottom - flick.width / 2 - size / 2 - Math.min(flight.order, 7) * PILE_RISE * startScale,
+          y: flick.bottom - flick.width / 2 - size / 2 - (flight.fromAt?.level ?? 0) * PILE_RISE * startScale,
         }
-      : spotOf(flight.from, flight.fromAt)
+      : spotOf(flight.from, flight.from.startsWith('seat') ? null : flight.fromAt)
     const end = spotOf(flight.to, flight.toAt)
     if (!start || !end) return onLand()
 

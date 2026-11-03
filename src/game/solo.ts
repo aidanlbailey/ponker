@@ -74,15 +74,17 @@ export function botAction(s: TableState, answer: PlayerAction | null) {
   return checkOrFold(s, BOT)
 }
 
-// Where the chips went between two states, for the flights.
-export function chipMoves(prev: TableState, next: TableState) {
+// Where the chips went between two states, for the flights. The caller says when it dealt, the
+// street can't: a blind can put someone all in and finish the hand on the deal, complete to complete
+export function chipMoves(prev: TableState, next: TableState, newHand = false) {
   const moves: Move[] = []
-  const newHand = prev.street !== next.street && next.street === 'preflop'
   const closed = !newHand && prev.street !== next.street
   next.seats.forEach((seat, i) => {
     const before = prev.seats[i]!
     if (newHand) {
+      const swept = seat!.committed - seat!.bet
       if (seat!.bet) moves.push({ from: `seat-${i}`, to: `bet-${i}`, amount: seat!.bet })
+      if (swept > 0) moves.push({ from: `seat-${i}`, to: 'pot', amount: swept })
       return
     }
     const added = seat!.committed - before.committed
