@@ -40,9 +40,9 @@ function Screen({ title, intro = 'Preview, everything here is made up', filler =
   )
 }
 
-const DOWN = "Can't reach the tables. If the free servers have used up today's allowance, they're back at 00:00 UTC."
+const DOWN = "Couldn't load the tables. Try again in a minute."
 // listTables throws the status, and 429 is just the per-minute limit
-const downText = (e: Error) => (e.message === '429' ? 'Too many refreshes. Give it a minute and try again.' : DOWN)
+const downText = (e: Error) => (e.message === '429' ? 'Easy on the refresh. Try again in a minute.' : DOWN)
 
 // straight to the busiest table with room, or an empty one where the table offers invite and bots
 function QuickPlay() {

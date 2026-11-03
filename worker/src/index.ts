@@ -248,12 +248,14 @@ export default {
     // mashing Refresh can't stop you sitting down
     const ip = request.headers.get('cf-connecting-ip') ?? 'local'
     const { success } = await env.CONNECTS.limit({ key: list ? `list:${ip}` : ip })
-    if (!success) return new Response('slow down', { status: 429 })
+    // the page can only read a reply that allows its origin, or a 429 just looks like the network failed
+    const cors = { 'Access-Control-Allow-Origin': origin ?? '*' }
+    if (!success) return new Response('slow down', { status: 429, headers: list ? cors : {} })
     if (list) {
       const tables = await Promise.all(
         PUBLIC_TABLES.map(async (id) => ({ id, ...(await env.TABLE.getByName(PUBLIC_PREFIX + id).status()) })),
       )
-      return Response.json(tables, { headers: { 'Access-Control-Allow-Origin': origin ?? '*' } })
+      return Response.json(tables, { headers: cors })
     }
     return env.TABLE.getByName(name!).fetch(request)
   },
