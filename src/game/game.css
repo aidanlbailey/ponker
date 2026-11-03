@@ -134,6 +134,7 @@
 .felt {
   --card-w: clamp(36px, min(14cqw, 12.5cqh), 88px);
   --chip-size: clamp(32px, 10.5cqmin, 48px);
+  --rail: clamp(6px, 1.6cqmin, 12px);
 
   position: relative;
   width: min(100cqw, 170cqh);
@@ -143,7 +144,7 @@
   background-color: var(--table-felt);
   background-image: var(--grain), radial-gradient(ellipse at 50% 42%, rgb(255 255 255 / 0.14), transparent 62%, rgb(0 0 0 / 0.28));
   box-shadow:
-    0 0 0 clamp(6px, 1.6cqmin, 12px) var(--table-rail),
+    0 0 0 var(--rail) var(--table-rail),
     inset 0 0 0 2px color-mix(in srgb, var(--table-line) 55%, transparent),
     inset 0 6px 24px rgb(0 0 0 / 0.45),
     0 12px 30px rgb(0 0 0 / 0.45);
@@ -940,12 +941,14 @@
     font-size: calc(1rem * var(--ui));
   }
 
-  /* lays out like the felt at 1366x768, then scales up to fill. Seats, bets, cards and labels all grow
-     together, so none of the spacing above needs to know. ChipFlight measures the scale, flights still line up */
+  /* The phone table, blown up. The felt lays out at a phone on its side's height and everything on it
+     sizes off that, since it's the container here, then the whole felt scales up to fill. So seats, cards,
+     chips and labels keep exactly the proportions they have on a phone. ChipFlight measures the scale */
   .felt {
-    --chip-size: clamp(44px, 12cqmin, 76px);
-    --k: clamp(1, tan(atan2(100cqh, 704px)), 2.5);
+    --k: max(1, tan(atan2(100cqh, 400px)));
+    --rail: calc(clamp(6px, 1.6cqmin, 12px) / var(--k));
 
+    container-type: size;
     width: calc(min(100cqw, 170cqh) / var(--k));
     height: calc(100cqh / var(--k));
     max-height: calc(150cqw / var(--k));
@@ -959,10 +962,6 @@
     width: calc(100% / var(--ui));
     scale: var(--ui);
     transform-origin: 100% 100%;
-  }
-
-  .pot {
-    font-size: 1.15rem;
   }
 
   .poker-link,
