@@ -613,9 +613,10 @@
     left: 0;
   }
 
+  /* --edge keeps the black rim a hairline on screen, the felt scales up on desktop and a 1px rim went thick */
   .chip {
     box-shadow:
-      0 0 0 1px #000000,
+      0 0 0 var(--edge, 1px) #000000,
       0 1px 2px rgb(0 0 0 / 0.5);
   }
 }
@@ -709,17 +710,18 @@
 
     .chip {
       --chip-size: var(--face-size);
+      --edge: calc(1px / var(--face-scale));
 
       scale: var(--face-scale);
       transform-origin: 0 0;
-      box-shadow: 0 0 0 1px #000000;
+      box-shadow: 0 0 0 var(--edge) #000000;
     }
 
     /* same edge and shadow as .pile, or the chip changes look the moment it lands. Only the front casts
        one, the back face's would show round the edge */
     &:not(.back) .chip {
       box-shadow:
-        0 0 0 1px #000000,
+        0 0 0 var(--edge) #000000,
         0 1px 2px rgb(0 0 0 / 0.5);
     }
   }
@@ -945,8 +947,12 @@
 /* desktop has room to spare, so everything you bet with gets properly big. phones keep the sizes above */
 @media (min-aspect-ratio: 5/4) and (min-height: 600px) {
   .poker {
-    /* how much the bar and the dock grow past 768px tall. Capped so the dock never lays out narrower than 320px */
-    --ui: clamp(1, min(tan(atan2(100dvh, 768px)), tan(atan2(clamp(320px, 32vw, 480px), 320px))), 1.5);
+    /* how much the bar and the dock grow past 768px tall, capped so the dock never lays out narrower than 320px.
+       Then three quarters of that, same as the felt, full size they looked oversized */
+    --ui: calc(
+      clamp(1, min(tan(atan2(100dvh, 768px)), tan(atan2(clamp(320px, 32vw, 480px), 320px))), 1.5) *
+        0.75
+    );
 
     grid-template-columns: minmax(0, 1fr) clamp(320px, 32vw, 480px);
   }
@@ -960,13 +966,16 @@
      chips and labels keep exactly the proportions they have on a phone. ChipFlight measures the scale */
   .felt {
     --k: max(1, tan(atan2(100cqh, 400px)));
+    /* 0.75: blown all the way up it felt spaced out, three quarters reads right */
+    --felt-scale: calc(0.975 * var(--k) * 0.75);
     --rail: calc(clamp(6px, 1.6cqmin, 12px) / var(--k));
+    --edge: calc(1px / var(--felt-scale));
 
     container-type: size;
     width: calc(min(100cqw, 170cqh) / var(--k));
     height: calc(100cqh / var(--k));
     max-height: calc(150cqw / var(--k));
-    scale: calc(0.975 * var(--k));
+    scale: var(--felt-scale);
   }
 
   /* same trick, laid out narrower and scaled up from its bottom corner so it keeps its column */
@@ -1110,6 +1119,14 @@
     translate: 0 var(--from);
     scale: 0.7;
   }
+}
+
+/* a number worked out on the felt, so the chips below get the felt's scale. Unregistered it would be
+   worked out again at each chip, where cqh means the felt rather than the room round it */
+@property --felt-scale {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
 }
 
 @property --spin {
