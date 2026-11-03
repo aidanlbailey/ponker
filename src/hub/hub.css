@@ -1,0 +1,144 @@
+/* the home screen. sits on the tracker's themed background with its logo, but talks in the game's Manrope */
+
+.hub {
+  --hub-font: 'Manrope Variable', system-ui, sans-serif;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.25rem, 5vh, 2.75rem);
+  min-height: 100dvh;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  font-family: var(--hub-font);
+  animation: slide-in 0.5s ease-out;
+}
+
+.hub-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(100%, 460px);
+}
+
+.hub-quick {
+  padding: 1.05rem 1.5rem;
+  font-family: var(--hub-font);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-decoration: none;
+}
+
+.hub-mode,
+.hub-extra {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.hub-mode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.05rem 0.85rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+
+  b {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  small {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.hub-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.hub-extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.hub-extra {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  background: var(--surface-raised);
+  font-weight: 600;
+}
+
+/* phones on their side: logo on the left, menu on the right, nothing scrolls */
+@media (max-height: 480px) and (min-aspect-ratio: 5/4) {
+  .hub {
+    flex-direction: row;
+    gap: clamp(1.5rem, 5vw, 4rem);
+    padding-block: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .hub .title {
+    font-size: clamp(2.25rem, 7.5vw, 4.5rem);
+  }
+
+  .hub-menu {
+    gap: 0.45rem;
+    width: min(50%, 400px);
+  }
+
+  .hub-quick {
+    padding-block: 0.7rem;
+    font-size: 1.3rem;
+  }
+
+  .hub-mode {
+    padding-block: 0.4rem;
+  }
+
+  .hub-icon {
+    width: 36px;
+    font-size: 1.15rem;
+  }
+
+  .hub-extra {
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub {
+    animation: none;
+  }
+}

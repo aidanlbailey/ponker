@@ -69,7 +69,7 @@ export default function BotPicker() {
     <div className="poker picker">
       <header className="poker-bar">
         <a href="#" className="poker-link">
-          <span aria-hidden="true">{'‹'}</span> Chips
+          <span aria-hidden="true">{'‹'}</span> Home
         </a>
         <span className="poker-spacer" />
         <span className="poker-stakes">Bots</span>

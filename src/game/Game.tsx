@@ -118,7 +118,7 @@ export default function Game({ name }: { name: string }) {
     <div className="poker">
       <header className="poker-bar">
         <a href="#" className="poker-link">
-          <span aria-hidden="true">{'‹'}</span> Chips
+          <span aria-hidden="true">{'‹'}</span> Home
         </a>
         <span className="poker-stakes">
           {SMALL_BLIND}/{BIG_BLIND}

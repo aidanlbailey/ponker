@@ -7,6 +7,8 @@ import { NameDialog } from './components/NameDialog'
 import { Presets } from './components/Presets'
 import { Title } from './components/Title'
 import { Toast, type ToastMessage } from './components/Toast'
+import { Hub } from './hub/Hub'
+import type { PreviewName } from './hub/Previews'
 import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
@@ -15,8 +17,10 @@ import { smoothly } from './lib/smoothly'
 
 // only pulled in when someone sits down, the tracker doesn't pay for the poker game
 const Game = lazy(() => import('./game/Game'))
-// the bot picker stands in for the Play hub until milestone 3.5
 const BotPicker = lazy(() => import('./game/BotPicker'))
+const Previews = lazy(() => import('./hub/Previews'))
+
+const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
 
 const onHashChange = (listener: () => void) => {
   addEventListener('hashchange', listener)
@@ -115,6 +119,18 @@ export function App() {
     )
   }
 
+  const preview = PREVIEWS[hash]
+  if (preview) {
+    return (
+      <Suspense>
+        <Previews name={preview} />
+      </Suspense>
+    )
+  }
+
+  // the hub is home, the tracker lives behind it on #chips
+  if (hash !== '#chips') return <Hub />
+
   return (
     <>
       <main className="app">
@@ -135,7 +151,7 @@ export function App() {
             <span className="card-back" />
           </button>
           {showValues && <output className="total">{total}</output>}
-          <a className="button primary play-link" href="#bots">
+          <a className="button primary play-link" href="#">
             Play poker
           </a>
         </div>
