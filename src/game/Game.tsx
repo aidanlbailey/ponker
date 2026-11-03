@@ -5,7 +5,7 @@ import { useStoredState } from '../hooks/useStoredState'
 import { BetControls } from './BetControls'
 import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, PlayingCard } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, PlayingCard, SHOWN } from './Pieces'
 import { botById } from './roster'
 import { BIG_BLIND, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
 import { total } from './piles'
@@ -21,16 +21,20 @@ const angleOf = (seat: number, seats: number) => Math.PI / 2 + (2 * Math.PI * ((
 // Round the oval from the hero at the bottom. reach is how far out from the middle, 1 is the rail.
 function around(seat: number, seats: number, reach: number, reachY = reach) {
   const angle = angleOf(seat, seats)
-  // a full ring sits a touch lower at the top, a bot's cards stack above its plate
-  const tall = seats > 2 ? 37 : 40
+  // the top half of a full ring sits a touch lower, a bot's cards stack above its plate
+  const tall = seats > 2 && Math.sin(angle) < 0 ? 37 : 40
   return { '--x': `${50 + 43 * reach * Math.cos(angle)}%`, '--y': `${50 + tall * reachY * Math.sin(angle)}%` } as CSSProperties
 }
 
-// Heads-up the bets sit halfway in. Round a full ring the board's in the way, so side seats bet
-// straight in sideways, level with their plate, and only the top and bottom seats come in towards it
+// Heads-up the bets sit halfway in, and so does yours. Round a full ring the board's in the way:
+// the top seat comes straight in, the upper corners bet just under their plate, and the lower ones
+// bet sideways with the amount riding on the pile, so no two amounts share a row
 function betSpot(seat: number, seats: number) {
-  if (seats === 2) return around(seat, seats, 0.52)
-  return around(seat, seats, 0.62, 1.3 - 0.7 * Math.abs(Math.sin(angleOf(seat, seats))))
+  const angle = angleOf(seat, seats)
+  if (seats === 2 || seat === HERO) return { className: 'bet', style: around(seat, seats, 0.52) }
+  if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet', style: around(seat, seats, 0.62, 0.6) }
+  if (Math.sin(angle) < 0) return { className: 'bet under', style: around(seat, seats, 1) }
+  return { className: 'bet side', style: around(seat, seats, 0.62, 0.95) }
 }
 
 // solo tables have every seat filled, so the blinds are just the next seats round
@@ -159,9 +163,13 @@ export default function Game({ name }: { name: string }) {
             const won = finished && winnings(view, i) > 0
             const betChips = game.pile(`bet-${i}`)
             const bet = total(betChips)
+            const spot = betSpot(i, seats)
             return (
               <div key={seat!.id}>
-                <div className="bet" style={betSpot(i, seats)}>
+                <div
+                  className={spot.className}
+                  style={{ ...spot.style, '--chips': Math.min(betChips.length, SHOWN) } as CSSProperties}
+                >
                   <span className="pile-slot" data-spot={`bet-${i}`}>
                     {bet > 0 && <ChipPile colors={betChips.map(colorOf)} />}
                   </span>

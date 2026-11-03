@@ -17,7 +17,7 @@ const SLIDE_MS = 420
 const HOP_MS = 560
 const PILE_RISE = 4 // keep in step with .pile in game.css
 const STACK_GAP = 4 // keep in step with .pot-slot in game.css
-const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts
+export const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts
 const EDGE_LAYERS = [-1.2, -0.4, 0.4, 1.2]
 // ponytail: plain letters for now. The art lands in public/ by name (alpha, beta...), swap the letter for an img here.
 const BOT_LETTERS = Object.fromEntries(BOTS.map((bot) => [bot.id, bot.letter]))

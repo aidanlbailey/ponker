@@ -483,6 +483,26 @@
   --room: calc(2 * 3.3rem + var(--chip-size) / 2 + 4px);
 
   left: clamp(var(--room), var(--x), 100% - var(--room));
+
+  /* under the chips, not beside them. Beside, the right hand seats' amounts ran under their own cards */
+  .pile-label {
+    top: calc(100% + 3px);
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  /* in front of an upper corner seat, held in off the rail exactly like the seat itself */
+  &.under {
+    top: calc(var(--y) + 1.6rem + var(--chip-size) / 2);
+    left: clamp(3.3rem, var(--x), 100% - 3.3rem);
+  }
+
+  /* the lower corners' amounts ride on top of the pile, the board's above them. 4px a chip, same rise as .pile */
+  &.side .pile-label {
+    top: auto;
+    bottom: calc(100% + 3px + (var(--chips, 1) - 1) * 4px);
+    transition: bottom 0.25s ease-out;
+  }
 }
 
 .felt.ring .seat:not(.me) {
