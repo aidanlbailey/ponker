@@ -11,12 +11,7 @@ export function loadRoom(sql: SqlStorage): Room | null {
   return row ? (JSON.parse(row.json) as Room) : null
 }
 
-// rows written, for the budget
+// one row written. The caller counts it against the room's daily budget
 export function saveRoom(sql: SqlStorage, room: Room) {
-  const cursor = sql.exec(
-    'INSERT INTO room (id, json) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET json = excluded.json',
-    JSON.stringify(room),
-  )
-  cursor.toArray()
-  return cursor.rowsWritten
+  sql.exec('INSERT INTO room (id, json) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET json = excluded.json', JSON.stringify(room))
 }

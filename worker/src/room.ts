@@ -27,6 +27,9 @@ const NEXT_HAND_MS = 4500
 const RUN_OUT_MS = 1100 // per card, same as the client's run out
 const READY_MS = 1500
 const CHAT_KEPT = 30
+// ponytail: a flat cap per room per UTC day, so one room (or one script) can't eat the whole free
+// allowance. About 570 four handed hands. A per-IP cap would need its own object, add that if rooms get farmed
+export const DAILY_ROWS = 20_000
 const CHAT_MAX = 200
 const NAME_MAX = 16
 // joiners sit across from the host first, so heads-up looks like heads-up
@@ -56,6 +59,7 @@ export type Room = {
   nextHand: number | null
   chat: ChatLine[]
   stats: { rows: number; hands: number; actions: number }
+  budget: { day: string; rows: number } // rows written today, UTC
 }
 
 export type Command =
@@ -78,6 +82,7 @@ export function newRoom(): Room {
     nextHand: null,
     chat: [],
     stats: { rows: 0, hands: 0, actions: 0 },
+    budget: { day: '', rows: 0 },
   }
 }
 
@@ -87,6 +92,18 @@ const reject = (why: string): never => {
 
 const live = (r: Room) => r.table.street !== 'waiting' && r.table.street !== 'complete'
 const seatOf = (r: Room, token: string) => r.members.findIndex((m) => m?.token === token)
+const today = (now: number) => new Date(now).toISOString().slice(0, 10)
+
+export function spent(r: Room, now: number) {
+  return r.budget?.day === today(now) && r.budget.rows >= DAILY_ROWS
+}
+
+// the caller says what a save cost, it's the one that knows
+export function charge(r: Room, rows: number, now: number) {
+  if (r.budget?.day !== today(now)) r.budget = { day: today(now), rows: 0 }
+  r.budget.rows += rows
+  r.stats.rows += rows
+}
 
 export function cleanName(name: string) {
   // eslint-disable-next-line no-control-regex
@@ -106,8 +123,9 @@ function ready(r: Room, i: number, now: number) {
 
 function canDeal(r: Room, now: number) {
   const seats = r.members.flatMap((m, i) => (ready(r, i, now) ? [m!] : []))
-  // bots don't play on their own, that's a table burning rows for nobody
-  return seats.length >= 2 && seats.some((m) => m.token)
+  // bots don't play on their own, that's a table burning rows for nobody. A spent room finishes its
+  // hand and stops there
+  return seats.length >= 2 && seats.some((m) => m.token) && !spent(r, now)
 }
 
 function seatBot(view: TableState, seat: number): PlayerAction {
@@ -202,14 +220,25 @@ function settle(r: Room, now: number) {
 
 export function nextWake(r: Room) {
   const times = [r.turn?.ends, r.nextHand ?? undefined]
-  for (const m of r.members) if (m?.outSince != null) times.push(m.outSince + GRACE_MS)
+  // a grace that runs out mid-hand can only be acted on once the hand's done, and the deal step
+  // sweeps then. Waking for it before that finds nothing to do, then wakes again straight away
+  const sweepable = !live(r) && !r.nextHand
+  for (const m of r.members) if (sweepable && m?.outSince != null) times.push(m.outSince + GRACE_MS)
+  // a resting room gets itself going again at midnight UTC, nobody has to poke it
+  if (r.budget?.rows >= DAILY_ROWS) times.push(Date.parse(r.budget.day) + 24 * 3600_000)
   const due = times.filter((t): t is number => t !== undefined)
   return due.length ? Math.min(...due) : null
 }
 
 // Whatever's come due. online is who has a socket open, the time bank only runs for them.
+// The caller bumps seq if anything changed, it compares the room before and after
 export function tick(r: Room, now: number, online: Set<string>) {
   let changed = false
+  // a new day clears the budget here, or the midnight wake would keep pointing at the old one
+  if (r.budget?.rows >= DAILY_ROWS && r.budget.day !== today(now)) {
+    r.budget = { day: today(now), rows: 0 }
+    changed = true
+  }
   const turn = r.turn
   if (turn && now >= turn.ends) {
     const m = r.members[turn.seat]!
@@ -239,7 +268,6 @@ export function tick(r: Room, now: number, online: Set<string>) {
   }
   if (sweep(r, now)) changed = true
   settle(r, now)
-  if (changed) r.seq++
   return changed
 }
 
@@ -249,7 +277,6 @@ export function join(r: Room, token: string, name: string, now: number) {
   const mine = seatOf(r, token)
   if (mine >= 0) {
     r.members[mine]!.name = cleanName(name)
-    r.seq++
     return
   }
   const seat = SEAT_ORDER.find((i) => !r.members[i])
@@ -258,7 +285,6 @@ export function join(r: Room, token: string, name: string, now: number) {
   r.table = applyAction(r.table, { type: 'sit', seat, id, chips: BUY_IN })
   r.members[seat] = { token, name: cleanName(name), bank: BANK_MS, leaving: false, topUp: false, outSince: null }
   settle(r, now)
-  r.seq++
 }
 
 // Everything a socket can ask for. Throws on anything not allowed, says whether it was chat.
@@ -269,6 +295,7 @@ export function command(r: Room, token: string, cmd: Command, now: number): 'cha
   if (cmd.t === 'chat') {
     const text = String(cmd.text ?? '').trim().slice(0, CHAT_MAX)
     if (!text) reject('empty')
+    if (spent(r, now)) reject('room is resting')
     const name = m?.name ?? 'Watcher'
     r.chat = [...r.chat, { name, text, at: now }].slice(-CHAT_KEPT)
     return 'chat'
@@ -327,7 +354,6 @@ export function command(r: Room, token: string, cmd: Command, now: number): 'cha
     } else reject('unknown')
   }
   settle(r, now)
-  r.seq++
   return 'table'
 }
 
@@ -351,6 +377,7 @@ export function viewOf(r: Room, token: string, online: Set<string>, now: number)
     host: token === r.host,
     bank: m?.bank ?? 0,
     topUp: m?.topUp ?? false,
+    resting: spent(r, now),
     turn: turn && { seat: turn.seat, ms: Math.max(turn.ends - now, 0), banked: turn.banked },
   }
 }

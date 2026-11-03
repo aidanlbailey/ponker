@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
-import { BANK_MS, command, GRACE_MS, join, newRoom, nextWake, tick, TURN_MS, viewOf, type Room } from './room'
+import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, spent, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -180,5 +180,61 @@ describe('room', () => {
     expect(() => command(r, B, { t: 'chat', text: '   ' }, 0)).toThrow('empty')
     expect(command(r, C, { t: 'chat', text: 'x'.repeat(500) }, 0)).toBe('chat')
     expect(r.chat.at(-1)!.text).toHaveLength(200)
+  })
+
+  // a grace that ran out mid-hand used to keep the wake in the past, so the alarm fired back to back
+  test('the next wake is never in the past, even with a grace run out mid-hand', () => {
+    const r = newRoom()
+    join(r, A, 'Ann', 0)
+    join(r, B, 'Bob', 0)
+    join(r, C, 'Cat', 0)
+    let now = wake(r)
+    const out = r.table.toAct
+    const away = new Set([A, B, C].filter((t) => t !== r.members[out]!.token))
+    while (r.members[out]!.outSince === null) now = wake(r, away)
+    const graceEnds = r.members[out]!.outSince! + GRACE_MS
+    // the other two take their time, so hands are live when the grace runs out
+    while (now < graceEnds + 60_000) {
+      const at = nextWake(r)!
+      expect(at).toBeGreaterThanOrEqual(now)
+      const seat = r.turn?.seat ?? -1
+      if (seat >= 0 && at === r.turn!.ends && r.members[seat]!.token !== r.members[out]?.token) {
+        now = at - 1
+        const type = r.table.currentBet > r.table.seats[seat]!.bet ? 'call' : 'check'
+        command(r, r.members[seat]!.token!, { t: 'act', action: { type } }, now)
+      } else {
+        now = at
+        tick(r, now, away)
+      }
+    }
+    expect(r.members[out]).toBeNull()
+  })
+
+  test('a room that has spent its rows for the day finishes the hand, then rests until tomorrow', () => {
+    const day = Date.UTC(2026, 10, 3, 12)
+    const r = newRoom()
+    join(r, A, 'Ann', day)
+    join(r, B, 'Bob', day)
+    tick(r, nextWake(r)!, everyone)
+    charge(r, DAILY_ROWS, day)
+    expect(spent(r, day)).toBe(true)
+    expect(() => command(r, A, { t: 'chat', text: 'hi' }, day)).toThrow('resting')
+    // the hand in progress still plays out
+    while (r.table.street !== 'complete') {
+      const seat = r.turn!.seat
+      const type = r.table.currentBet > r.table.seats[seat]!.bet ? 'call' : 'check'
+      command(r, r.members[seat]!.token!, { t: 'act', action: { type } }, day)
+    }
+    tick(r, r.nextHand!, everyone)
+    expect(r.hand).toBe(1)
+    expect(r.nextHand).toBeNull()
+    expect(viewOf(r, A, everyone, day).resting).toBe(true)
+    expect(spent(r, day + 24 * 3600_000)).toBe(false)
+    // it wakes itself at midnight and lines a hand up
+    const midnight = nextWake(r)!
+    expect(midnight).toBe(Date.UTC(2026, 10, 4))
+    tick(r, midnight, everyone)
+    expect(r.nextHand).not.toBeNull()
+    expect(nextWake(r)).toBe(r.nextHand) // the old midnight is gone
   })
 })

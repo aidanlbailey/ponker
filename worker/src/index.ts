@@ -1,18 +1,31 @@
 // The Cloudflare side of a room, kept thin: sockets in, room.ts does the poker, sql.ts saves it.
 // One Durable Object per room. Hibernation wipes memory, so everything that matters is in the row.
+// Rows written are the free plan's tight limit, so nothing here saves unless the room really changed.
 
 import { DurableObject } from 'cloudflare:workers'
-import { command, join, newRoom, nextWake, tick, viewOf, type Command, type Room } from './room'
+import { charge, command, join, newRoom, nextWake, tick, viewOf, type Command, type Room } from './room'
 import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
   TABLE: DurableObjectNamespace<Table>
+  CONNECTS: RateLimit
 }
 
 type Attachment = { token: string }
 
-const CHAT_GAP_MS = 400
 const TOKEN = /^[\w-]{16,64}$/
+const ROOM_PATH = /^\/room\/([a-z0-9]{8,16})$/
+// the live site, and anything served off this machine or the home wifi for testing. A script can
+// fake an Origin, this only stops someone else's page opening rooms from its visitors' browsers
+const ORIGINS = /^(https:\/\/aidanlbailey\.github\.io|http:\/\/(localhost|127\.0\.0\.1|10(\.\d+){3}|192\.168(\.\d+){2})(:\d+)?)$/
+const MAX_SOCKETS = 12 // six players and a few watching
+const CHAT_GAP_MS = 1000
+// each socket gets a bucket of messages that refills. Plenty for playing and chatting, nowhere near a loop
+const BURST = 12
+const REFILL_PER_S = 4
+const STRIKES = 5 // dropped before the socket goes. A real client never trips the bucket, and each drop is still a request
+const MIN_ALARM_MS = 250 // a floor, so no bug can make the alarm fire back to back
+const STUCK_MS = 30_000
 
 const send = (ws: WebSocket, data: object) => {
   try {
@@ -26,6 +39,8 @@ export class Table extends DurableObject<Env> {
   loaded: Room | null = null
   alarmAt: number | null | undefined // undefined until we know, after a wake
   lastChat = new Map<string, number>()
+  // ponytail: in memory, so a hibernation hands everyone a fresh bucket. Fine, waking takes a quiet spell
+  buckets = new Map<WebSocket, { left: number; at: number; strikes: number }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -54,17 +69,54 @@ export class Table extends DurableObject<Env> {
     }
   }
 
-  async commit(except?: WebSocket) {
+  // runs a change and only pays for it if the room came out different
+  async change(run: () => void) {
+    const before = JSON.stringify(this.room)
+    run()
+    if (JSON.stringify(this.room) === before) return false
+    this.room.seq++
+    await this.commit()
+    return true
+  }
+
+  async commit() {
     const room = this.room
-    room.stats.rows += saveRoom(this.ctx.storage.sql, room)
-    this.broadcast(except)
+    const now = Date.now()
+    // nobody human left and nobody connected, so there's nothing worth keeping
+    if (!room.members.some((m) => m?.token) && !this.sockets().length) return this.clear()
     const at = nextWake(room)
-    if (at === this.alarmAt) return
+    const rearm = at !== this.alarmAt
+    charge(room, rearm ? 2 : 1, now)
+    saveRoom(this.ctx.storage.sql, room)
+    this.broadcast()
+    if (rearm) await this.arm(at, now)
+  }
+
+  async arm(at: number | null, now: number) {
     if (at === null) await this.ctx.storage.deleteAlarm()
-    else await this.ctx.storage.setAlarm(at)
+    else await this.ctx.storage.setAlarm(Math.max(at, now + MIN_ALARM_MS))
     this.alarmAt = at
-    // the alarm write is a row too. counted on the next save, near enough for a budget
-    room.stats.rows++
+  }
+
+  async clear() {
+    await this.ctx.storage.deleteAlarm()
+    await this.ctx.storage.deleteAll()
+    this.loaded = null
+    this.alarmAt = null
+  }
+
+  // false means drop it. Too many drops and the socket goes, the client's backoff slows it right down
+  allowed(ws: WebSocket, now: number) {
+    const bucket = this.buckets.get(ws) ?? { left: BURST, at: now, strikes: 0 }
+    bucket.left = Math.min(BURST, bucket.left + ((now - bucket.at) / 1000) * REFILL_PER_S)
+    bucket.at = now
+    this.buckets.set(ws, bucket)
+    if (bucket.left >= 1) {
+      bucket.left--
+      return true
+    }
+    if (++bucket.strikes > STRIKES) ws.close(4008, 'too fast')
+    return false
   }
 
   async fetch(request: Request) {
@@ -76,17 +128,21 @@ export class Table extends DurableObject<Env> {
     for (const old of this.sockets()) {
       if ((old.deserializeAttachment() as Attachment).token === token) old.close(4000, 'replaced')
     }
+    if (this.sockets().length >= MAX_SOCKETS) return new Response('room is full', { status: 503 })
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server)
     server.serializeAttachment({ token } satisfies Attachment)
-    join(this.room, token, url.searchParams.get('name') ?? '', Date.now())
-    await this.commit()
+    // a returning seat with the same name changes nothing, so it only costs a broadcast
+    const changed = await this.change(() => join(this.room, token, url.searchParams.get('name') ?? '', Date.now()))
+    if (!changed) this.broadcast()
     // the chat so far, only to the one who just arrived
     send(server, { t: 'chat', lines: this.room.chat })
     return new Response(null, { status: 101, webSocket: client })
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+    const now = Date.now()
+    if (!this.allowed(ws, now)) return
     if (typeof message !== 'string' || message.length > 1000) return
     const { token } = ws.deserializeAttachment() as Attachment
     let cmd: Command
@@ -95,7 +151,6 @@ export class Table extends DurableObject<Env> {
     } catch {
       return
     }
-    const now = Date.now()
 
     if ((cmd as { t: string }).t === 'stats') return send(ws, { t: 'stats', ...this.room.stats })
     if (cmd.t === 'chat') {
@@ -104,47 +159,62 @@ export class Table extends DurableObject<Env> {
     }
 
     let kind
+    const before = JSON.stringify(this.room)
     try {
       kind = command(this.room, token, cmd, now)
     } catch (e) {
-      // the client was a beat behind, it gets the real state back
+      // the client was a beat behind, it gets the real state back. Only on a reply it's owed, a
+      // stream of junk just gets dropped by the bucket
       send(ws, { t: 'nope', why: (e as Error).message })
       return send(ws, viewOf(this.room, token, this.online(), now))
     }
     if (kind === 'chat') {
-      this.room.stats.rows += saveRoom(this.ctx.storage.sql, this.room)
+      charge(this.room, 1, now)
+      saveRoom(this.ctx.storage.sql, this.room)
       for (const other of this.sockets()) send(other, { t: 'chat', lines: this.room.chat.slice(-1) })
       return
     }
+    // an I'm back when you're already in, a leave twice. Nothing to pay for
+    if (JSON.stringify(this.room) === before) return
+    this.room.seq++
     await this.commit()
   }
 
   async alarm() {
     this.alarmAt = null
-    if (tick(this.room, Date.now(), this.online())) await this.commit()
-    else {
-      // woke early or for nothing, still keep the next one set
-      const at = nextWake(this.room)
-      if (at !== null) await this.ctx.storage.setAlarm(at)
-      this.alarmAt = at
-    }
+    const now = Date.now()
+    const changed = await this.change(() => tick(this.room, now, this.online()))
+    if (changed) return
+    // woke early or for nothing, still keep the next one set. One that's already due after a wake
+    // that did nothing is a bug, and spinning on it is what burns the day's allowance, so back off
+    const due = nextWake(this.room)
+    const at = due !== null && due <= now ? now + STUCK_MS : due
+    if (at !== null) charge(this.room, 1, now)
+    await this.arm(at, now)
   }
 
   // nothing to save, who's away comes from the sockets
   async webSocketClose(ws: WebSocket) {
+    this.buckets.delete(ws)
     this.broadcast(ws)
   }
 
   async webSocketError(ws: WebSocket) {
+    this.buckets.delete(ws)
     this.broadcast(ws)
   }
 }
 
 export default {
   async fetch(request, env) {
-    const id = new URL(request.url).pathname.match(/^\/room\/([a-z0-9]{8,16})$/)?.[1]
+    const id = new URL(request.url).pathname.match(ROOM_PATH)?.[1]
     if (!id) return new Response('not found', { status: 404 })
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 })
+    const origin = request.headers.get('Origin')
+    if (origin && !ORIGINS.test(origin)) return new Response('not from here', { status: 403 })
+    // per address, before the room ever wakes. Covers reconnect loops and minting rooms by the thousand
+    const { success } = await env.CONNECTS.limit({ key: request.headers.get('cf-connecting-ip') ?? 'local' })
+    if (!success) return new Response('slow down', { status: 429 })
     return env.TABLE.getByName(id).fetch(request)
   },
 } satisfies ExportedHandler<Env>

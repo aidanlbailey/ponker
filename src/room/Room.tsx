@@ -160,6 +160,8 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
     )
   } else if (room.status !== 'open') {
     dock = <p className="dock-wait room-lost">{room.tries >= QUOTA_TRIES ? quotaNote : 'Reconnecting…'}</p>
+  } else if (cur.resting && stage.idle) {
+    dock = <p className="dock-wait">This room has played its fill for today. It deals again after 00:00 UTC.</p>
   } else if (me === null) {
     // a seat only comes with a fresh connect, so taking one is just that
     dock =

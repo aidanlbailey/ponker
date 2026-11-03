@@ -1,10 +1,13 @@
 // Drives a real room from outside and reports what actually happened.
-//   node worker/probe.mjs <ws url> [budget <hands>|drop|sleep]
+//   node worker/probe.mjs <ws url> [budget <hands>|drop|sleep|abuse]
 // budget: two guests and two bots play real hands, guests call or check at once. Rows per hand.
 // drop: a guest's process gets killed mid-hand, so the socket dies with no close frame.
 // sleep: the room is left alone past hibernation, then checked it still has everything.
+// abuse: what a bad actor would try against the row budget. Uses most of a minute's connect allowance,
+// so run it on its own.
 
 import { spawn } from 'node:child_process'
+import http from 'node:http'
 
 const [base = 'ws://127.0.0.1:8787', mode = 'budget', arg] = process.argv.slice(2)
 const room = `probe${Date.now().toString(36)}`.slice(0, 16)
@@ -148,10 +151,63 @@ async function hibernate() {
   again.ws.close()
 }
 
+// a bare upgrade request, so the headers are ours to pick
+function upgradeStatus(origin) {
+  const url = new URL(`${base.replace(/^ws/, 'http')}/room/${room}?token=${token('evil')}`)
+  return new Promise((resolve) => {
+    const req = http.get(url, { headers: { Connection: 'Upgrade', Upgrade: 'websocket', Origin: origin, 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' } })
+    req.on('response', (res) => resolve(res.statusCode))
+    req.on('upgrade', (res, socket) => (socket.destroy(), resolve(101)))
+    req.on('error', () => resolve(0))
+  })
+}
+
+async function abuse() {
+  check('a page on someone else’s site is turned away', (await upgradeStatus('https://evil.example')) === 403)
+
+  const a = await connect('ann')
+  await until('a seat', 5, () => a.state?.me === 0)
+  await sleep(0.5)
+  let before = (await stats(a)).rows
+  for (let i = 0; i < 10; i++) a.send({ t: 'back' })
+  await sleep(1)
+  check('commands that change nothing cost nothing', (await stats(a)).rows === before, `${(await stats(a)).rows - before} rows`)
+
+  before = (await stats(a)).rows
+  for (let i = 0; i < 400; i++) a.send({ t: 'topUp' })
+  await sleep(1.5)
+  check('a flood gets the socket closed', a.closed === 4008, `closed ${a.closed}`)
+  const b = await connect('ann')
+  await until('state', 5, () => b.state)
+  const after = (await stats(b)).rows
+  check('and only its first burst got saved', after - before <= 30, `${after - before} rows for 400 messages`)
+
+  const watchers = []
+  let refused = 0
+  for (let i = 0; i < 12; i++) {
+    try {
+      watchers.push(await connect(`watch${i}`))
+    } catch {
+      refused++
+    }
+  }
+  check('a room holds 12 sockets and refuses the rest', watchers.length === 11 && refused === 1, `${watchers.length} in, ${refused} refused`)
+  for (const w of watchers) w.ws.close()
+
+  let limited = 0
+  for (let i = 0; i < 10 && !limited; i++) {
+    const status = await upgradeStatus('http://127.0.0.1:3000')
+    if (status === 429) limited = i + 1
+  }
+  check('connecting over and over gets rate limited', limited > 0, limited ? `after ${limited} more` : 'never')
+  b.ws.close()
+}
+
 async function run() {
   console.log(`room ${room} on ${base}`)
   if (mode === 'budget') await budget(Number(arg ?? 20))
   if (mode === 'drop') await drop()
   if (mode === 'sleep') await hibernate()
+  if (mode === 'abuse') await abuse()
   return results.every(Boolean)
 }

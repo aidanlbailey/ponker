@@ -13,7 +13,8 @@ const PING_MS = 5000
 const DEAD_MS = 12_000 // two pings with no pong
 const CONNECT_MS = 6000 // a handshake that's taken this long isn't coming
 const WAKE_CHECK_MS = 3000
-const MAX_RETRY_MS = 8000
+// a room that's down for the day shouldn't have every open tab knocking every few seconds
+const MAX_RETRY_MS = 30_000
 const TURN_MS = 20_000 // keep in step with worker/src/room.ts
 const CHAT_KEPT = 30
 
@@ -119,7 +120,8 @@ export function useRoom(id: string, name: string) {
         }
         setStatus('lost')
         setTries((n) => n + 1)
-        retry = window.setTimeout(connect, Math.min(500 * 2 ** attempt++, MAX_RETRY_MS))
+        // a hidden tab waits to be looked at, wake() picks it up then
+        retry = window.setTimeout(() => !document.hidden && connect(), Math.min(500 * 2 ** attempt++, MAX_RETRY_MS))
       }
     }
 
@@ -131,15 +133,17 @@ export function useRoom(id: string, name: string) {
       if (performance.now() - heard > (open ? within : CONNECT_MS)) return connect()
       if (open) ws.send('ping')
     }
-    const beat = window.setInterval(() => check(DEAD_MS), PING_MS)
+    // nobody's watching a hidden tab, so it doesn't ping. Coming back checks straight away
+    const beat = window.setInterval(() => !document.hidden && check(DEAD_MS), PING_MS)
 
     // back from a pocket or a tunnel: ask now rather than wait for the next beat
     const wake = () => {
       if (parked || document.visibilityState !== 'visible') return
       if (!ws || ws.readyState !== WebSocket.OPEN) return connect()
-      const asked = performance.now()
+      // nothing was pinged while hidden, so the clock on the last message starts again from here
+      const asked = (heard = performance.now())
       ws.send('ping')
-      window.setTimeout(() => heard < asked && connect(), WAKE_CHECK_MS)
+      window.setTimeout(() => heard <= asked && connect(), WAKE_CHECK_MS)
     }
     addEventListener('online', wake)
     document.addEventListener('visibilitychange', wake)
