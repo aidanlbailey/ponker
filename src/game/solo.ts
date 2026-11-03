@@ -5,8 +5,8 @@ import { applyAction, createTable, type Action, type Card, type PlayerAction, ty
 import { potSize } from './betting'
 
 export const HERO = 0
-export const BOT = 1
-export const BOT_ID = 'bot:xi'
+export const MAX_SEATS = 6
+export const STORAGE_KEY = 'ponker-solo'
 export const SMALL_BLIND = 5
 export const BIG_BLIND = 10
 export const BUY_IN = 100 * BIG_BLIND
@@ -14,15 +14,18 @@ export const BUY_IN = 100 * BIG_BLIND
 export type Solo = { table: TableState; leaving: boolean; topUp: boolean }
 
 export type WorkerRequest =
-  | { kind: 'decide'; view: TableState }
+  | { kind: 'decide'; view: TableState; bot: string }
   | { kind: 'equity'; cards: Card[]; board: Card[]; opponents: number }
 
 export type Spot = `seat-${number}` | `bet-${number}` | 'pot'
 export type Move = { from: Spot; to: Spot; amount: number }
 
-export function newSolo(): Solo {
-  const sit = (seat: number, id: string): Action => ({ type: 'sit', seat, id, chips: BUY_IN })
-  const table = [sit(HERO, 'you'), sit(BOT, BOT_ID)].reduce(applyAction, createTable(2, SMALL_BLIND, BIG_BLIND))
+// you in seat 0, then the bots clockwise from your left
+export function newSolo(bots = ['bot:xi']): Solo {
+  const ids = ['you', ...bots]
+  const table = ids
+    .map((id, seat): Action => ({ type: 'sit', seat, id, chips: BUY_IN }))
+    .reduce(applyAction, createTable(ids.length, SMALL_BLIND, BIG_BLIND))
   return { table, leaving: false, topUp: false }
 }
 
@@ -30,7 +33,8 @@ export const isSolo = (data: unknown): data is Solo => {
   const table = (data as Solo | null)?.table
   return (
     Array.isArray(table?.seats) &&
-    table.seats.length === 2 &&
+    table.seats.length >= 2 &&
+    table.seats.length <= MAX_SEATS &&
     table.seats.every((seat) => Number.isFinite(seat?.chips) && Array.isArray(seat?.cards)) &&
     Array.isArray(table.board) &&
     Array.isArray(table.deck)
@@ -42,7 +46,7 @@ const refill = (s: TableState, seat: number) =>
 
 // Top-ups are free, so nobody stays bust. Only the hero can top up early.
 export function startHand(s: TableState, deck: Card[]) {
-  const ready = [HERO, BOT].reduce((table, seat) => (table.seats[seat]!.chips ? table : refill(table, seat)), s)
+  const ready = s.seats.reduce((table, seat, i) => (seat!.chips ? table : refill(table, i)), s)
   return applyAction(ready, { type: 'deal', deck })
 }
 
@@ -63,7 +67,7 @@ const checkOrFold = (s: TableState, seat: number): PlayerAction => ({
 
 // A bad answer or a dead worker shouldn't freeze the table.
 export function botAction(s: TableState, answer: PlayerAction | null) {
-  if (answer?.seat === BOT) {
+  if (answer && answer.seat === s.toAct && s.toAct !== HERO) {
     try {
       applyAction(s, answer)
       return answer
@@ -71,7 +75,7 @@ export function botAction(s: TableState, answer: PlayerAction | null) {
       // falls through
     }
   }
-  return checkOrFold(s, BOT)
+  return checkOrFold(s, s.toAct)
 }
 
 // Where the chips went between two states, for the flights. The caller says when it dealt, the

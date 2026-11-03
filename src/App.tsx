@@ -15,6 +15,8 @@ import { smoothly } from './lib/smoothly'
 
 // only pulled in when someone sits down, the tracker doesn't pay for the poker game
 const Game = lazy(() => import('./game/Game'))
+// the bot picker stands in for the Play hub until milestone 3.5
+const BotPicker = lazy(() => import('./game/BotPicker'))
 
 const onHashChange = (listener: () => void) => {
   addEventListener('hashchange', listener)
@@ -34,7 +36,7 @@ export function App() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
   const [toast, setToast] = useState<ToastMessage | null>(null)
-  const playing = useSyncExternalStore(onHashChange, () => location.hash === '#play')
+  const hash = useSyncExternalStore(onHashChange, () => location.hash)
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -97,7 +99,15 @@ export function App() {
   const entries = Object.entries(chips)
   const editing = editingId ? chips[editingId] : undefined
 
-  if (playing) {
+  if (hash === '#bots') {
+    return (
+      <Suspense>
+        <BotPicker />
+      </Suspense>
+    )
+  }
+
+  if (hash === '#play') {
     return (
       <Suspense>
         <Game name={userName} />
@@ -125,7 +135,7 @@ export function App() {
             <span className="card-back" />
           </button>
           {showValues && <output className="total">{total}</output>}
-          <a className="button primary play-link" href="#play">
+          <a className="button primary play-link" href="#bots">
             Play poker
           </a>
         </div>

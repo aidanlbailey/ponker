@@ -14,7 +14,6 @@ import { decide, equity } from './bot'
 import { advice, describeHand, priceToCall } from './helpers'
 import { progress, route } from './route'
 import {
-  BOT,
   botAction,
   BUY_IN,
   chipMoves,
@@ -27,8 +26,11 @@ import {
   setLeaving,
   startHand,
   winnings,
+  type Spot,
 } from './solo'
 
+// heads-up tables in these tests, the bot sits on your left
+const BOT = 1
 const RANKS = '23456789TJQKA'
 const SUITS = 'cdhs'
 const cards = (text: string) => text.split(' ').map((c) => (RANKS.indexOf(c[0]!) << 2) | SUITS.indexOf(c[1]!))
@@ -464,5 +466,57 @@ describe('helpers', () => {
     expect(advice(0.25, facing, 150)).toContain('Close')
     expect(advice(0.7, { ...facing, toCall: 0, canCheck: true }, 150)).toContain('betting')
     expect(advice(0.3, { ...facing, toCall: 0, canCheck: true }, 150)).toContain('free')
+  })
+})
+
+describe('six handed', () => {
+  const lineup = ['bot:xi', 'bot:omega', 'bot:pi', 'bot:chi', 'bot:psi']
+
+  it('seats you first and the bots after, all with a full buy in', () => {
+    const { table } = newSolo(lineup)
+    expect(table.seats.map((seat) => seat!.id)).toEqual(['you', ...lineup])
+    expect(table.seats.every((seat) => seat!.chips === BUY_IN)).toBe(true)
+    expect(isSolo({ table, leaving: false, topUp: false })).toBe(true)
+  })
+
+  it('refills any bust seat before dealing', () => {
+    const table = newSolo(lineup).table
+    table.seats[3]!.chips = 0
+    expect(startHand(table, ordered).seats[3]!.committed + startHand(table, ordered).seats[3]!.chips).toBe(BUY_IN)
+  })
+
+  it('takes answers for whichever bot is on the clock, and nobody else', () => {
+    const s = startHand(newSolo(lineup).table, ordered)
+    const seat = s.toAct
+    expect(seat).not.toBe(HERO)
+    expect(botAction(s, { type: 'fold', seat })).toEqual({ type: 'fold', seat })
+    expect(botAction(s, { type: 'call', seat: (seat + 1) % 6 })).toEqual({ type: 'fold', seat })
+  })
+
+  // every chip that lands somewhere is accounted for by a move, side pots and all
+  it('moves account for every pile through random hands with uneven stacks', () => {
+    const random = seeded(17)
+    const spots: Spot[] = ['pot', 'bet-0', ...lineup.map((_, i) => `bet-${i + 1}` as const)]
+    let table = newSolo(lineup).table
+    for (let hand = 0; hand < 150; hand++) {
+      table = { ...table, seats: table.seats.map((seat) => ({ ...seat!, chips: 20 + Math.floor(random() * 1500) })) }
+      let prev = table
+      let next = startHand(prev, shuffledDeck())
+      let fresh = true
+      while (true) {
+        const moves = chipMoves(prev, next, fresh)
+        for (const spot of spots) {
+          const into = moves.filter((move) => move.to === spot).reduce((sum, move) => sum + move.amount, 0)
+          const out = moves.filter((move) => move.from === spot).reduce((sum, move) => sum + move.amount, 0)
+          expect((fresh ? 0 : pileAt(prev, spot)) + into - out).toBe(pileAt(next, spot))
+        }
+        if (next.toAct < 0) break
+        prev = next
+        fresh = false
+        next = applyAction(prev, decide(viewFor(prev, prev.toAct), random, 20))
+      }
+      expect(payouts(next).reduce((sum, move) => sum + move.amount, 0)).toBe(pileAt(next, 'pot'))
+      table = next
+    }
   })
 })

@@ -271,7 +271,12 @@
 /* seats */
 
 .seat {
+  /* half a seat's width, so its centre is held far enough in that the plate never leaves the felt */
+  --half: 0px;
+
   position: absolute;
+  top: var(--y);
+  left: clamp(var(--half), var(--x), 100% - var(--half));
   z-index: 2;
   display: flex;
   align-items: center;
@@ -467,6 +472,32 @@
   bottom: auto;
 }
 
+/* three or more round the table: bots stack their cards behind the plate so a seat is only as
+   wide as its plate, and five of them fit round a phone */
+.felt.ring {
+  --card-w: clamp(32px, min(11.5cqw, 10.5cqh), 80px);
+}
+
+/* a side seat held in off the rail pushes its bet in too, so the chips land past the plate */
+.felt.ring .bet {
+  --room: calc(2 * 3.3rem + var(--chip-size) / 2 + 4px);
+
+  left: clamp(var(--room), var(--x), 100% - var(--room));
+}
+
+.felt.ring .seat:not(.me) {
+  --card-w: clamp(24px, min(8cqw, 7cqh), 50px);
+  --half: 3.3rem; /* keep in step with the bet's room above */
+
+  flex-direction: column;
+  gap: 0;
+
+  .seat-cards {
+    min-height: calc(var(--card-w) * 1.4);
+    margin-bottom: calc(var(--card-w) * -0.55);
+  }
+}
+
 /* chips */
 
 .pile {
@@ -545,6 +576,8 @@
 
 .bet {
   position: absolute;
+  top: var(--y);
+  left: var(--x);
   z-index: 1;
   font-size: 0.85rem;
   font-weight: 600;

@@ -7,7 +7,6 @@ import { actionText } from './betting'
 import { liveOpponents } from './bot'
 import { plan, settle, stackValues, total, type Piles, type Trip } from './piles'
 import {
-  BOT,
   botAction,
   chipMoves,
   endOfHand,
@@ -17,6 +16,7 @@ import {
   payouts,
   setLeaving,
   startHand,
+  STORAGE_KEY,
   winnings,
   type Move,
   type Solo,
@@ -24,13 +24,15 @@ import {
   type WorkerRequest,
 } from './solo'
 
-const STORAGE_KEY = 'ponker-solo'
 const FRESH = newSolo()
 const STREET_MS = 550
 const RUN_OUT_MS = 1100 // an all-in is the good bit, so let each card land
 const PAY_MS = 900
 const THINK_MS = 700
 const THINK_SPREAD_MS = 900
+// folds come quick or a six handed orbit drags
+const FOLD_MS = 350
+const FOLD_SPREAD_MS = 400
 const SITTING_OUT_MS = 500
 
 // one chip in the air. start is where a flick let go of it, if it was flicked
@@ -147,7 +149,7 @@ export function useSoloTable() {
   // saved by hand: the hash change unmounts this before useStoredState's effect gets to run,
   // and a stale leaving flag would throw you straight back out next time you sit down
   const exit = () => {
-    save(STORAGE_KEY, FRESH)
+    save(STORAGE_KEY, null)
     location.hash = ''
   }
 
@@ -168,7 +170,7 @@ export function useSoloTable() {
     return () => clearTimeout(timer)
   }, [dealing, shown, over])
 
-  const onBotAnswer = useEffectEvent((answer: PlayerAction | null) => run(botAction(table, answer), BOT))
+  const onBotAnswer = useEffectEvent((answer: PlayerAction | null) => run(botAction(table, answer), table.toAct))
   const onSittingOut = useEffectEvent(() => run({ type: 'timeout' }, table.toAct))
   const onSettled = useEffectEvent(() => {
     fly(payouts(table))
@@ -183,13 +185,16 @@ export function useSoloTable() {
   const toAct = dealing || moving ? -1 : table.toAct
 
   useEffect(() => {
-    if (toAct !== BOT) return
+    if (toAct < 0 || toAct === HERO) return
     let stale = false
     const started = performance.now()
-    const think = THINK_MS + Math.random() * THINK_SPREAD_MS
-    ask<PlayerAction>(worker.current, { kind: 'decide', view: viewFor(table, BOT) })
+    ask<PlayerAction>(worker.current, { kind: 'decide', view: viewFor(table, toAct), bot: table.seats[toAct]!.id })
       .catch(() => null)
       .then(async (answer) => {
+        const think =
+          answer?.type === 'fold'
+            ? FOLD_MS + Math.random() * FOLD_SPREAD_MS
+            : THINK_MS + Math.random() * THINK_SPREAD_MS
         await wait(think - (performance.now() - started))
         if (!stale) onBotAnswer(answer)
       })

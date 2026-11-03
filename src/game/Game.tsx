@@ -6,33 +6,58 @@ import { BetControls } from './BetControls'
 import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
 import { Avatar, ChipFlight, ChipPile, PlayingCard } from './Pieces'
+import { botById } from './roster'
 import { BIG_BLIND, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
 import { total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import '@fontsource-variable/manrope'
 import './game.css'
 
-const BOT_NAME = 'Xi'
 const percent = (share: number) => `${Math.round(share * 100)}%`
 const cx = (...names: (string | false)[]) => names.filter(Boolean).join(' ')
+const botName = (view: TableState, seat: number) => botById(view.seats[seat]!.id)?.name ?? 'Bot'
+const angleOf = (seat: number, seats: number) => Math.PI / 2 + (2 * Math.PI * ((seat - HERO + seats) % seats)) / seats
 
 // Round the oval from the hero at the bottom. reach is how far out from the middle, 1 is the rail.
-function around(seat: number, seats: number, reach: number) {
-  const angle = Math.PI / 2 + (2 * Math.PI * ((seat - HERO + seats) % seats)) / seats
-  return { left: `${50 + 43 * reach * Math.cos(angle)}%`, top: `${50 + 40 * reach * Math.sin(angle)}%` } as CSSProperties
+function around(seat: number, seats: number, reach: number, reachY = reach) {
+  const angle = angleOf(seat, seats)
+  // a full ring sits a touch lower at the top, a bot's cards stack above its plate
+  const tall = seats > 2 ? 37 : 40
+  return { '--x': `${50 + 43 * reach * Math.cos(angle)}%`, '--y': `${50 + tall * reachY * Math.sin(angle)}%` } as CSSProperties
 }
 
+// Heads-up the bets sit halfway in. Round a full ring the board's in the way, so side seats bet
+// straight in sideways, level with their plate, and only the top and bottom seats come in towards it
+function betSpot(seat: number, seats: number) {
+  if (seats === 2) return around(seat, seats, 0.52)
+  return around(seat, seats, 0.62, 1.3 - 0.7 * Math.abs(Math.sin(angleOf(seat, seats))))
+}
+
+// solo tables have every seat filled, so the blinds are just the next seats round
 function blindOf(view: TableState, seat: number) {
+  if (view.street === 'waiting') return null
+  const n = view.seats.length
   // heads-up the button is the small blind
-  return view.street === 'waiting' ? null : view.button === seat ? 'SB' : 'BB'
+  const small = n === 2 ? view.button : (view.button + 1) % n
+  return seat === small ? 'SB' : seat === (small + 1) % n ? 'BB' : null
 }
 
-function resultText(view: TableState, name: string) {
-  const [mine, theirs] = [winnings(view, HERO), winnings(view, 1 - HERO)]
-  if (mine && theirs) return `Split pot, ${mine} each`
-  const hand = view.result?.flatMap((pot) => pot.winners).find((winner) => winner.hand)?.hand
+function resultText(view: TableState, heroName: string) {
+  const won = view.seats.map((_, i) => winnings(view, i))
+  const winners = won.flatMap((amount, i) => (amount ? [i] : []))
+  const nameOf = (seat: number) => (seat === HERO ? heroName : botName(view, seat))
+  if (winners.length > 1) {
+    const first = won[winners[0]!]!
+    if (winners.every((seat) => won[seat] === first)) return `Split pot, ${first} each`
+    // side pots going different ways
+    return winners.map((seat) => `${nameOf(seat)} ${won[seat]}`).join(', ')
+  }
+  const seat = winners[0]
+  if (seat === undefined) return ''
+  const hand = view.result?.flatMap((pot) => pot.winners).find((winner) => winner.seat === seat && winner.hand)?.hand
   const tail = hand ? ` with ${hand.toLowerCase()}` : ''
-  return mine ? `${name} ${name === 'You' ? 'win' : 'wins'} ${mine}${tail}` : `${BOT_NAME} wins ${theirs}${tail}`
+  const verb = seat === HERO && heroName === 'You' ? 'win' : 'wins'
+  return `${nameOf(seat)} ${verb} ${won[seat]}${tail}`
 }
 
 function CheatSheet({ onClose }: { onClose: () => void }) {
@@ -46,11 +71,12 @@ function CheatSheet({ onClose }: { onClose: () => void }) {
         ))}
       </ol>
       <p>
-        Your best five cards from your two and the five on the table. The dealer (D) posts the small blind (SB), the
-        other player the big blind (BB), and the dealer acts first before the flop and last after it.
+        Your best five cards from your two and the five on the table. The two players after the dealer (D) post the
+        small blind (SB) and big blind (BB). Play goes clockwise, and the dealer acts last after the flop. Heads-up the
+        dealer posts the small blind and acts first before the flop.
       </p>
       <p>
-        Win chance is measured against a random hand, so treat it as a guide. Someone betting big usually holds better
+        Win chance is measured against random hands, so treat it as a guide. Someone betting big usually holds better
         than random.
       </p>
     </Dialog>
@@ -103,7 +129,7 @@ export default function Game({ name }: { name: string }) {
       </header>
 
       <main className="table-wrap">
-        <div className="felt">
+        <div className={cx('felt', seats > 2 && 'ring')}>
           <div className="felt-center">
             <output className="pot" style={{ '--of': game.potStacks.length } as CSSProperties}>
               <span className="pile-slot pot-slot" data-spot="pot">
@@ -135,7 +161,7 @@ export default function Game({ name }: { name: string }) {
             const bet = total(betChips)
             return (
               <div key={seat!.id}>
-                <div className="bet" style={around(i, seats, 0.52)}>
+                <div className="bet" style={betSpot(i, seats)}>
                   <span className="pile-slot" data-spot={`bet-${i}`}>
                     {bet > 0 && <ChipPile colors={betChips.map(colorOf)} />}
                   </span>
@@ -154,7 +180,7 @@ export default function Game({ name }: { name: string }) {
                   <div className="seat-plate">
                     <Avatar id={seat!.id} />
                     <div className="seat-info">
-                      <span className="seat-name">{isMe ? heroName : BOT_NAME}</span>
+                      <span className="seat-name">{isMe ? heroName : botName(view, i)}</span>
                       <span className="seat-stack">{game.stack(i).toLocaleString('en-US')}</span>
                     </div>
                     {view.button === i && view.street !== 'waiting' && (
@@ -201,7 +227,7 @@ export default function Game({ name }: { name: string }) {
           </div>
         )}
 
-        {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing || view.toAct !== 1 - HERO ? '' : `${BOT_NAME} to act`}</p>}
+        {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing || view.toAct < 0 || view.toAct === HERO ? '' : `${botName(view, view.toAct)} to act`}</p>}
       </aside>
 
       {game.flights.map((flight) => (

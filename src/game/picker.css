@@ -1,0 +1,188 @@
+/* the bot picker borrows the room from game.css, it just scrolls instead of holding a table */
+
+.poker.picker {
+  grid-template:
+    'bar' auto
+    'body' minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.picker-body {
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: min(100%, 720px);
+  margin-inline: auto;
+  padding-bottom: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  h2 {
+    margin: 0 0 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
+.picker-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.seat-count {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  .poker-toggle {
+    min-width: 40px;
+  }
+}
+
+.seat-count-label {
+  margin-left: 0.25rem;
+  color: var(--text-muted);
+}
+
+/* five slots always fit one row, so picking never pushes the page around */
+.picked {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    min-height: 72px;
+  }
+}
+
+.picked-bot,
+.picked-empty,
+.bot-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.4rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--game-font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+
+  span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.picked-bot:active,
+.bot-tile:active {
+  transform: scale(0.96);
+}
+
+.picked-empty {
+  border-style: dashed;
+  background: none;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.picker-actions {
+  display: flex;
+  gap: 0.6rem;
+
+  .button {
+    flex: 1;
+    padding-inline: 0.75rem;
+    font-family: var(--game-font);
+  }
+
+  .button:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.bot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.bot-tile.on {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+@media (min-width: 560px) {
+  .bot-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.picker .avatar {
+  width: 40px;
+  font-size: 1.35rem;
+}
+
+.bio-card {
+  font-family: var(--game-font);
+
+  .button {
+    font-family: var(--game-font);
+  }
+
+  .button:disabled {
+    opacity: 0.5;
+  }
+}
+
+.bio-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+
+  .avatar {
+    width: 64px;
+    font-size: 2.2rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}
+
+.bio-text {
+  margin: 0;
+}
+
+/* the table floats its bar over the felt when short, the picker has nothing under it to float over */
+@media (max-height: 480px) {
+  .poker.picker {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .picker .poker-bar {
+    position: static;
+  }
+}

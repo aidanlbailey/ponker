@@ -7,7 +7,8 @@ import { chipColors, colorOf } from './betting'
 import { cardName, isRed, rankText, suitText } from './cards'
 import { progress, route, type Box, type Point } from './route'
 import type { At } from './piles'
-import { BOT_ID, type Spot } from './solo'
+import { BOTS } from './roster'
+import type { Spot } from './solo'
 import type { Flight } from './useSoloTable'
 
 const THROW_MS = 850
@@ -18,8 +19,8 @@ const PILE_RISE = 4 // keep in step with .pile in game.css
 const STACK_GAP = 4 // keep in step with .pot-slot in game.css
 const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts
 const EDGE_LAYERS = [-1.2, -0.4, 0.4, 1.2]
-// ponytail: only the one bot so far. The art lands in public/ by name, swap the letter for an img here.
-const BOT_LETTERS: Record<string, string> = { [BOT_ID]: 'Ξ' }
+// ponytail: plain letters for now. The art lands in public/ by name (alpha, beta...), swap the letter for an img here.
+const BOT_LETTERS = Object.fromEntries(BOTS.map((bot) => [bot.id, bot.letter]))
 const DEFAULT_AVATAR = '♠︎'
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
