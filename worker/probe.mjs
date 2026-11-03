@@ -55,7 +55,14 @@ function connect(who, { autoplay = false } = {}) {
     }
     if (autoplay && me !== null && table.seats[me]?.chips === 0 && !msg.topUp) ws.send(JSON.stringify({ t: 'topUp' }))
   })
-  ws.addEventListener('close', (e) => (client.closed = e.code))
+  ws.addEventListener('close', (e) => {
+    client.closed = e.code
+    // or every mode just times out waiting for a seat, which sent me looking in the wrong place
+    if (e.code === 4029) {
+      console.error('FAIL  this address has used its 3 private rooms for today (4029). Use the LAN address, wait for 00:00 UTC, or clear .wrangler locally')
+      process.exit(1)
+    }
+  })
   client.send = (cmd) => ws.send(JSON.stringify(cmd))
   return new Promise((resolve, reject) => {
     ws.addEventListener('open', () => resolve(client))
