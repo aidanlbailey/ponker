@@ -3,7 +3,8 @@
 // Rows written are the free plan's tight limit, so nothing here saves unless the room really changed.
 
 import { DurableObject } from 'cloudflare:workers'
-import { charge, command, join, newRoom, nextWake, tick, viewOf, type Command, type Room } from './room'
+import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
+import { charge, command, join, newRoom, nextWake, seatOf, spent, tick, viewOf, type Command, type Room } from './room'
 import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
@@ -15,11 +16,15 @@ type Attachment = { token: string }
 
 const TOKEN = /^[\w-]{16,64}$/
 const ROOM_PATH = /^\/room\/([a-z0-9]{4,16})$/
+const TABLE_PATH = /^\/table\/([a-z]+)$/
+// public tables are named table-venom and so on. Private codes have no dash, so the two never meet
+const PUBLIC_PREFIX = 'table-'
 // the live site, and anything served off this machine or the home wifi for testing. A script can
 // fake an Origin, this only stops someone else's page opening rooms from its visitors' browsers
 const ORIGINS = /^(https:\/\/aidanlbailey\.github\.io|http:\/\/(localhost|127\.0\.0\.1|10(\.\d+){3}|192\.168(\.\d+){2})(:\d+)?)$/
 const MAX_SOCKETS = 12 // six players and a few watching
 const CHAT_GAP_MS = 1000
+const EMOTE_GAP_MS = 3000
 // each socket gets a bucket of messages that refills. Plenty for playing and chatting, nowhere near a loop
 const BURST = 12
 const REFILL_PER_S = 4
@@ -39,6 +44,7 @@ export class Table extends DurableObject<Env> {
   loaded: Room | null = null
   alarmAt: number | null | undefined // undefined until we know, after a wake
   lastChat = new Map<string, number>()
+  lastEmote = new Map<string, number>()
   // ponytail: in memory, so a hibernation hands everyone a fresh bucket. Fine, waking takes a quiet spell
   buckets = new Map<WebSocket, { left: number; at: number; strikes: number }>()
 
@@ -50,7 +56,18 @@ export class Table extends DurableObject<Env> {
   }
 
   get room() {
-    return (this.loaded ??= loadRoom(this.ctx.storage.sql) ?? newRoom())
+    return (this.loaded ??= loadRoom(this.ctx.storage.sql) ?? newRoom(!!this.ctx.id.name?.startsWith(PUBLIC_PREFIX)))
+  }
+
+  // for the public list. Reads, never saves, so a look at an empty table costs a request and no rows
+  async status(): Promise<Omit<TableInfo, 'id'>> {
+    const room = this.loaded ?? loadRoom(this.ctx.storage.sql)
+    const members = room?.members ?? []
+    return {
+      humans: members.filter((m) => m?.token).length,
+      bots: members.filter((m) => m && !m.token).length,
+      resting: !!room && spent(room, Date.now()),
+    }
   }
 
   sockets(except?: WebSocket) {
@@ -157,6 +174,10 @@ export class Table extends DurableObject<Env> {
       if (now - (this.lastChat.get(token) ?? 0) < CHAT_GAP_MS) return send(ws, { t: 'nope', why: 'slow down' })
       this.lastChat.set(token, now)
     }
+    if (cmd.t === 'emote') {
+      if (now - (this.lastEmote.get(token) ?? 0) < EMOTE_GAP_MS) return
+      this.lastEmote.set(token, now)
+    }
 
     let kind
     const before = JSON.stringify(this.room)
@@ -167,6 +188,12 @@ export class Table extends DurableObject<Env> {
       // stream of junk just gets dropped by the bucket
       send(ws, { t: 'nope', why: (e as Error).message })
       return send(ws, viewOf(this.room, token, this.online(), now))
+    }
+    // never saved, so emotes cost no rows. Someone who arrives a second later just misses it
+    if (kind === 'emote') {
+      const seat = seatOf(this.room, token)
+      for (const other of this.sockets()) send(other, { t: 'emote', seat, i: (cmd as { i: number }).i })
+      return
     }
     if (kind === 'chat') {
       charge(this.room, 1, now)
@@ -207,14 +234,24 @@ export class Table extends DurableObject<Env> {
 
 export default {
   async fetch(request, env) {
-    const id = new URL(request.url).pathname.match(ROOM_PATH)?.[1]
-    if (!id) return new Response('not found', { status: 404 })
-    if (request.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 })
+    const path = new URL(request.url).pathname
+    const list = path === '/tables'
+    const pub = path.match(TABLE_PATH)?.[1]
+    const name = path.match(ROOM_PATH)?.[1] ?? (pub && PUBLIC_TABLES.includes(pub) ? PUBLIC_PREFIX + pub : null)
+    if (!name && !list) return new Response('not found', { status: 404 })
+    if (!list && request.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 })
     const origin = request.headers.get('Origin')
     if (origin && !ORIGINS.test(origin)) return new Response('not from here', { status: 403 })
-    // per address, before the room ever wakes. Covers reconnect loops and minting rooms by the thousand
+    // per address, before the room ever wakes. Covers reconnect loops, minting rooms by the thousand,
+    // and hammering the list, which wakes all four tables each time
     const { success } = await env.CONNECTS.limit({ key: request.headers.get('cf-connecting-ip') ?? 'local' })
     if (!success) return new Response('slow down', { status: 429 })
-    return env.TABLE.getByName(id).fetch(request)
+    if (list) {
+      const tables = await Promise.all(
+        PUBLIC_TABLES.map(async (id) => ({ id, ...(await env.TABLE.getByName(PUBLIC_PREFIX + id).status()) })),
+      )
+      return Response.json(tables, { headers: { 'Access-Control-Allow-Origin': origin ?? '*' } })
+    }
+    return env.TABLE.getByName(name!).fetch(request)
   },
 } satisfies ExportedHandler<Env>

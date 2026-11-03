@@ -1,6 +1,7 @@
 // Drives a real room from outside and reports what actually happened.
-//   node worker/probe.mjs <ws url> [budget <hands>|drop|sleep|abuse]
+//   node worker/probe.mjs <ws url> [budget <hands>|public <hands> <guests>|drop|sleep|abuse]
 // budget: two guests and two bots play real hands, guests call or check at once. Rows per hand.
+// public: guests at the Phantom public table, bots fill the other seats. Run it with Phantom empty.
 // drop: a guest's process gets killed mid-hand, so the socket dies with no close frame.
 // sleep: the room is left alone past hibernation, then checked it still has everything.
 // abuse: what a bad actor would try against the row budget. Uses most of a minute's connect allowance,
@@ -9,8 +10,9 @@
 import { spawn } from 'node:child_process'
 import http from 'node:http'
 
-const [base = 'ws://127.0.0.1:8787', mode = 'budget', arg] = process.argv.slice(2)
+const [base = 'ws://127.0.0.1:8787', mode = 'budget', arg, guests = '1'] = process.argv.slice(2)
 const room = `probe${Date.now().toString(36)}`.slice(0, 16)
+const path = mode === 'public' ? 'table/phantom' : `room/${room}`
 const sleep = (s) => new Promise((r) => setTimeout(r, s * 1000))
 const token = (who) => `probe-${who}-${room}`.padEnd(16, 'x')
 
@@ -36,7 +38,7 @@ function check(name, pass, detail = '') {
 }
 
 function connect(who, { autoplay = false } = {}) {
-  const ws = new WebSocket(`${base}/room/${room}?token=${token(who)}&name=${who}`)
+  const ws = new WebSocket(`${base}/${path}?token=${token(who)}&name=${who}`)
   const client = { ws, who, state: null, closed: null, stats: null }
   ws.addEventListener('message', ({ data }) => {
     if (data === 'pong') return
@@ -76,12 +78,15 @@ async function stats(client) {
   return client.stats
 }
 
-async function budget(hands) {
+async function budget(hands, people = 2) {
   const a = await connect('ann', { autoplay: true })
-  await until('a seat', 5, () => a.state?.me === 0)
-  const b = await connect('bob', { autoplay: true })
+  // a public table someone just left can still be finishing their hand, then the deal seats us
+  await until('a seat', 60, () => a.state && a.state.me !== null)
+  const others = []
+  for (let i = 1; i < people; i++) others.push(await connect(`guest${i}`, { autoplay: true }))
+  // a public table fills every empty seat at once, a private room adds one at a time
   a.send({ t: 'addBot' })
-  a.send({ t: 'addBot' })
+  if (mode !== 'public') a.send({ t: 'addBot' })
   const start = await stats(a)
   const t0 = Date.now()
   await until(`${hands} hands`, hands * 40, () => (a.state?.hand ?? 0) > hands)
@@ -95,8 +100,11 @@ async function budget(hands) {
   )
   console.log(`100,000 rows a day is about ${Math.round(100_000 / (rows / played))} hands like these`)
   check('rows stay near 2 an action', rows / actions < 2.6, `${(rows / actions).toFixed(2)}`)
+  a.send({ t: 'leave' })
+  for (const o of others) o.send({ t: 'leave' })
+  await sleep(0.5)
   a.ws.close()
-  b.ws.close()
+  for (const o of others) o.ws.close()
 }
 
 async function drop() {
@@ -206,6 +214,7 @@ async function abuse() {
 async function run() {
   console.log(`room ${room} on ${base}`)
   if (mode === 'budget') await budget(Number(arg ?? 20))
+  if (mode === 'public') await budget(Number(arg ?? 20), Number(guests))
   if (mode === 'drop') await drop()
   if (mode === 'sleep') await hibernate()
   if (mode === 'abuse') await abuse()

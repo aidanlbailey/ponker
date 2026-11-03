@@ -10,6 +10,7 @@ import { Title } from './components/Title'
 import { Toast, type ToastMessage } from './components/Toast'
 import { Hub } from './hub/Hub'
 import type { PreviewName } from './hub/Previews'
+import { PUBLIC_TABLES } from './room/public'
 import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
@@ -22,6 +23,7 @@ const BotPicker = lazy(() => import('./game/BotPicker'))
 const Previews = lazy(() => import('./hub/Previews'))
 const Room = lazy(() => import('./room/Room'))
 
+const ROOM_HASH = new RegExp(`^#(room/[a-z0-9]{4,16}|table/(${PUBLIC_TABLES.join('|')}))$`)
 const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
 
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
@@ -136,11 +138,11 @@ export function App() {
     )
   }
 
-  const roomId = hash.match(/^#room\/([a-z0-9]{4,16})$/)?.[1]
-  if (roomId) {
+  const roomPath = hash.match(ROOM_HASH)?.[1]
+  if (roomPath) {
     return (
       <Suspense>
-        <Room key={roomId} id={roomId} name={userName} onName={setUserName} />
+        <Room key={roomPath} path={roomPath} name={userName} onName={setUserName} />
       </Suspense>
     )
   }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
-import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, spent, tick, TURN_MS, viewOf, type Room } from './room'
+import { pickTable } from '../../src/room/public'
+import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, spent, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -236,5 +237,95 @@ describe('room', () => {
     tick(r, midnight, everyone)
     expect(r.nextHand).not.toBeNull()
     expect(nextWake(r)).toBe(r.nextHand) // the old midnight is gone
+  })
+})
+
+describe('public table', () => {
+  const D = 'token-dddddddddddddddd'
+  const all = new Set([A, B, C, D])
+  const bots = (r: Room) => r.members.filter((m) => m && !m.token).length
+
+  function lonePlusBots() {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    command(r, A, { t: 'addBot' }, 0)
+    tick(r, nextWake(r)!, all) // dealt
+    return r
+  }
+
+  test('has no host, anyone seated fills it to six, and nobody sends a bot off', () => {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    expect(r.host).toBeNull()
+    expect(() => command(r, C, { t: 'addBot' }, 0)).toThrow() // watching, not seated
+    command(r, A, { t: 'addBot' }, 0)
+    expect(bots(r)).toBe(5)
+    const bot = r.members.findIndex((m) => m && !m.token)
+    expect(() => command(r, A, { t: 'removeBot', seat: bot }, 0)).toThrow()
+  })
+
+  test('a joiner at a full table waits, one bot stands after the hand, and the deal seats them', () => {
+    const r = lonePlusBots()
+    expect(r.table.street).toBe('preflop')
+    join(r, B, 'Bob', 1)
+    join(r, B, 'Bob', 2) // a reconnect while waiting doesn't cost a second bot
+    expect(r.members.filter((m) => m?.leaving)).toHaveLength(1)
+    expect(viewOf(r, B, all, 2)).toMatchObject({ me: null, waiting: true })
+    let guard = 0
+    while (r.hand < 2 && guard++ < 200) {
+      if (r.turn && r.members[r.turn.seat]!.token) command(r, A, { t: 'act', action: { type: 'fold' } }, nextWake(r)! - 1)
+      else tick(r, nextWake(r)!, all)
+    }
+    expect(r.members.some((m) => m?.token === B)).toBe(true)
+    expect(bots(r)).toBe(4)
+    expect(r.waiting).toEqual([])
+  })
+
+  test('between hands a bot gives up its chair straight away', () => {
+    const r = lonePlusBots()
+    // Ann's gone quiet and got sat out, so the bots stop and nothing's lined up
+    while (r.members[0]!.outSince === null || r.turn || r.nextHand) tick(r, nextWake(r)!, new Set())
+    join(r, B, 'Bob', r.members[0]!.outSince! + 1)
+    expect(r.members.some((m) => m?.token === B)).toBe(true)
+  })
+
+  test('a private room never stands a bot up for a watcher', () => {
+    const r = newRoom()
+    join(r, A, 'Ann', 0)
+    for (let i = 0; i < 5; i++) command(r, A, { t: 'addBot' }, 0)
+    join(r, B, 'Bob', 0)
+    expect(bots(r)).toBe(5)
+    expect(r.members.some((m) => m?.leaving)).toBe(false)
+  })
+
+  test('has a shorter grace and a smaller daily cap', () => {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    join(r, B, 'Bob', 0)
+    let now = wake(r, all)
+    const seat = r.table.toAct
+    while (r.members[seat]!.outSince === null) now = wake(r, all)
+    const out = r.members[seat]!.outSince!
+    while (r.members[seat]) now = wake(r, all)
+    expect(now - out).toBeLessThan(GRACE_MS)
+    expect(now - out).toBeGreaterThanOrEqual(PUBLIC_GRACE_MS)
+    charge(r, PUBLIC_DAILY_ROWS, now)
+    expect(spent(r, now)).toBe(true)
+  })
+
+  test('emotes are for seated players and only from the list', () => {
+    const r = lonePlusBots()
+    expect(command(r, A, { t: 'emote', i: 0 }, 0)).toBe('emote')
+    expect(() => command(r, C, { t: 'emote', i: 0 }, 0)).toThrow('not seated')
+    expect(() => command(r, A, { t: 'emote', i: 99 }, 0)).toThrow('bad emote')
+    expect(() => command(r, A, { t: 'emote', i: 1.5 }, 0)).toThrow('bad emote')
+  })
+
+  test('Quick Play goes where the people are, then to an empty table, never to a full or resting one', () => {
+    const t = (id: string, humans: number, bots = 0, resting = false) => ({ id, humans, bots, resting })
+    expect(pickTable([t('a', 0), t('b', 2, 3), t('c', 3, 3), t('d', 4, 0, true)])?.id).toBe('c')
+    expect(pickTable([t('a', 0), t('b', 0)])?.id).toBe('a')
+    expect(pickTable([t('a', 6), t('b', 5, 1)])?.id).toBe('b')
+    expect(pickTable([t('a', 6), t('b', 2, 0, true)])).toBeNull()
   })
 })

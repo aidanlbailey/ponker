@@ -204,6 +204,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             const turn = view.toAct === i && !game.dealing && !game.moving
             const clock = turn && game.clock?.seat === i ? game.clock : null
             const tag = game.tagOf?.(i)
+            const emote = game.emoteOf?.(i)
             return (
               <div key={seat.id}>
                 <div
@@ -246,10 +247,16 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                       />
                     )}
                   </div>
-                  {game.said[i] && (
-                    <span key={game.said[i]} className="said">
-                      {game.said[i]}
+                  {emote ? (
+                    <span key={`emote-${emote.key}`} className="said emote">
+                      {emote.text}
                     </span>
+                  ) : (
+                    game.said[i] && (
+                      <span key={game.said[i]} className="said">
+                        {game.said[i]}
+                      </span>
+                    )
                   )}
                 </div>
               </div>

@@ -175,3 +175,38 @@
     display: none;
   }
 }
+
+.room-emotes {
+  grid-template-rows: auto auto;
+  height: auto;
+  padding-bottom: 0.7rem;
+}
+
+.room-emote-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+}
+
+/* in a private room's chat it's one row that scrolls, the messages need the height */
+.room-chat:not(.room-emotes) .room-emote-list {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-top: 0.5rem;
+  scrollbar-width: none;
+
+  button {
+    flex: none;
+  }
+}
+
+.room-chat:not(.room-emotes) {
+  grid-template-rows: auto 1fr auto auto;
+}
+
+.room-emotes-note {
+  margin: 0;
+  padding: 0 0.9rem;
+  color: rgb(223 232 226 / 0.6);
+}

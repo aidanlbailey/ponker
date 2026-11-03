@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { load, save } from '../lib/storage'
 import type { ChatLine, Command, RoomView } from '../../worker/src/room'
+import type { TableInfo } from './public'
 
 export type { ChatLine, RoomView }
 
@@ -17,6 +18,7 @@ const WAKE_CHECK_MS = 3000
 const MAX_RETRY_MS = 30_000
 const TURN_MS = 20_000 // keep in step with worker/src/room.ts
 const CHAT_KEPT = 30
+const EMOTE_MS = 2600 // the bubble's animation
 
 export const ROOM_ID = /^[a-z0-9]{4,16}$/
 
@@ -37,16 +39,25 @@ export function guestToken() {
   return token
 }
 
+// the four public tables and who's at them. Throws if the worker can't be reached or says no
+export async function listTables(): Promise<TableInfo[]> {
+  const res = await fetch(`${BASE.replace(/^ws/, 'http')}/tables`)
+  if (!res.ok) throw new Error(String(res.status))
+  return res.json()
+}
+
 export type Incoming = { view: RoomView; fresh: boolean }
 export type Clock = { seat: number; ms: number; of: number; banked: boolean; key: number }
 
-export function useRoom(id: string, name: string) {
+// path is room/<code> or table/<name>
+export function useRoom(path: string, name: string) {
   const [status, setStatus] = useState<'connecting' | 'open' | 'lost' | 'replaced'>('connecting')
   const [tries, setTries] = useState(0)
   const [first, setFirst] = useState<RoomView | null>(null)
   const [latest, setLatest] = useState<RoomView | null>(null)
   const [clock, setClock] = useState<Clock | null>(null)
   const [chat, setChat] = useState<ChatLine[]>([])
+  const [emotes, setEmotes] = useState<Record<number, { i: number; key: number }>>({})
   const [version, setVersion] = useState(0)
   const queue = useRef<Incoming[]>([])
   const socket = useRef<WebSocket | null>(null)
@@ -61,6 +72,7 @@ export function useRoom(id: string, name: string) {
     let freshChat = true
     let stopped = false
     let parked = false // this tab got replaced by another, it waits to be asked back
+    const fading = new Set<number>()
 
     const drop = () => {
       if (!ws) return
@@ -73,7 +85,7 @@ export function useRoom(id: string, name: string) {
       parked = false
       drop()
       clearTimeout(retry)
-      const url = `${BASE}/room/${id}?token=${encodeURIComponent(guestToken())}&name=${encodeURIComponent(name)}`
+      const url = `${BASE}/${path}?token=${encodeURIComponent(guestToken())}&name=${encodeURIComponent(name)}`
       const next = (ws = socket.current = new WebSocket(url))
       heard = performance.now()
       setStatus((prev) => (prev === 'open' ? 'lost' : prev))
@@ -107,6 +119,15 @@ export function useRoom(id: string, name: string) {
           const lines = msg.lines as ChatLine[]
           setChat((prev) => (freshChat ? lines : [...prev, ...lines].slice(-CHAT_KEPT)))
           freshChat = false
+        } else if (msg.t === 'emote') {
+          const { seat, i } = msg as { seat: number; i: number }
+          const key = performance.now()
+          setEmotes((prev) => ({ ...prev, [seat]: { i, key } }))
+          const timer = window.setTimeout(() => {
+            fading.delete(timer)
+            setEmotes((prev) => (prev[seat]?.key === key ? { ...prev, [seat]: undefined! } : prev))
+          }, EMOTE_MS)
+          fading.add(timer)
         } else if (msg.t === 'nope') {
           // we were a step behind, the state that follows puts us right
           fresh = true
@@ -155,17 +176,18 @@ export function useRoom(id: string, name: string) {
       stopped = true
       clearInterval(beat)
       clearTimeout(retry)
+      fading.forEach(clearTimeout)
       removeEventListener('online', wake)
       document.removeEventListener('visibilitychange', wake)
       drop()
     }
-  }, [id, name])
+  }, [path, name])
 
   const send = (cmd: Command) => {
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(cmd))
   }
 
-  return { status, tries, first, latest, clock, chat, version, queue, send, reconnect: () => reconnect.current() }
+  return { status, tries, first, latest, clock, chat, emotes, version, queue, send, reconnect: () => reconnect.current() }
 }
 
 export type RoomSocket = ReturnType<typeof useRoom>

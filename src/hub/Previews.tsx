@@ -1,21 +1,22 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Avatar } from '../game/Pieces'
-import { newRoomId } from '../room/useRoom'
+import { pickTable, PUBLIC_TABLES, tableName, type TableInfo } from '../room/public'
+import { listTables, newRoomId } from '../room/useRoom'
 import '@fontsource-variable/manrope'
 import '../game/game.css'
 import '../game/picker.css'
 import './previews.css'
 
-// Filler screens so the whole hub can be clicked through before the real ones exist. All the data
-// is made up. Each screen goes when its milestone lands: private rooms went live in 5, public tables and Quick Play 6, Profile 7, Daily Race 8
+// The hub's other screens. Quick Play and Rooms are real. Daily Race and Profile are still filler with
+// made up data, until milestones 8 and 7 build them
 
 export type PreviewName = 'quick' | 'rooms' | 'race' | 'profile'
 
 const SOON = "Coming soon, this part isn't built yet"
 
-type ScreenProps = { title: string; intro?: string; children: (soon: () => void) => ReactNode }
+type ScreenProps = { title: string; intro?: string; filler?: boolean; children: (soon: () => void) => ReactNode }
 
-function Screen({ title, intro = 'Preview, everything here is made up', children }: ScreenProps) {
+function Screen({ title, intro = 'Preview, everything here is made up', filler = true, children }: ScreenProps) {
   const [note, setNote] = useState(intro)
   return (
     <div className="poker picker preview">
@@ -25,92 +26,143 @@ function Screen({ title, intro = 'Preview, everything here is made up', children
         </a>
         <span className="poker-spacer" />
         <span className="poker-stakes">{title}</span>
-        <span className="preview-tag">Preview</span>
+        {filler && <span className="preview-tag">Preview</span>}
       </header>
       <main className="picker-body">
-        <p className="preview-note" role="status">
-          {note}
-        </p>
+        {note && (
+          <p className="preview-note" role="status">
+            {note}
+          </p>
+        )}
         {children(() => setNote(SOON))}
       </main>
     </div>
   )
 }
 
+const DOWN = "Can't reach the tables. If the free servers have used up today's allowance, they're back at 00:00 UTC."
+
+// straight to the busiest table with room, or an empty one where the table offers invite and bots
 function QuickPlay() {
+  const [state, setState] = useState<'finding' | 'full' | 'down'>('finding')
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    let gone = false
+    listTables().then(
+      (tables) => {
+        if (gone) return
+        const table = pickTable(tables)
+        // replace, so Back from the table goes home and not to this
+        if (table) location.replace(`#table/${table.id}`)
+        else setState('full')
+      },
+      () => !gone && setState('down'),
+    )
+    return () => {
+      gone = true
+    }
+  }, [attempt])
+
   return (
-    <Screen title="Quick Play">
-      {(soon) => (
+    <Screen title="Quick Play" intro="" filler={false}>
+      {() => (
         <section className="picker-seats">
-          <h2>Public table 1/2</h2>
-          <p>No open tables right now, so this one is yours until someone joins.</p>
-          <ol className="picked">
-            <li>
-              <span className="picked-bot">
-                <Avatar id="" />
-                <span>You</span>
-              </span>
-            </li>
-            {[1, 2, 3, 4, 5].map((seat) => (
-              <li key={seat}>
-                <span className="picked-empty">Empty</span>
-              </li>
-            ))}
-          </ol>
-          <div className="picker-actions">
-            <button className="button neutral" onClick={soon}>
-              Wait
-            </button>
-            <button className="button neutral" onClick={soon}>
-              Invite
-            </button>
-            <a className="button primary" href="#bots">
-              Play bots
-            </a>
-          </div>
+          {state === 'finding' && <p role="status">Finding you a seat…</p>}
+          {state === 'full' && (
+            <>
+              <h2>Every public table is full</h2>
+              <p>Play the bots on your own, or open a private room and send friends the link.</p>
+              <div className="picker-actions">
+                <a className="button neutral" href="#rooms">
+                  Private room
+                </a>
+                <a className="button primary" href="#bots">
+                  Play bots
+                </a>
+              </div>
+            </>
+          )}
+          {state === 'down' && (
+            <>
+              <p role="status">{DOWN}</p>
+              <div className="picker-actions">
+                <button className="button primary" onClick={() => (setState('finding'), setAttempt((n) => n + 1))}>
+                  Try again
+                </button>
+              </div>
+            </>
+          )}
         </section>
       )}
     </Screen>
   )
 }
 
-const TABLES = [
-  { name: 'Night Owls', stakes: '1/2', seated: 5 },
-  { name: 'Low Road', stakes: '1/2', seated: 3 },
-  { name: 'Felt Club', stakes: '1/2', seated: 2 },
-  { name: 'Riverboat', stakes: '1/2', seated: 1 },
-]
+function seatedText(t: TableInfo) {
+  if (t.resting) return 'Resting till 00:00 UTC'
+  if (!t.humans) return 'Empty'
+  return `${t.humans} playing${t.bots ? `, ${t.bots} ${t.bots === 1 ? 'bot' : 'bots'}` : ''}`
+}
 
 // a pasted link or just the code on the end of it
-const roomIn = (text: string) => text.trim().toLowerCase().match(/([a-z0-9]{4,16})\/?$/)?.[1]
+const roomIn = (text: string) => {
+  const t = text.trim().toLowerCase()
+  const pub = t.match(/table\/([a-z]+)\/?$/)?.[1]
+  if (pub && PUBLIC_TABLES.includes(pub)) return `table/${pub}`
+  const code = t.match(/([a-z0-9]{4,16})\/?$/)?.[1]
+  return code && `room/${code}`
+}
 
-// public tables are still filler until milestone 6, private rooms are real
 function Rooms() {
   const [link, setLink] = useState('')
+  // null while loading. No polling, each look wakes all four tables
+  const [tables, setTables] = useState<TableInfo[] | 'down' | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let gone = false
+    listTables().then(
+      (list) => !gone && setTables(list),
+      () => !gone && setTables('down'),
+    )
+    return () => {
+      gone = true
+    }
+  }, [attempt])
+
   const join = (e: FormEvent) => {
     e.preventDefault()
-    const id = roomIn(link)
-    if (id) location.hash = `#room/${id}`
+    const path = roomIn(link)
+    if (path) location.hash = `#${path}`
   }
   return (
-    <Screen title="Rooms" intro="Public tables are a preview with made up tables. Private rooms are live.">
-      {(soon) => (
+    <Screen title="Rooms" intro="" filler={false}>
+      {() => (
         <>
           <section>
-            <h2>Public tables</h2>
-            <ul className="preview-list">
-              {TABLES.map((table) => (
-                <li key={table.name}>
-                  <b>{table.name}</b>
-                  <span>
-                    {table.stakes} · {table.seated}/6
-                  </span>
-                  <button className="poker-toggle" onClick={soon}>
-                    Join
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="preview-heading">
+              <h2>Public tables</h2>
+              <button className="poker-toggle" disabled={tables === null} onClick={() => (setTables(null), setAttempt((n) => n + 1))}>
+                Refresh
+              </button>
+            </div>
+            <p className="preview-sub">5/10, 1,000 to sit, free top-ups. Bots give up their seat when someone joins.</p>
+            {tables === 'down' ? (
+              <p role="status">{DOWN}</p>
+            ) : (
+              <ul className="preview-list" aria-busy={tables === null}>
+                {(tables ?? []).map((table) => (
+                  <li key={table.id}>
+                    <b>{tableName(table.id)}</b>
+                    <span>{seatedText(table)}</span>
+                    <a className="poker-toggle" href={`#table/${table.id}`}>
+                      {table.humans >= 6 ? 'Watch' : 'Join'}
+                    </a>
+                  </li>
+                ))}
+                {tables === null && <li className="preview-loading">Looking…</li>}
+              </ul>
+            )}
           </section>
           <section className="picker-seats">
             <h2>Private room</h2>

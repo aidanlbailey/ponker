@@ -5,6 +5,7 @@ import { haptic } from '../lib/haptics'
 import { Table } from '../game/Game'
 import { BUY_IN } from '../game/solo'
 import { useStage, type TableGame } from '../game/useStage'
+import { EMOTES, tableName } from './public'
 import { useRoom, type RoomSocket, type RoomView } from './useRoom'
 import '../game/game.css'
 import './room.css'
@@ -15,11 +16,16 @@ const FILLER = Array<number>(52).fill(HIDDEN)
 const MAX_QUEUE = 8
 const QUOTA_TRIES = 4
 
-const roomLink = (id: string) => `${location.origin}${location.pathname}#room/${id}`
+const EMOTE_GAP_MS = 3000 // same as the worker, it drops anything sooner
 
-export default function Room({ id, name, onName }: { id: string; name: string; onName: (name: string) => void }) {
+// path is room/<code> for a private room or table/<name> for a public one, and doubles as the link
+const roomLink = (path: string) => `${location.origin}${location.pathname}#${path}`
+
+type RoomProps = { path: string; name: string; onName: (name: string) => void }
+
+export default function Room({ path, name, onName }: RoomProps) {
   if (!name) return <NameFirst onName={onName} />
-  return <Connected id={id} name={name} />
+  return <Connected path={path} name={name} />
 }
 
 function NameFirst({ onName }: { onName: (name: string) => void }) {
@@ -47,8 +53,8 @@ function NameFirst({ onName }: { onName: (name: string) => void }) {
   )
 }
 
-function Connected({ id, name }: { id: string; name: string }) {
-  const room = useRoom(id, name)
+function Connected({ path, name }: { path: string; name: string }) {
+  const room = useRoom(path, name)
   if (!room.first) {
     return (
       <div className="poker room-gate">
@@ -58,12 +64,12 @@ function Connected({ id, name }: { id: string; name: string }) {
       </div>
     )
   }
-  return <RoomTable room={room} first={room.first} id={id} name={name} />
+  return <RoomTable room={room} first={room.first} path={path} name={name} />
 }
 
 const quotaNote = "Can't reach the room. Still trying. If the free servers have used up today's allowance, they're back at 00:00 UTC."
 
-function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomView; id: string; name: string }) {
+function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomView; path: string; name: string }) {
   const [cur, setCur] = useState(first)
   const [chatOpen, setChatOpen] = useState(false)
   const [seen, setSeen] = useState(0)
@@ -139,6 +145,10 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
       return s?.bot ? 'Bot' : s?.away ? 'Away' : s?.out ? 'Sat out' : null
     },
     clock: caughtUp ? room.clock : null,
+    emoteOf: (i) => {
+      const e = room.emotes[i]
+      return e ? { text: EMOTES[e.i]!, key: e.key } : null
+    },
     leaving: false,
     topUp: cur.topUp,
     toggleLeaving: () => {
@@ -164,8 +174,9 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
     dock = <p className="dock-wait">This room has played its fill for today. It deals again after 00:00 UTC.</p>
   } else if (me === null) {
     // a seat only comes with a fresh connect, so taking one is just that
-    dock =
-      seated < 6 ? (
+    dock = cur.waiting ? (
+      <p className="dock-wait">A bot gives you its seat after this hand</p>
+    ) : seated < 6 ? (
         <div className="bet-actions">
           <p className="dock-wait">You're watching</p>
           <button className="button primary" onClick={room.reconnect}>
@@ -173,7 +184,7 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
           </button>
         </div>
       ) : (
-        <p className="dock-wait">The room is full, so you're watching</p>
+        <p className="dock-wait">The {cur.public ? 'table' : 'room'} is full, so you're watching</p>
       )
   } else if (mine?.sittingOut) {
     dock = (
@@ -189,6 +200,19 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
       <div className="bet-actions">
         <button className="button primary" disabled={cur.topUp} onClick={() => room.send({ t: 'topUp' })}>
           {cur.topUp ? 'Rebuying next hand' : `Rebuy ${BUY_IN.toLocaleString('en-US')}`}
+        </button>
+      </div>
+    )
+  } else if (stage.idle && ready < 2 && cur.public && seated < 6) {
+    // alone at a public table: wait, invite, or play bots who make way when people come
+    dock = (
+      <div className="bet-actions">
+        <p className="dock-wait">Waiting for players</p>
+        <button className="button neutral" onClick={() => setPanel(true)}>
+          Invite
+        </button>
+        <button className="button primary" onClick={() => room.send({ t: 'addBot' })}>
+          Play bots
         </button>
       </div>
     )
@@ -212,20 +236,63 @@ function RoomTable({ room, first, id, name }: { room: RoomSocket; first: RoomVie
           setSeen(room.chat.length)
         }}
       >
-        Chat{unread > 0 && <span className="room-unread">{unread}</span>}
+        {cur.public ? 'Emotes' : 'Chat'}
+        {!cur.public && unread > 0 && <span className="room-unread">{unread}</span>}
       </button>
     </>
   )
 
   return (
     <Table game={game} name={name} bar={bar} dock={dock}>
-      {chatOpen && <Chat room={room} onClose={() => (setChatOpen(false), setSeen(room.chat.length))} />}
-      {panel && <RoomPanel id={id} view={cur} send={room.send} onClose={() => setPanel(false)} />}
+      {chatOpen &&
+        (cur.public ? (
+          <section className="room-chat room-emotes" aria-label="Emotes">
+            <header>
+              <b>Emotes</b>
+              <button className="poker-toggle" onClick={() => setChatOpen(false)} aria-label="Close emotes">
+                ×
+              </button>
+            </header>
+            <Emotes room={room} seated={me !== null} onSent={() => setChatOpen(false)} />
+          </section>
+        ) : (
+          <Chat room={room} seated={me !== null} onClose={() => (setChatOpen(false), setSeen(room.chat.length))} />
+        ))}
+      {panel && <RoomPanel path={path} view={cur} send={room.send} onClose={() => setPanel(false)} />}
     </Table>
   )
 }
 
-function Chat({ room, onClose }: { room: RoomSocket; onClose: () => void }) {
+// a bubble over your seat, so watchers don't get them
+function Emotes({ room, seated, onSent }: { room: RoomSocket; seated: boolean; onSent?: () => void }) {
+  const [cool, setCool] = useState(false)
+  useEffect(() => {
+    if (!cool) return
+    const timer = setTimeout(() => setCool(false), EMOTE_GAP_MS)
+    return () => clearTimeout(timer)
+  }, [cool])
+  if (!seated) return <p className="room-emotes-note">Take a seat to send emotes</p>
+  return (
+    <div className="room-emote-list">
+      {EMOTES.map((text, i) => (
+        <button
+          key={text}
+          className="poker-toggle"
+          disabled={cool || room.status !== 'open'}
+          onClick={() => {
+            room.send({ t: 'emote', i })
+            setCool(true)
+            onSent?.()
+          }}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Chat({ room, seated, onClose }: { room: RoomSocket; seated: boolean; onClose: () => void }) {
   const [text, setText] = useState('')
   const list = useRef<HTMLOListElement>(null)
 
@@ -256,6 +323,7 @@ function Chat({ room, onClose }: { room: RoomSocket; onClose: () => void }) {
         ))}
         {!room.chat.length && <li className="room-chat-empty">Nothing said yet</li>}
       </ol>
+      {seated && <Emotes room={room} seated />}
       <form onSubmit={submit}>
         <input aria-label="Message" value={text} maxLength={200} onChange={(e) => setText(e.target.value)} placeholder="Say something" />
         <button className="poker-toggle" disabled={!text.trim() || room.status !== 'open'}>
@@ -267,17 +335,18 @@ function Chat({ room, onClose }: { room: RoomSocket; onClose: () => void }) {
 }
 
 // invite and, for the host, the bots. Kept off the bar, a phone hasn't the room for both
-function RoomPanel({ id, view, send, onClose }: { id: string; view: RoomView; send: RoomSocket['send']; onClose: () => void }) {
+function RoomPanel({ path, view, send, onClose }: { path: string; view: RoomView; send: RoomSocket['send']; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const bots = view.seats.flatMap((s, i) => (s?.bot ? [{ seat: i, name: s.name }] : []))
   const full = view.seats.every(Boolean)
   const me = view.me === null ? null : view.table.seats[view.me]
 
   const invite = async () => {
-    const url = roomLink(id)
+    const url = roomLink(path)
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       try {
-        return await navigator.share({ title: 'Ponker room', text: 'Pull up a chair', url })
+        const title = view.public ? `Ponker, ${tableName(path.split('/')[1]!)}` : 'Ponker room'
+        return await navigator.share({ title, text: 'Pull up a chair', url })
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return
       }
@@ -292,7 +361,7 @@ function RoomPanel({ id, view, send, onClose }: { id: string; view: RoomView; se
   }
 
   return (
-    <Dialog title="This room" className="room-panel" onClose={onClose}>
+    <Dialog title={view.public ? tableName(path.split('/')[1]!) : 'This room'} className="room-panel" onClose={onClose}>
       {me && me.chips < BUY_IN && (
         <>
           <h2>Your stack</h2>
@@ -302,10 +371,19 @@ function RoomPanel({ id, view, send, onClose }: { id: string; view: RoomView; se
         </>
       )}
       <h2>Invite</h2>
-      <p className="room-link">{roomLink(id)}</p>
+      <p className="room-link">{roomLink(path)}</p>
       <button className="button primary" onClick={invite}>
         {copied ? 'Link copied' : 'Share the link'}
       </button>
+      {view.public && view.me !== null && (
+        <>
+          <h2>Bots</h2>
+          <p>Bots fill the empty seats and give one up whenever someone joins.</p>
+          <button className="button neutral" disabled={full} onClick={() => send({ t: 'addBot' })}>
+            {full ? 'Table is full' : 'Fill empty seats with bots'}
+          </button>
+        </>
+      )}
       {view.host && (
         <>
           <h2>Bots</h2>

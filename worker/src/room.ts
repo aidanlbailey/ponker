@@ -1,4 +1,4 @@
-// One private room: the engine's table, who sits in each seat, and the clocks. Plain JSON with no
+// One room, private or public: the engine's table, who sits in each seat, and the clocks. Plain JSON with no
 // Cloudflare in it, so the whole thing can sit behind a Node socket server instead. The caller saves
 // after every change and wakes tick() at nextWake().
 
@@ -13,11 +13,14 @@ import {
 import { decide } from '../../src/game/bot'
 import { botById, randomBots } from '../../src/game/roster'
 import { BIG_BLIND, BUY_IN, MAX_SEATS, SMALL_BLIND } from '../../src/game/solo'
+import { EMOTES } from '../../src/room/public'
 
 export const TURN_MS = 20_000
 export const BANK_MS = 30_000
 export const BANK_REFILL_MS = 5_000
 export const GRACE_MS = 120_000
+// nobody's holding a public chair for a friend, so a dead seat goes sooner
+export const PUBLIC_GRACE_MS = 60_000
 const BOT_SIMS = 500 // 0.3ms a decision, solo uses 2000
 const OUT_MS = 500 // a seat that's sat out still gets its turns played, just quickly
 // the clients stage everything the server jumps past, so the next turn waits for that to play
@@ -30,6 +33,8 @@ const CHAT_KEPT = 30
 // ponytail: a flat cap per room per UTC day, so one room (or one script) can't eat the whole free
 // allowance. About 570 four handed hands. A per-IP cap would need its own object, add that if rooms get farmed
 export const DAILY_ROWS = 20_000
+// four of these is 40k, which leaves the rest of the free 100k for private rooms
+export const PUBLIC_DAILY_ROWS = 10_000
 const CHAT_MAX = 200
 const NAME_MAX = 16
 // joiners sit across from the host first, so heads-up looks like heads-up
@@ -60,6 +65,8 @@ export type Room = {
   chat: ChatLine[]
   stats: { rows: number; hands: number; actions: number }
   budget: { day: string; rows: number } // rows written today, UTC
+  public?: boolean // no host, anyone seated adds bots, and bots make way for people
+  waiting?: { token: string; name: string }[] // public only, watchers a bot is standing up for
 }
 
 export type Command =
@@ -68,9 +75,12 @@ export type Command =
   | { t: 'addBot' }
   | { t: 'removeBot'; seat: number }
   | { t: 'chat'; text: string }
+  | { t: 'emote'; i: number }
 
-export function newRoom(): Room {
+export function newRoom(isPublic = false): Room {
   return {
+    public: isPublic,
+    waiting: [],
     table: createTable(MAX_SEATS, SMALL_BLIND, BIG_BLIND),
     members: Array<null>(MAX_SEATS).fill(null),
     host: null,
@@ -91,11 +101,14 @@ const reject = (why: string): never => {
 }
 
 const live = (r: Room) => r.table.street !== 'waiting' && r.table.street !== 'complete'
-const seatOf = (r: Room, token: string) => r.members.findIndex((m) => m?.token === token)
+export const seatOf = (r: Room, token: string) => r.members.findIndex((m) => m?.token === token)
 const today = (now: number) => new Date(now).toISOString().slice(0, 10)
 
+const grace = (r: Room) => (r.public ? PUBLIC_GRACE_MS : GRACE_MS)
+const cap = (r: Room) => (r.public ? PUBLIC_DAILY_ROWS : DAILY_ROWS)
+
 export function spent(r: Room, now: number) {
-  return r.budget?.day === today(now) && r.budget.rows >= DAILY_ROWS
+  return r.budget?.day === today(now) && r.budget.rows >= cap(r)
 }
 
 // the caller says what a save cost, it's the one that knows
@@ -110,14 +123,14 @@ export function cleanName(name: string) {
   return name.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, NAME_MAX) || 'Guest'
 }
 
-function expired(m: Member, now: number) {
-  return m.outSince !== null && now >= m.outSince + GRACE_MS
+function expired(r: Room, m: Member, now: number) {
+  return m.outSince !== null && now >= m.outSince + grace(r)
 }
 
 function ready(r: Room, i: number, now: number) {
   const m = r.members[i]
   const seat = r.table.seats[i]
-  if (!m || !seat || m.leaving || seat.sittingOut || expired(m, now)) return false
+  if (!m || !seat || m.leaving || seat.sittingOut || expired(r, m, now)) return false
   return seat.chips > 0 || m.topUp || !m.token
 }
 
@@ -180,7 +193,7 @@ function sweep(r: Room, now: number) {
   if (live(r) || r.nextHand) return false
   let changed = false
   r.members.forEach((m, i) => {
-    if (m && (m.leaving || expired(m, now))) {
+    if (m && (m.leaving || expired(r, m, now))) {
       remove(r, i)
       changed = true
     }
@@ -188,9 +201,28 @@ function sweep(r: Room, now: number) {
   return changed
 }
 
-function deal(r: Room, now: number) {
+function sit(r: Room, seat: number, token: string, name: string) {
+  const id = `guest:${crypto.randomUUID().slice(0, 8)}`
+  r.table = applyAction(r.table, { type: 'sit', seat, id, chips: BUY_IN })
+  r.members[seat] = { token, name: cleanName(name), bank: BANK_MS, leaving: false, topUp: false, outSince: null }
+}
+
+// gone after the hand it's in
+function standBot(r: Room, seat: number, now: number) {
+  r.members[seat]!.leaving = true
+  r.table = applyAction(r.table, { type: 'sitOut', seat })
+  sweep(r, now)
+}
+
+function deal(r: Room, now: number, online: Set<string>) {
   r.nextHand = null
   sweep(r, now)
+  // whoever a bot just stood up for, if they stuck around to watch
+  for (const w of (r.waiting ?? []).filter((w) => online.has(w.token))) {
+    const seat = SEAT_ORDER.find((i) => !r.members[i])
+    if (seat !== undefined) sit(r, seat, w.token, w.name)
+  }
+  r.waiting = []
   r.members.forEach((m, i) => {
     const seat = r.table.seats[i]
     if (!m || !seat) return
@@ -223,9 +255,9 @@ export function nextWake(r: Room) {
   // a grace that runs out mid-hand can only be acted on once the hand's done, and the deal step
   // sweeps then. Waking for it before that finds nothing to do, then wakes again straight away
   const sweepable = !live(r) && !r.nextHand
-  for (const m of r.members) if (sweepable && m?.outSince != null) times.push(m.outSince + GRACE_MS)
+  for (const m of r.members) if (sweepable && m?.outSince != null) times.push(m.outSince + grace(r))
   // a resting room gets itself going again at midnight UTC, nobody has to poke it
-  if (r.budget?.rows >= DAILY_ROWS) times.push(Date.parse(r.budget.day) + 24 * 3600_000)
+  if (r.budget?.rows >= cap(r)) times.push(Date.parse(r.budget.day) + 24 * 3600_000)
   const due = times.filter((t): t is number => t !== undefined)
   return due.length ? Math.min(...due) : null
 }
@@ -235,7 +267,7 @@ export function nextWake(r: Room) {
 export function tick(r: Room, now: number, online: Set<string>) {
   let changed = false
   // a new day clears the budget here, or the midnight wake would keep pointing at the old one
-  if (r.budget?.rows >= DAILY_ROWS && r.budget.day !== today(now)) {
+  if (r.budget?.rows >= cap(r) && r.budget.day !== today(now)) {
     r.budget = { day: today(now), rows: 0 }
     changed = true
   }
@@ -263,7 +295,7 @@ export function tick(r: Room, now: number, online: Set<string>) {
     }
   }
   if (r.nextHand && now >= r.nextHand) {
-    deal(r, now)
+    deal(r, now, online)
     changed = true
   }
   if (sweep(r, now)) changed = true
@@ -272,25 +304,40 @@ export function tick(r: Room, now: number, online: Set<string>) {
 }
 
 // A new socket for this token. Their seat if they have one, else the first open seat, else they watch.
+// At a full public table a bot stands up after the hand for each watcher who asks, and the deal seats them.
 export function join(r: Room, token: string, name: string, now: number) {
-  r.host ??= token
+  if (!r.public) r.host ??= token
   const mine = seatOf(r, token)
   if (mine >= 0) {
     r.members[mine]!.name = cleanName(name)
     return
   }
   const seat = SEAT_ORDER.find((i) => !r.members[i])
-  if (seat === undefined) return
-  const id = `guest:${crypto.randomUUID().slice(0, 8)}`
-  r.table = applyAction(r.table, { type: 'sit', seat, id, chips: BUY_IN })
-  r.members[seat] = { token, name: cleanName(name), bank: BANK_MS, leaving: false, topUp: false, outSince: null }
+  if (seat === undefined) {
+    const waiting = (r.waiting ??= [])
+    // a waiter reconnecting doesn't cost another bot its seat
+    if (!r.public || waiting.some((w) => w.token === token)) return
+    const bot = r.members.findIndex((m) => m && !m.token && !m.leaving)
+    if (bot < 0) return
+    standBot(r, bot, now)
+    // between hands it's gone already, so no need to wait
+    if (r.members[bot]) return void waiting.push({ token, name: cleanName(name) })
+    sit(r, bot, token, name)
+  } else sit(r, seat, token, name)
   settle(r, now)
 }
 
-// Everything a socket can ask for. Throws on anything not allowed, says whether it was chat.
-export function command(r: Room, token: string, cmd: Command, now: number): 'chat' | 'table' {
+// Everything a socket can ask for. Throws on anything not allowed. Chat and emotes don't touch the
+// table, so it says which it was.
+export function command(r: Room, token: string, cmd: Command, now: number): 'chat' | 'emote' | 'table' {
   const seat = seatOf(r, token)
   const m = r.members[seat]
+
+  if (cmd.t === 'emote') {
+    if (!m) reject('not seated')
+    if (!Number.isInteger(cmd.i) || !EMOTES[cmd.i]) reject('bad emote')
+    return 'emote'
+  }
 
   if (cmd.t === 'chat') {
     const text = String(cmd.text ?? '').trim().slice(0, CHAT_MAX)
@@ -302,19 +349,21 @@ export function command(r: Room, token: string, cmd: Command, now: number): 'cha
   }
 
   if (cmd.t === 'addBot' || cmd.t === 'removeBot') {
-    if (token !== r.host) reject('host only')
+    // public tables have no host. Anyone seated fills the empty chairs, nobody can send a bot off
+    if (r.public ? !m || cmd.t === 'removeBot' : token !== r.host) reject('host only')
     if (cmd.t === 'addBot') {
-      const open = SEAT_ORDER.find((i) => !r.members[i]) ?? reject('table full')
+      const open = SEAT_ORDER.filter((i) => !r.members[i])
+      if (!open.length) reject('table full')
       const taken = r.table.seats.flatMap((s) => (s ? [s.id] : []))
-      const [bot] = randomBots(1, taken)
-      r.table = applyAction(r.table, { type: 'sit', seat: open, id: bot!.id, chips: BUY_IN })
-      r.members[open] = { token: null, name: bot!.name, bank: 0, leaving: false, topUp: false, outSince: null }
+      randomBots(r.public ? open.length : 1, taken).forEach((bot, k) => {
+        const seat = open[k]!
+        r.table = applyAction(r.table, { type: 'sit', seat, id: bot.id, chips: BUY_IN })
+        r.members[seat] = { token: null, name: bot.name, bank: 0, leaving: false, topUp: false, outSince: null }
+      })
     } else {
       const bot = r.members[cmd.seat]
       if (!bot || bot.token) reject('not a bot')
-      bot!.leaving = true
-      r.table = applyAction(r.table, { type: 'sitOut', seat: cmd.seat })
-      sweep(r, now)
+      standBot(r, cmd.seat, now)
     }
   } else {
     if (!m) reject('not seated')
@@ -375,6 +424,8 @@ export function viewOf(r: Room, token: string, online: Set<string>, now: number)
     ),
     me: seat >= 0 ? seat : null,
     host: token === r.host,
+    public: !!r.public,
+    waiting: !!r.waiting?.some((w) => w.token === token),
     bank: m?.bank ?? 0,
     topUp: m?.topUp ?? false,
     resting: spent(r, now),
