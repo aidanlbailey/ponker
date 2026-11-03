@@ -676,6 +676,10 @@ button {
   }
 }
 
+.play-link {
+  text-decoration: none;
+}
+
 .button-row {
   display: flex;
   justify-content: center;

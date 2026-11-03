@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { lazy, Suspense, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { CardMenu, type Theme } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
@@ -13,6 +13,14 @@ import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, t
 import { haptic } from './lib/haptics'
 import { smoothly } from './lib/smoothly'
 
+// only pulled in when someone sits down, the tracker doesn't pay for the poker game
+const Game = lazy(() => import('./game/Game'))
+
+const onHashChange = (listener: () => void) => {
+  addEventListener('hashchange', listener)
+  return () => removeEventListener('hashchange', listener)
+}
+
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
 
 export function App() {
@@ -26,6 +34,7 @@ export function App() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
   const [toast, setToast] = useState<ToastMessage | null>(null)
+  const playing = useSyncExternalStore(onHashChange, () => location.hash === '#play')
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -88,6 +97,14 @@ export function App() {
   const entries = Object.entries(chips)
   const editing = editingId ? chips[editingId] : undefined
 
+  if (playing) {
+    return (
+      <Suspense>
+        <Game name={userName} />
+      </Suspense>
+    )
+  }
+
   return (
     <>
       <main className="app">
@@ -108,6 +125,9 @@ export function App() {
             <span className="card-back" />
           </button>
           {showValues && <output className="total">{total}</output>}
+          <a className="button primary play-link" href="#play">
+            Play poker
+          </a>
         </div>
 
         <section className="chip-grid" aria-label="Chips">
