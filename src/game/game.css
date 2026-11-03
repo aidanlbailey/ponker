@@ -1121,6 +1121,40 @@
   }
 }
 
+/* TRIAL: the chips' black hairline on every card and pill too, to see how it looks. Delete this block to undo.
+   The exact ring the chips use, with each one's own shadow carried along. var(--edge) goes straight into each
+   shadow, a shared variable on .poker would resolve it up there, where the felt's scale isn't. Not an outline
+   either, browsers round those up to a whole pixel before the felt's scale, so they came out twice as thick */
+.poker {
+  .tcard-face,
+  .tcard .card-back {
+    outline: none;
+  }
+
+  .tcard-face {
+    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 2px 5px rgb(0 0 0 / 0.4);
+  }
+
+  .tcard .card-back,
+  .seat-blind {
+    box-shadow: 0 0 0 var(--edge, 1px) #000000;
+  }
+
+  .seat-plate,
+  .pile-label,
+  .result {
+    box-shadow: 0 0 0 var(--edge, 1px) #000000, var(--shadow);
+  }
+
+  .said {
+    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 2px 5px rgb(0 0 0 / 0.5);
+  }
+
+  .dealer {
+    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 1px 2px rgb(0 0 0 / 0.6);
+  }
+}
+
 /* a number worked out on the felt, so the chips below get the felt's scale. Unregistered it would be
    worked out again at each chip, where cqh means the felt rather than the room round it */
 @property --felt-scale {
