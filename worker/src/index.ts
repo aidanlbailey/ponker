@@ -22,7 +22,7 @@ const TABLE_PATH = /^\/table\/([a-z]+)$/
 const PUBLIC_PREFIX = 'table-'
 // the live site, and anything served off this machine or the home wifi for testing. A script can
 // fake an Origin, this only stops someone else's page opening rooms from its visitors' browsers
-const ORIGINS = /^(https:\/\/aidanlbailey\.github\.io|http:\/\/(localhost|127\.0\.0\.1|10(\.\d+){3}|192\.168(\.\d+){2})(:\d+)?)$/
+const ORIGINS = /^(https:\/\/ponker\.aidanbailey\.com|http:\/\/(localhost|127\.0\.0\.1|10(\.\d+){3}|192\.168(\.\d+){2})(:\d+)?)$/
 const MAX_SOCKETS = 12 // six players and a few watching
 const CHAT_GAP_MS = 1000
 const EMOTE_GAP_MS = 3000

@@ -9,7 +9,7 @@ import type { TableInfo } from './public'
 
 export type { ChatLine, RoomView }
 
-const BASE = import.meta.env.VITE_ROOMS_URL ?? `ws://${location.hostname}:8787`
+const BASE = import.meta.env.VITE_ROOMS_URL || `ws://${location.hostname}:8787`
 const PING_MS = 5000
 const DEAD_MS = 12_000 // two pings with no pong
 const CONNECT_MS = 6000 // a handshake that's taken this long isn't coming

@@ -28,6 +28,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # the deployed rooms worker, wss://... Set under the repo's Actions variables
+          VITE_ROOMS_URL: ${{ vars.ROOMS_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
