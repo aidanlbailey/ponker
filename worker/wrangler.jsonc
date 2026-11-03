@@ -13,6 +13,9 @@
     { "tag": "v1", "new_sqlite_classes": ["Table"] },
     { "tag": "v2", "new_sqlite_classes": ["Opened"] }
   ],
-  // socket upgrades per address per minute. A house of friends on one wifi shares this, so it's generous
+  // socket upgrades per address per minute. A house of friends on one wifi shares this, so it's generous.
+  // Deployed on the free plan 2026-11-03 it took the binding but never once returned a 429 (60 list calls in
+  // a row, and the probe's connect loop). Kept in case it starts enforcing. Rows are still safe without it,
+  // the per-room caps and the 3 rooms a day see to that
   "ratelimits": [{ "name": "CONNECTS", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } }]
 }

@@ -9,6 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import http from 'node:http'
+import https from 'node:https'
 
 const [base = 'ws://127.0.0.1:8787', mode = 'budget', arg, guests = '1'] = process.argv.slice(2)
 const room = `probe${Date.now().toString(36)}`.slice(0, 16)
@@ -163,7 +164,7 @@ async function hibernate() {
 function upgradeStatus(origin) {
   const url = new URL(`${base.replace(/^ws/, 'http')}/room/${room}?token=${token('evil')}`)
   return new Promise((resolve) => {
-    const req = http.get(url, { headers: { Connection: 'Upgrade', Upgrade: 'websocket', Origin: origin, 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' } })
+    const req = (url.protocol === 'https:' ? https : http).get(url, { headers: { Connection: 'Upgrade', Upgrade: 'websocket', Origin: origin, 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' } })
     req.on('response', (res) => resolve(res.statusCode))
     req.on('upgrade', (res, socket) => (socket.destroy(), resolve(101)))
     req.on('error', () => resolve(0))
