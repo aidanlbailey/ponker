@@ -149,6 +149,15 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const sample = document.querySelector<HTMLElement>('.bet .pile-slot')
     if (!sample || reducedMotion()) return onLand()
 
+    // under the seats the chip lives inside the scaled felt. This undoes the felt's scale and offset,
+    // so everything below can keep working in screen pixels wherever the chip is drawn
+    const layer = el.current!.closest<HTMLElement>('.under-seats')
+    if (layer) {
+      const felt = layer.parentElement!
+      const box = felt.getBoundingClientRect()
+      layer.style.transform = `scale(${felt.offsetWidth / box.width}) translate(${-box.left}px, ${-box.top}px)`
+    }
+
     // measured, so the flying chip is exactly the size of the resting one whatever the felt is scaled to
     const size = sample.getBoundingClientRect().width
     const scale = size / (sample.offsetWidth || size)
@@ -196,6 +205,16 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
         ...throwChip(chip, near, end, 1, flight.delay + slideMs(path), true),
       ]
     } else animations = [slideChip(chip, slide(end), startScale, flight.delay, true)]
+    // Chips come off the top first, so the first flight made is the top chip and DOM order would draw
+    // a waiting stack upside down. Until it goes it layers by its place in the pile, then it rises
+    // over everything still waiting, and the ones in the air keep DOM order so later ones land on top
+    animations.push(
+      chip.animate([{ zIndex: 35 + (flight.fromAt?.level ?? 0) }, { zIndex: 100 }], {
+        duration: 1,
+        delay: flight.delay,
+        fill: 'both',
+      }),
+    )
     const slot = thrown && flight.order === 0 ? document.querySelector(`[data-spot="${flight.to}"]`) : null
     const thud = slot?.animate(LANDING, { duration: 300, delay: flight.delay + THROW_MS * LAND, easing: 'ease-out' })
 

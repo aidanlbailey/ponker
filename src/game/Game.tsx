@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
@@ -100,6 +101,7 @@ export default function Game({ name }: { name: string }) {
   const { view, board, over, paid, idle } = game
   const [hints, setHints] = useStoredState('ponker-hints', true)
   const [sheet, setSheet] = useState(false)
+  const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
 
   const heroName = name || 'You'
   const seats = view.seats.length
@@ -219,6 +221,7 @@ export default function Game({ name }: { name: string }) {
               </div>
             )
           })}
+          <div ref={setUnderSeats} className="under-seats" />
         </div>
       </main>
 
@@ -250,9 +253,13 @@ export default function Game({ name }: { name: string }) {
         {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing || view.toAct < 0 || view.toAct === HERO ? '' : `${botName(view, view.toAct)} to act`}</p>}
       </aside>
 
-      {game.flights.map((flight) => (
-        <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight)} />
-      ))}
+      {game.flights.map((flight) => {
+        const chip = <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight)} />
+        // a bet thrown from a seat stays under the seats, same as the pile it lands on. A flick
+        // starts out in the dock, off the felt, so that one has to fly over everything
+        const under = flight.to.startsWith('bet') && !flight.start && underSeats
+        return under ? createPortal(chip, under, String(flight.id)) : chip
+      })}
 
       <p className="sr-only" aria-live="polite">
         {finished ? resultText(view, heroName) : newest}
