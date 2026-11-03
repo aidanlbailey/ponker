@@ -1,4 +1,5 @@
-import { lazy, Suspense, useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { CardMenu, CLUBS, DIAMONDS, HEARTS, NEXT_THEME, SPADES, type MenuCard, type Theme } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
@@ -22,11 +23,6 @@ const Previews = lazy(() => import('./hub/Previews'))
 
 const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
 
-const onHashChange = (listener: () => void) => {
-  addEventListener('hashchange', listener)
-  return () => removeEventListener('hashchange', listener)
-}
-
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
 
 export function App() {
@@ -40,7 +36,27 @@ export function App() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
   const [toast, setToast] = useState<ToastMessage | null>(null)
-  const hash = useSyncExternalStore(onHashChange, () => location.hash)
+  const [hash, setHash] = useState(() => location.hash)
+
+  // every page change crossfades. The lazy pages render nothing until their code is in, so the new
+  // snapshot waits for something to be on screen, or it would fade to blank and then pop in.
+  // setTimeout and not requestAnimationFrame, frames are held back until this resolves
+  useEffect(() => {
+    const root = document.getElementById('root')!
+    const follow = () => {
+      const next = location.hash
+      if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return setHash(next)
+      const transition = document.startViewTransition(async () => {
+        flushSync(() => setHash(next))
+        for (let waited = 0; !root.childElementCount && waited < 2000; waited += 16) {
+          await new Promise((done) => setTimeout(done, 16))
+        }
+      })
+      transition.ready.catch(() => {})
+    }
+    addEventListener('hashchange', follow)
+    return () => removeEventListener('hashchange', follow)
+  }, [])
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
