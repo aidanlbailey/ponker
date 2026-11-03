@@ -698,15 +698,29 @@
   }
 
   .toss-face {
+    /* full size, so the back face still flips about the chip's middle */
+    width: var(--chip-size);
+    height: var(--chip-size);
     transform: translateZ(1.6px);
 
     &.back {
       transform: translateZ(-1.6px) rotateY(180deg);
     }
 
-    /* same edge as .pile, or the chip changes look the moment it lands */
     .chip {
+      --chip-size: var(--face-size);
+
+      scale: var(--face-scale);
+      transform-origin: 0 0;
       box-shadow: 0 0 0 1px #000000;
+    }
+
+    /* same edge and shadow as .pile, or the chip changes look the moment it lands. Only the front casts
+       one, the back face's would show round the edge */
+    &:not(.back) .chip {
+      box-shadow:
+        0 0 0 1px #000000,
+        0 1px 2px rgb(0 0 0 / 0.5);
     }
   }
 }

@@ -163,6 +163,10 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const scale = size / (sample.offsetWidth || size)
     const rise = PILE_RISE * scale
     el.current!.style.setProperty('--chip-size', `${size}px`)
+    // the face is drawn at the pile's own size and scaled like the felt, or its lacquer and edge come
+    // out thinner than the chips it lands on
+    el.current!.style.setProperty('--face-size', `${size / scale}px`)
+    el.current!.style.setProperty('--face-scale', `${scale}`)
 
     // a chip's top left corner at its place in a pile, or on the avatar for a seat
     const spotOf = (spot: Spot, at: At | null): Point | null => {
