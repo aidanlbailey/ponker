@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
-import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, spent, tick, TURN_MS, viewOf, type Room } from './room'
+import { BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -311,6 +311,39 @@ describe('public table', () => {
     expect(now - out).toBeGreaterThanOrEqual(PUBLIC_GRACE_MS)
     charge(r, PUBLIC_DAILY_ROWS, now)
     expect(spent(r, now)).toBe(true)
+  })
+
+  test('someone who walks off a table that is not dealing still loses the seat after the grace', () => {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    stalled(r, new Set(), 5)
+    expect(r.members[0]!.outSince).toBe(5)
+    expect(nextWake(r)).toBe(5 + PUBLIC_GRACE_MS)
+    tick(r, nextWake(r)!, new Set())
+    expect(r.members.filter(Boolean)).toHaveLength(0)
+  })
+
+  test('two who both walk off mid-hand both lose their seats, not just the one whose turn came up', () => {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    join(r, B, 'Bob', 0)
+    let guard = 0
+    while (r.members.some(Boolean) && guard++ < 50) tick(r, nextWake(r)!, new Set())
+    expect(r.members.filter(Boolean)).toHaveLength(0)
+  })
+
+  test('the bots go with the last person', () => {
+    const r = lonePlusBots()
+    command(r, A, { t: 'leave' }, 1)
+    let guard = 0
+    while (r.members.some(Boolean) && guard++ < 100) tick(r, nextWake(r)!, new Set([C])) // C is watching
+    expect(r.members.filter(Boolean)).toHaveLength(0)
+  })
+
+  test('a table mid-game leaves the clock to deal with anyone who drops', () => {
+    const r = lonePlusBots()
+    stalled(r, new Set(), 1)
+    expect(r.members[0]!.outSince).toBeNull()
   })
 
   test('emotes are for seated players and only from the list', () => {

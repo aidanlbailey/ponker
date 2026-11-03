@@ -198,6 +198,15 @@ function sweep(r: Room, now: number) {
       changed = true
     }
   })
+  // bots go with the last person at a public table, or a watcher keeping it awake leaves them sitting
+  // there for whoever turns up next
+  if (r.public && !r.members.some((m) => m?.token)) {
+    r.members.forEach((m, i) => {
+      if (!m) return
+      remove(r, i)
+      changed = true
+    })
+  }
   return changed
 }
 
@@ -300,10 +309,26 @@ export function tick(r: Room, now: number, online: Set<string>) {
   }
   if (sweep(r, now)) changed = true
   settle(r, now)
+  if (stalled(r, online, now)) changed = true
   return changed
 }
 
 // A new socket for this token. Their seat if they have one, else the first open seat, else they watch.
+// A public seat whose player left while nothing was being dealt would hold its chair for good, since
+// only a turn ever times anyone out. So when a socket goes or the table stops dealing, anyone offline
+// starts their grace. Says whether it changed anything
+export function stalled(r: Room, online: Set<string>, now: number) {
+  if (!r.public || live(r) || r.nextHand) return false
+  let changed = false
+  r.members.forEach((m, i) => {
+    if (!m?.token || online.has(m.token) || m.outSince !== null) return
+    m.outSince = now
+    if (!r.table.seats[i]!.sittingOut) r.table = applyAction(r.table, { type: 'sitOut', seat: i })
+    changed = true
+  })
+  return changed
+}
+
 // At a full public table a bot stands up after the hand for each watcher who asks, and the deal seats them.
 export function join(r: Room, token: string, name: string, now: number) {
   if (!r.public) r.host ??= token

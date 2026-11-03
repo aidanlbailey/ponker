@@ -4,7 +4,7 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
-import { charge, command, join, newRoom, nextWake, seatOf, spent, tick, viewOf, type Command, type Room } from './room'
+import { charge, command, join, newRoom, nextWake, seatOf, spent, stalled, tick, viewOf, type Command, type Room } from './room'
 import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
@@ -220,15 +220,16 @@ export class Table extends DurableObject<Env> {
     await this.arm(at, now)
   }
 
-  // nothing to save, who's away comes from the sockets
+  // who's away comes from the sockets, so usually nothing to save. A public table that isn't dealing
+  // starts the grace for whoever's gone, or their seat would sit there forever
   async webSocketClose(ws: WebSocket) {
     this.buckets.delete(ws)
-    this.broadcast(ws)
+    const online = this.online(ws)
+    if (!(await this.change(() => stalled(this.room, online, Date.now())))) this.broadcast(ws)
   }
 
   async webSocketError(ws: WebSocket) {
-    this.buckets.delete(ws)
-    this.broadcast(ws)
+    await this.webSocketClose(ws)
   }
 }
 
