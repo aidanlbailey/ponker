@@ -766,24 +766,28 @@ button {
 
 .card-back {
   --hatch: 7px;
+  --back: #9c1020;
 
   display: block;
   border: calc(var(--hatch) * 0.43) solid #ffffff;
   border-radius: calc(var(--hatch) * 0.35); /* --hatch is 1/7 of the short side, so this is 5% of it */
   outline: 1px solid rgb(0 0 0 / 0.35);
   outline-offset: -1px;
+  /* fine diamond lattice. centred so it's the same back upright, sideways and mid flip */
   background:
     repeating-linear-gradient(
-      45deg,
-      transparent 0 calc(var(--hatch) * 0.86),
-      rgb(255 255 255 / 0.45) calc(var(--hatch) * 0.86) var(--hatch)
-    ),
+        45deg,
+        transparent 0 calc(var(--hatch) * 0.4),
+        rgb(255 255 255 / 0.32) calc(var(--hatch) * 0.4) calc(var(--hatch) * 0.48)
+      )
+      center,
     repeating-linear-gradient(
-      -45deg,
-      transparent 0 calc(var(--hatch) * 0.86),
-      rgb(255 255 255 / 0.45) calc(var(--hatch) * 0.86) var(--hatch)
-    ),
-    radial-gradient(circle, #1a3fc4, #0b289d 70%);
+        -45deg,
+        transparent 0 calc(var(--hatch) * 0.4),
+        rgb(255 255 255 / 0.32) calc(var(--hatch) * 0.4) calc(var(--hatch) * 0.48)
+      )
+      center,
+    radial-gradient(circle, #c4202f, var(--back) 70%);
 
   /* pinstripe frame */
   &::before {
@@ -792,25 +796,7 @@ button {
     inset: calc(var(--hatch) * 0.2);
     border: calc(var(--hatch) * 0.07) solid rgb(255 255 255 / 0.8);
     border-radius: calc(var(--hatch) * 0.15);
-    box-shadow: 0 0 0 calc(var(--hatch) * 0.2) #0b289d;
-  }
-
-  /* the medallion. symmetrical on purpose, the same back is seen upright, sideways and mid flip */
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: calc(var(--hatch) * 2.1);
-    aspect-ratio: 1;
-    border: calc(var(--hatch) * 0.1) solid #ffffff;
-    outline: calc(var(--hatch) * 0.12) solid #0b289d;
-    box-shadow: 0 0 0 calc(var(--hatch) * 0.2) rgb(255 255 255 / 0.8);
-    background:
-      radial-gradient(circle, #ffffff 0 17%, #0b289d 18% 29%, rgb(255 255 255 / 0.8) 30% 36%, transparent 37%),
-      #0b289d;
-    rotate: 45deg;
-    translate: -50% -50%;
+    box-shadow: 0 0 0 calc(var(--hatch) * 0.2) var(--back);
   }
 }
 

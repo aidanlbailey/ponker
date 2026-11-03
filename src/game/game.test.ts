@@ -8,9 +8,11 @@ import {
   type PlayerAction,
   type TableState,
 } from '../engine/engine'
-import { actionText, chipColors, isFlick, potSize, raiseTo } from './betting'
+import { actionText, breakdown, chipColors, isFlick, potSize, raiseTo } from './betting'
+import { plan, settle, stackValues, take, total } from './piles'
 import { decide, equity } from './bot'
 import { advice, describeHand, priceToCall } from './helpers'
+import { progress, route } from './route'
 import {
   BOT,
   botAction,
@@ -21,6 +23,7 @@ import {
   isSolo,
   newSolo,
   payouts,
+  pileAt,
   setLeaving,
   startHand,
   winnings,
@@ -84,7 +87,10 @@ describe('the bot', () => {
     for (let hand = 0; hand < 300; hand++) {
       const before = table.seats.reduce((sum, seat) => sum + seat!.chips, 0)
       table = startHand(table, shuffledDeck())
-      const rebought = table.seats.reduce((sum, seat) => sum + seat!.chips + seat!.committed, 0)
+      // a blind can put someone all in and finish the hand inside the deal, and then the
+      // pot's already been paid out, so counting committed too would count it twice
+      const done = table.street === 'complete'
+      const rebought = table.seats.reduce((sum, seat) => sum + seat!.chips + (done ? 0 : seat!.committed), 0)
       expect(rebought).toBeGreaterThanOrEqual(before)
       for (let guard = 0; table.toAct >= 0; guard++) {
         expect(guard).toBeLessThan(40)
@@ -263,6 +269,36 @@ describe('chip moves', () => {
     ])
   })
 
+  it('slides an uncalled bet back to its owner instead of into the pot', () => {
+    const s = applyAction(dealt(), { type: 'raise', seat: BOT, to: 100 })
+    expect(chipMoves(s, applyAction(s, { type: 'fold', seat: HERO }))).toEqual([
+      { from: 'bet-0', to: 'pot', amount: 10 },
+      { from: 'bet-1', to: 'seat-1', amount: 90 },
+      { from: 'bet-1', to: 'pot', amount: 10 },
+    ])
+  })
+
+  it('brings a whole bet home when it was never called', () => {
+    const flop = [
+      { type: 'call', seat: BOT },
+      { type: 'check', seat: HERO },
+    ].reduce((t, a) => applyAction(t, a as PlayerAction), dealt())
+    const bet = applyAction(flop, { type: 'raise', seat: HERO, to: 40 })
+    expect(chipMoves(bet, applyAction(bet, { type: 'fold', seat: BOT }))).toEqual([
+      { from: 'bet-0', to: 'seat-0', amount: 40 },
+    ])
+  })
+
+  it('knows the pile waiting at each spot', () => {
+    const s = applyAction(dealt(), { type: 'call', seat: BOT })
+    const flop = applyAction(s, { type: 'check', seat: HERO })
+    const bet = applyAction(flop, { type: 'raise', seat: HERO, to: 20 })
+    expect(pileAt(bet, 'pot')).toBe(20)
+    expect(pileAt(bet, 'bet-0')).toBe(20)
+    expect(pileAt(bet, 'bet-1')).toBe(0)
+    expect(pileAt(bet, 'seat-0')).toBe(0)
+  })
+
   it('pays the pot from the final state, however fast the hand ended', () => {
     const s = applyAction(applyAction(dealt(), { type: 'raise', seat: BOT, to: BUY_IN }), { type: 'call', seat: HERO })
     expect(s.street).toBe('complete')
@@ -270,6 +306,111 @@ describe('chip moves', () => {
     const paid = payouts(s).reduce((sum, move) => sum + move.amount, 0)
     expect(paid).toBe(BUY_IN * 2)
     expect(winnings(s, HERO) + winnings(s, BOT)).toBe(BUY_IN * 2)
+  })
+})
+
+describe('the real chips', () => {
+  it('breaks an amount into chips, biggest first', () => {
+    expect(breakdown(1270)).toEqual([1000, 100, 100, 25, 25, 10, 10])
+    expect(total(breakdown(987))).toBe(987)
+  })
+
+  it('takes chips off the top of a pile when they make the amount', () => {
+    expect(take([100, 25, 10], 35)).toEqual({
+      taken: [
+        { value: 10, index: 2, was: 10 },
+        { value: 25, index: 1, was: 25 },
+      ],
+      left: [100],
+    })
+  })
+
+  it('makes change when the chips there cannot make the amount', () => {
+    const { taken, left } = take([1000, 100], 1060)
+    expect(total(taken.map((chip) => chip.value))).toBe(1060)
+    expect(total(left)).toBe(40)
+  })
+
+  it('moves the very chips a player bet into the pot, not a fresh set', () => {
+    // two reds and a blue sit in the bet. a total of 20 would be two blues if it were just maths
+    const { piles, trips } = plan({ 'bet-0': [5, 5, 10] }, [{ from: 'bet-0', to: 'pot', amount: 20 }], {})
+    expect(piles['bet-0']).toEqual([])
+    expect(trips.map((trip) => trip.value).sort()).toEqual([10, 5, 5])
+  })
+
+  it('stacks each chip on its own colour in the pot', () => {
+    const { trips } = plan({ pot: [100, 5], 'bet-1': [5, 25] }, [{ from: 'bet-1', to: 'pot', amount: 30 }], {})
+    // stacks will be 100, 25, 5 left to right
+    expect(stackValues([100, 5, 5, 25])).toEqual([100, 25, 5])
+    const red = trips.find((trip) => trip.value === 5)!
+    const green = trips.find((trip) => trip.value === 25)!
+    expect(red.toAt).toEqual({ stack: 2, of: 3, level: 1 }) // on top of the red already there
+    expect(green.toAt).toEqual({ stack: 1, of: 3, level: 0 }) // a new stack in the middle
+  })
+
+  it('counts chips already in the air when stacking new ones', () => {
+    const { trips } = plan({ 'bet-0': [25] }, [{ from: 'seat-0', to: 'bet-0', amount: 25 }], { 'bet-0': [25] })
+    expect(trips[0]!.toAt!.level).toBe(2)
+  })
+
+  it('sweeps a tall bet from where each chip is drawn, not all from the top', () => {
+    // 20 chips, only the top 12 drawn, so levels run 11 down to 0 and the hidden 8 leave from the bottom
+    const { trips } = plan({ 'bet-0': Array<number>(20).fill(5) }, [{ from: 'bet-0', to: 'pot', amount: 100 }], {})
+    const levels = trips.map((trip) => trip.fromAt!.level)
+    expect(levels.slice(0, 12)).toEqual([11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+    expect(levels.slice(12).every((l) => l === 0)).toBe(true)
+  })
+
+  it('lifts payout chips off the stacks they really sit on', () => {
+    const { piles, trips } = plan({ pot: [100, 25, 25] }, [{ from: 'pot', to: 'seat-0', amount: 150 }], {})
+    expect(piles.pot).toEqual([])
+    expect(trips.every((trip) => trip.toAt === null)).toBe(true)
+    expect(trips.map((trip) => trip.fromAt!.stack).sort()).toEqual([0, 1, 1])
+  })
+
+  it('only falls back to engine amounts when the chips do not add up', () => {
+    const s = dealt()
+    const right = { pot: [], 'bet-0': [10], 'bet-1': [5] }
+    expect(settle(right, s, false)).toEqual(right)
+    expect(settle({}, s, false)['bet-0']).toEqual(breakdown(10))
+  })
+})
+
+describe('routing chips round the board', () => {
+  const board = { left: 100, top: 100, right: 300, bottom: 200 }
+
+  it('goes straight when nothing is in the way', () => {
+    expect(route({ x: 0, y: 0 }, { x: 400, y: 0 }, board)).toEqual([
+      { x: 0, y: 0 },
+      { x: 400, y: 0 },
+    ])
+  })
+
+  it('never passes through the board, and keeps both ends', () => {
+    const start = { x: 150, y: 300 }
+    const end = { x: 160, y: 20 }
+    const path = route(start, end, board)
+    expect(path[0]).toEqual(start)
+    expect(path.at(-1)).toEqual(end)
+    const inside = (p: { x: number; y: number }) => p.x > 100 && p.x < 300 && p.y > 100 && p.y < 200
+    // check the straight bits between points too, not just the points
+    for (let i = 1; i < path.length; i++) {
+      for (let t = 0; t <= 1; t += 0.1) {
+        const [a, b] = [path[i - 1]!, path[i]!]
+        expect(inside({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })).toBe(false)
+      }
+    }
+  })
+
+  it('takes the nearer side', () => {
+    const viaLeft = route({ x: 120, y: 300 }, { x: 120, y: 20 }, board)
+    const viaRight = route({ x: 280, y: 300 }, { x: 280, y: 20 }, board)
+    expect(Math.min(...viaLeft.map((p) => p.x))).toBeLessThanOrEqual(100)
+    expect(Math.max(...viaRight.map((p) => p.x))).toBeGreaterThanOrEqual(300)
+  })
+
+  it('measures progress along the path from 0 to 1', () => {
+    expect(progress([{ x: 0, y: 0 }, { x: 3, y: 4 }, { x: 3, y: 14 }])).toEqual([0, 1 / 3, 1])
   })
 })
 

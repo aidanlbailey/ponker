@@ -61,7 +61,8 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
     if (now?.id !== e.pointerId) return
     drag.current = null
 
-    const box = e.currentTarget.getBoundingClientRect()
+    // the chips themselves, not the button, which keeps empty room above them for a taller pile
+    const box = e.currentTarget.querySelector('.pile')!.getBoundingClientRect()
     const target = document.querySelector(`[data-spot="bet-${HERO}"]`)!.getBoundingClientRect()
     const aim = { x: target.left - box.left, y: target.top - box.top }
     const moved = { x: e.clientX - now.x, y: e.clientY - now.y }

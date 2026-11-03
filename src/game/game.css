@@ -1,7 +1,8 @@
 .poker {
   --table-felt: #17754a;
-  --table-rail: #2a1a06;
-  --table-line: #ffd700;
+  --table-rail: #1c1c1c;
+  --game-font: 'Manrope Variable', system-ui, sans-serif;
+  --table-line: #f2f2f2;
 
   position: fixed;
   inset: 0;
@@ -14,11 +15,27 @@
   padding: max(0.4rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
     max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
   overflow: hidden;
-  background-color: var(--bg);
-  background-image: var(--bg-image);
+  /* no --bg-image here, its grain is what makes the app read as felt. the table is the only cloth in the room */
+  background: var(--bg);
+  font-family: var(--game-font);
+  -webkit-font-smoothing: antialiased;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* the page colour here is felt green, so the room gets its own neutral one and the controls follow it */
+[data-theme='felt'] .poker {
+  --bg: #121212;
+  --surface: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+  --surface-raised: #2a2a2a;
+  --border: #525252;
+  --field: #1a1a1a;
+  --field-border: #8a8a8a;
+  --text-soft: #e4e4e4;
+  --text-muted: #c0c0c0;
+  --accent: #ffffff;
+  --accent-text: #ffffff;
 }
 
 [data-theme='dark'] .poker {
@@ -43,8 +60,10 @@
     padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
   }
 
-  .dock {
+  .dock,
+  .dock.hinted {
     align-self: end;
+    height: auto;
   }
 }
 
@@ -64,8 +83,8 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  white-space: nowrap;
 }
 
 .poker-link,
@@ -76,7 +95,8 @@
   border-radius: var(--radius);
   background: var(--surface-raised);
   color: var(--text);
-  font-weight: 700;
+  font-family: var(--game-font);
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -113,7 +133,7 @@
 
 .felt {
   --card-w: clamp(36px, min(14cqw, 12.5cqh), 88px);
-  --chip-size: clamp(22px, 7cqmin, 34px);
+  --chip-size: clamp(32px, 10.5cqmin, 48px);
 
   position: relative;
   width: min(100cqw, 170cqh);
@@ -130,17 +150,6 @@
   color: #ffffff;
   scale: 0.975; /* the rail is a shadow, so it needs this room inside the grid cell */
 
-  &::before {
-    content: 'PONKER';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    color: rgb(255 255 255 / 0.09);
-    font-family: Ultra, Georgia, serif;
-    font-size: clamp(1rem, 7cqmin, 3rem);
-    letter-spacing: 0.06em;
-    translate: -50% -50%;
-  }
 }
 
 .felt-center {
@@ -156,10 +165,7 @@
 }
 
 .pot {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 2.1rem;
+  position: relative;
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -177,13 +183,17 @@
   position: absolute;
   top: 100%;
   max-width: 92%;
-  padding: 0.15rem 0.5rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 1rem; /* not a full pill, a long win line wraps on a phone */
+  background: rgb(0 0 0 / 0.62);
+  box-shadow: var(--shadow);
   color: var(--table-line);
-  font-family: Ultra, Georgia, serif;
-  font-size: clamp(0.8rem, 3.6cqmin, 1.2rem);
+  font-family: var(--game-font);
+  font-size: clamp(1.05rem, 4.8cqmin, 1.4rem);
+  font-weight: 500;
   line-height: 1.25;
   text-align: center;
-  text-shadow: 1px 2px 0 rgb(0 0 0 / 0.75);
   animation: result-in 0.4s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
@@ -239,7 +249,7 @@
   backface-visibility: hidden;
   transform: rotateY(0deg); /* firefox and safari only honor backface-visibility with a transform of its own */
   color: #17171c;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
   font-weight: 700;
   line-height: 1;
 
@@ -249,7 +259,9 @@
 }
 
 .tcard-rank {
-  font-size: calc(var(--w) * 0.5);
+  font-size: calc(var(--w) * 0.56);
+  font-variant-numeric: lining-nums;
+  letter-spacing: -0.02em;
 }
 
 .tcard-suit {
@@ -283,11 +295,37 @@
       translate 0.3s ease;
   }
 
-  &.turn .avatar {
-    box-shadow:
-      0 0 0 2px var(--table-line),
-      0 0 14px var(--table-line);
-    animation: turn-pulse 1.1s ease-in-out infinite;
+  /* a light running clockwise round the plate. Both layers are masked down to a ring, the
+     second one wider and blurred for the glow (the mask cuts after the blur, hence the width) */
+  &.turn .seat-plate::before,
+  &.turn .seat-plate::after {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * var(--ring));
+    padding: var(--ring);
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--spin),
+      transparent 55%,
+      color-mix(in srgb, var(--table-line) 40%, transparent) 75%,
+      var(--table-line) 92%,
+      transparent 96%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    pointer-events: none;
+    animation: turn-spin 1.8s linear infinite;
+  }
+
+  &.turn .seat-plate::before {
+    --ring: 2px;
+  }
+
+  &.turn .seat-plate::after {
+    --ring: 8px;
+    filter: blur(5px);
+    opacity: 0.8;
   }
 
   &.winner .seat-plate {
@@ -436,12 +474,12 @@
   display: block;
   flex: none;
   width: var(--chip-size);
-  height: calc(var(--chip-size) + (var(--chips) - 1) * 3px);
+  height: calc(var(--chip-size) + (var(--chips) - 1) * 4px);
   min-width: var(--chip-size);
 
   > span {
     position: absolute;
-    bottom: calc(var(--n) * 3px);
+    bottom: calc(var(--n) * 4px);
     left: 0;
   }
 
@@ -452,24 +490,71 @@
   }
 }
 
+/* always there and always one chip big, so a flight has a fixed place to land and the label can't shove the pile */
+.pile-slot {
+  position: relative;
+  display: block;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  transform-origin: 50% 100%;
+
+  .pile {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+  }
+}
+
+/* a stack per colour, side by side round the middle. a new colour opens a gap and the
+   others glide over to make room, they never jump */
+.pot-stack {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  translate: calc((var(--stack) - (var(--of) - 1) / 2) * (var(--chip-size) + 4px)) 0;
+  transition: translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.pot .pile-label {
+  left: calc(50% + var(--of, 1) * (var(--chip-size) + 4px) / 2 + 0.3rem);
+  transition: left 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.pile-label {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.3rem);
+  /* sized off the chips so it scales with them. A bundled font with line-height 1 keeps the digits
+     centred, system-ui's metrics differ per phone and sat the numbers low on some. Manrope's digits
+     sit right on the middle of the line, a different font might need uneven padding here */
+  padding: 0.32em 0.6em;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.62);
+  box-shadow: var(--shadow);
+  font-family: var(--game-font);
+  font-size: clamp(0.8rem, calc(var(--chip-size) * 0.38), 1.15rem);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+  white-space: nowrap;
+  translate: 0 -50%;
+}
+
 .bet {
   position: absolute;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 1px;
-  min-height: 1px;
   font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-shadow: var(--text-shadow);
   translate: -50% -50%;
+}
 
-  /* waits for the flight to get here */
-  > * {
-    animation: appear 0.01s linear 0.4s backwards;
-  }
+/* the wrapper would otherwise be a grid item, and every chip in the air would squeeze the table */
+.flights {
+  display: contents;
 }
 
 .flight {
@@ -477,20 +562,43 @@
   top: 0;
   left: 0;
   z-index: 35;
-  --chip-size: 32px;
   pointer-events: none;
   will-change: transform;
+
+  .toss-height,
+  .toss-spin {
+    will-change: transform;
+  }
+
+  .toss-face {
+    transform: translateZ(1.6px);
+
+    &.back {
+      transform: translateZ(-1.6px) rotateY(180deg);
+    }
+
+    /* same edge as .pile, or the chip changes look the moment it lands */
+    .chip {
+      box-shadow: 0 0 0 1px #000000;
+    }
+  }
 }
 
 /* dock */
 
+/* fixed height, the table gets whatever's left so a dock that resized between turns would bounce the whole board */
 .dock {
   grid-area: dock;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 0.4rem;
+  height: 142px;
   min-height: 0;
+
+  &.hinted {
+    height: 212px;
+  }
 }
 
 .hint {
@@ -507,7 +615,7 @@
 
   b {
     color: var(--accent-text);
-    font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+    font-weight: 600;
   }
 
   span {
@@ -560,26 +668,37 @@
 
   position: relative;
   z-index: 30;
+  /* tall enough for the biggest pile (8 chips, 4px apart) up front, so moving the slider
+     grows the chips upward inside it instead of resizing the row and shoving the hint around */
+  width: var(--chip-size);
+  height: calc(var(--chip-size) + 28px);
   padding: 0;
   border: 0;
   background: none;
   cursor: grab;
   touch-action: none;
   translate: 0 0;
-  transition: translate 0.32s cubic-bezier(0.3, 1.8, 0.5, 1);
+  transition:
+    translate 0.32s cubic-bezier(0.3, 1.8, 0.5, 1),
+    scale 0.2s ease-out;
+
+  .pile {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+  }
 
   &.held {
     cursor: grabbing;
     scale: 1.08;
     translate: var(--x) var(--y);
-    transition: none;
+    transition: scale 0.15s ease-out;
   }
 }
 
 .flick-hint {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  font-style: italic;
+  color: var(--text-soft);
+  font-size: 0.8rem;
 }
 
 .bet-sizing {
@@ -603,8 +722,9 @@
     border-radius: var(--radius);
     background: var(--surface-raised);
     color: var(--text);
-    font-size: 0.85rem;
-    font-weight: 700;
+    font-family: var(--game-font);
+    font-size: clamp(0.9rem, 4.2vw, 1.05rem);
+    font-weight: 500;
     white-space: nowrap;
   }
 }
@@ -621,8 +741,10 @@
     border-radius: var(--radius);
     background: var(--field);
     color: var(--text);
+    font-family: var(--game-font);
+    font-size: 1.1rem;
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
+    font-weight: 500;
     text-align: center;
     appearance: textfield;
     user-select: text;
@@ -646,11 +768,19 @@
   gap: 0.4rem;
 
   .button {
-    flex: 1;
+    flex: 1 1 auto; /* a long raise label takes the room a short Fold doesn't need */
     min-width: 0;
     min-height: 52px;
-    padding: 0.25rem;
+    padding: 0.25rem 0.6rem;
+    font-family: var(--game-font);
+    font-size: clamp(1rem, 4.7vw, 1.2rem);
+    font-weight: 500;
     white-space: nowrap;
+
+    /* the tracker's green is a touch light for white text at this size */
+    &.add {
+      background: linear-gradient(145deg, #23744b, #1b5c3b);
+    }
 
     &:disabled {
       opacity: 0.55;
@@ -667,6 +797,100 @@
 
   li span {
     color: var(--text-soft);
+  }
+}
+
+/* desktop has room to spare, so everything you bet with gets properly big. phones keep the sizes above */
+@media (min-aspect-ratio: 5/4) and (min-height: 600px) {
+  .poker {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 32vw, 480px);
+  }
+
+  .felt {
+    --chip-size: clamp(44px, 12cqmin, 76px);
+  }
+
+  .pot {
+    font-size: 1.15rem;
+  }
+
+  .poker-link,
+  .poker-toggle {
+    min-height: 42px;
+    padding-inline: 0.85rem;
+    font-size: 1.1rem;
+  }
+
+  .dock {
+    gap: 0.6rem;
+  }
+
+  .hint {
+    padding: 0.5rem 0.8rem;
+    font-size: 1.05rem;
+  }
+
+  .bet-controls {
+    gap: 0.6rem;
+  }
+
+  .bet-size {
+    gap: 0.9rem;
+  }
+
+  .flick {
+    width: 96px;
+  }
+
+  .flick-pile {
+    --chip-size: 84px;
+  }
+
+  .flick-hint {
+    font-size: 0.95rem;
+  }
+
+  .bet-sizing {
+    gap: 0.6rem;
+  }
+
+  .bet-presets {
+    gap: 0.45rem;
+
+    button {
+      min-height: 54px;
+      font-size: 1.15rem;
+    }
+  }
+
+  .bet-exact input {
+    min-height: 54px;
+    font-size: 1.35rem;
+  }
+
+  .bet-slider {
+    height: 40px;
+  }
+
+  .bet-actions {
+    gap: 0.6rem;
+
+    .button {
+      min-height: 68px;
+      font-size: 1.35rem;
+    }
+  }
+}
+
+/* five buttons and the stakes won't fit across the narrowest phones */
+@media (max-width: 400px) {
+  .poker-stakes {
+    display: none;
+  }
+
+  .poker-link,
+  .poker-toggle {
+    padding-inline: 0.45rem;
   }
 }
 
@@ -702,11 +926,17 @@
 
   .bet-actions .button {
     min-height: 42px;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
   }
 
   .flick-pile {
     --chip-size: 40px;
+  }
+
+  /* the presets size off the viewport width, which is big here while the dock column is narrow */
+  .bet-presets button {
+    padding-inline: 0.1rem;
+    font-size: 0.8rem;
   }
 }
 
@@ -718,9 +948,15 @@
   }
 }
 
-@keyframes turn-pulse {
-  50% {
-    scale: 1.06;
+@property --spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes turn-spin {
+  to {
+    --spin: 360deg;
   }
 }
 
@@ -753,20 +989,14 @@
   }
 }
 
-@keyframes appear {
-  from {
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .seat .tcard,
   .tcard.up .tcard-flip,
-  .seat.turn .avatar,
+  .seat.turn .seat-plate::before,
+  .seat.turn .seat-plate::after,
   .seat.winner .seat-plate,
   .result,
-  .said,
-  .bet > * {
+  .said {
     animation: none;
   }
 

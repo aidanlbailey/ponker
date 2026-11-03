@@ -30,18 +30,20 @@ export function raiseTo(s: TableState, legal: Legal, share: number) {
   return Math.min(Math.max(rounded, legal.minTo), legal.maxTo)
 }
 
-// Biggest chips at the bottom. The pile is a picture of the amount, so it stops at a sensible height.
-export function chipColors(amount: number) {
-  const colors: string[] = []
+// The chips that make an amount, biggest first so they sit at the bottom of a pile.
+export function breakdown(amount: number) {
+  const values: number[] = []
   let left = amount
-  for (const [value, color] of DENOMINATIONS) {
-    while (left >= value && colors.length < MAX_PILE) {
-      colors.push(color)
-      left -= value
-    }
+  for (const [value] of DENOMINATIONS) {
+    for (; left >= value; left -= value) values.push(value)
   }
-  return colors
+  return values
 }
+
+export const colorOf = (value: number) => DENOMINATIONS.find(([v]) => v === value)?.[1] ?? DENOMINATIONS.at(-1)![1]
+
+// The flick pile is a picture of the amount, so it stops at a sensible height.
+export const chipColors = (amount: number) => breakdown(amount).slice(0, MAX_PILE).map(colorOf)
 
 // aim is the direction to the bet spot, so the same rule works whichever way the table sits from the chips
 export function isFlick(moved: Point, velocity: Point, aim: Point) {

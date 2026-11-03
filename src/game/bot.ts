@@ -11,7 +11,7 @@ const SIMS = 2000
 const NOISE = 0.06 // keeps it from playing the same spot the same way every time
 const OPEN = 0.5 // preflop, roughly the top half of hands
 const VALUE_BET = 0.68
-const VALUE_RAISE = 0.8
+const VALUE_RAISE = 0.74
 const BLUFF = 0.12
 
 // Deals out the rest of the hand n times against random cards.
@@ -70,8 +70,9 @@ export function decide(view: TableState, random = Math.random, sims = SIMS): Pla
 
   const pot = potSize(view)
   const price = toCall / (pot + toCall)
-  // someone betting into you doesn't hold a random hand, the bigger the bet the less so
-  const caution = toCall ? 0.05 + 0.2 * Math.min(price * 2, 1) : 0
+  // someone betting into you doesn't hold a random hand, the bigger the bet the less so. kept light,
+  // the price already charges for the size, and a heavier version folded 62% to a pot sized bet
+  const caution = toCall ? 0.02 + 0.1 * Math.min(price * 2, 1) : 0
   const strength =
     equity(me.cards, view.board, liveOpponents(view, seat), sims, random) - caution + (random() - 0.5) * NOISE
 

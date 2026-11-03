@@ -5,6 +5,7 @@ import { haptic } from '../lib/haptics'
 import { save } from '../lib/storage'
 import { actionText } from './betting'
 import { liveOpponents } from './bot'
+import { plan, settle, stackValues, total, type Piles, type Trip } from './piles'
 import {
   BOT,
   botAction,
@@ -32,7 +33,12 @@ const THINK_MS = 700
 const THINK_SPREAD_MS = 900
 const SITTING_OUT_MS = 500
 
-export type Flight = Omit<Move, 'from'> & { id: number; from: Spot | DOMRect }
+// one chip in the air. start is where a flick let go of it, if it was flicked
+export type Flight = Trip & { id: number; delay: number; start?: DOMRect }
+
+const STAGGER_MS = 40
+const MAX_STAGGER_MS = 420
+const MOVE_GAP_MS = 90
 
 let nextId = 0
 
@@ -70,6 +76,7 @@ export function useSoloTable() {
   const [paid, setPaid] = useState(false)
   const [said, setSaid] = useState<Record<number, string>>({})
   const [flights, setFlights] = useState<Flight[]>([])
+  const [piles, setPiles] = useState<Piles>({})
   const [odds, setOdds] = useState<{ key: string; chance: number } | null>(null)
   const worker = useRef<Worker>(null)
 
@@ -80,11 +87,29 @@ export function useSoloTable() {
   const me = view.seats[HERO]!
   const inHand = me.cards.length > 0 && !me.folded
 
-  const fly = (moves: Move[], from?: DOMRect) =>
+  // the chips really on the felt. Only falls back to the engine's amounts with nothing moving
+  const onFelt = flights.length ? piles : settle(piles, table, paid)
+  const inbound: Piles = {}
+  for (const flight of flights) (inbound[flight.to] ??= []).push(flight.value)
+
+  const fly = (moves: Move[], from?: DOMRect, felt = onFelt) => {
+    const { piles: left, trips } = plan(felt, moves, inbound)
+    setPiles(left)
     setFlights((prev) => [
       ...prev,
-      ...moves.map((move, i) => ({ ...move, id: nextId++, from: (i === 0 && from) || move.from })),
+      ...trips.map((trip) => ({
+        ...trip,
+        id: nextId++,
+        delay: Math.min(trip.order * STAGGER_MS, MAX_STAGGER_MS) + trip.move * MOVE_GAP_MS,
+        start: from && trip.move === 0 && trip.from === `seat-${HERO}` ? from : undefined,
+      })),
     ])
+  }
+
+  const land = (flight: Flight) => {
+    setFlights((prev) => prev.filter((f) => f.id !== flight.id))
+    if (!flight.to.startsWith('seat')) setPiles((prev) => ({ ...prev, [flight.to]: [...(prev[flight.to] ?? []), flight.value] }))
+  }
 
   const run = (action: Action, seat: number, from?: DOMRect) => {
     const text = actionText(table, action)
@@ -108,7 +133,7 @@ export function useSoloTable() {
     setSaid({})
     setOdds(null)
     setSolo((prev) => ({ ...prev, table: next }))
-    fly(chipMoves(table, next))
+    fly(chipMoves(table, next), undefined, {})
     haptic('light')
   }
 
@@ -151,7 +176,10 @@ export function useSoloTable() {
     haptic(winnings(table, HERO) ? 'success' : 'light')
   })
 
-  const toAct = dealing ? -1 : table.toAct
+  // Nobody acts and nothing pays out while a chip is moving. Every move picks up the chips that
+  // are sitting somewhere, so one that starts before the last lands would miss the late ones
+  const moving = flights.length > 0
+  const toAct = dealing || moving ? -1 : table.toAct
 
   useEffect(() => {
     if (toAct !== BOT) return
@@ -176,10 +204,10 @@ export function useSoloTable() {
   }, [toAct, table])
 
   useEffect(() => {
-    if (!over || dealing || paid) return
+    if (!over || dealing || paid || moving) return
     const timer = setTimeout(onSettled, PAY_MS)
     return () => clearTimeout(timer)
-  }, [over, dealing, paid])
+  }, [over, dealing, paid, moving])
 
   // from what's on screen, or the helper would give away a run out. Stops once the hand's
   // over too, a number against a random hand is nonsense with both hands face up
@@ -212,12 +240,19 @@ export function useSoloTable() {
     over,
     idle,
     dealing,
+    moving,
     leaving: solo.leaving,
     topUp: solo.topUp,
     chance: odds?.key === oddsKey ? (odds?.chance ?? null) : null,
-    // the chips stay out of the stack until the flight lands them there
-    stack: (seat: number) => view.seats[seat]!.chips - (over && !paid ? winnings(table, seat) : 0),
-    land: (id: number) => setFlights((prev) => prev.filter((flight) => flight.id !== id)),
+    // nothing counts at its destination until the flight has landed it there
+    stack: (seat: number) => view.seats[seat]!.chips - (over && !paid ? winnings(table, seat) : 0) - total(inbound[`seat-${seat}`]),
+    pile: (spot: Spot) => onFelt[spot] ?? [],
+    // stacks are laid out for chips still on their way too, so the row opens up as they set off
+    potStacks: stackValues([...(onFelt.pot ?? []), ...(inbound.pot ?? [])]).map((value) => ({
+      value,
+      count: (onFelt.pot ?? []).filter((v) => v === value).length,
+    })),
+    land,
     act,
     deal,
     toggleTopUp,

@@ -8,7 +8,7 @@ import { BOUNCE, BOUNCE_MS, CHIP_SIZE, LAND_MS } from './ChipToss'
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // scale rather than transform so these don't fight the hover state
-const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, { scale: '1' }]
+export const LANDING = [{ scale: '1' }, { scale: '1.1 0.88' }, { scale: '0.97 1.04' }, { scale: '1' }]
 const PLUCK = [{ scale: '1' }, { scale: '0.92' }, { scale: '1.03' }, { scale: '1' }]
 
 type ChipCardProps = {

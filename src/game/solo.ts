@@ -2,6 +2,7 @@
 // deal, topUp and timeout start here, and leave and topUp wait here until the hand ends.
 
 import { applyAction, createTable, type Action, type Card, type PlayerAction, type TableState } from '../engine/engine'
+import { potSize } from './betting'
 
 export const HERO = 0
 export const BOT = 1
@@ -85,10 +86,21 @@ export function chipMoves(prev: TableState, next: TableState) {
       return
     }
     const added = seat!.committed - before.committed
-    if (closed && before.bet) moves.push({ from: `bet-${i}`, to: 'pot', amount: before.bet })
+    // nobody called the top of the bet, so that part goes home instead of into the pot
+    const returned = Math.max(-added, 0)
+    const swept = before.bet - returned
+    // returned first, so it's the top of the pile that goes home
+    if (returned > 0) moves.push({ from: `bet-${i}`, to: `seat-${i}`, amount: returned })
+    if (closed && swept > 0) moves.push({ from: `bet-${i}`, to: 'pot', amount: swept })
     if (added > 0) moves.push({ from: `seat-${i}`, to: closed ? 'pot' : `bet-${i}`, amount: added })
   })
   return moves
+}
+
+// the pile sitting at a spot in this state, seats don't have one
+export function pileAt(s: TableState, spot: Spot) {
+  if (spot === 'pot') return potSize(s) - s.seats.reduce((sum, seat) => sum + seat!.bet, 0)
+  return spot.startsWith('bet') ? s.seats[Number(spot.slice(4))]!.bet : 0
 }
 
 export function payouts(s: TableState) {

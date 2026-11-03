@@ -3,11 +3,13 @@ import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { BetControls } from './BetControls'
-import { potSize } from './betting'
+import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
 import { Avatar, ChipFlight, ChipPile, PlayingCard } from './Pieces'
 import { BIG_BLIND, BUY_IN, HERO, SMALL_BLIND, winnings } from './solo'
+import { total } from './piles'
 import { useSoloTable } from './useSoloTable'
+import '@fontsource-variable/manrope'
 import './game.css'
 
 const BOT_NAME = 'Xi'
@@ -66,10 +68,10 @@ export default function Game({ name }: { name: string }) {
   const me = view.seats[HERO]!
   const live = view.street !== 'waiting' && !idle
   const inHand = me.cards.length > 0 && !me.folded
-  const legal = game.dealing ? null : legalActions(view)
+  const legal = game.dealing || game.moving ? null : legalActions(view)
   const myTurn = legal?.seat === HERO && !me.sittingOut ? legal : null
-  const bets = view.seats.reduce((sum, seat) => sum + seat!.bet, 0)
-  const pot = paid ? 0 : potSize(view)
+  const pot = potSize(view)
+  const shownPot = total(game.pile('pot'))
   const finished = over && paid
   const canShow = finished && inHand && !me.shown
   const newest = Object.values(game.said).at(-1)
@@ -103,13 +105,15 @@ export default function Game({ name }: { name: string }) {
       <main className="table-wrap">
         <div className="felt">
           <div className="felt-center">
-            <output className="pot" data-spot="pot">
-              {pot - bets > 0 && (
-                <>
-                  <ChipPile amount={pot - bets} />
-                  <span>Pot {(pot - bets).toLocaleString('en-US')}</span>
-                </>
-              )}
+            <output className="pot" style={{ '--of': game.potStacks.length } as CSSProperties}>
+              <span className="pile-slot pot-slot" data-spot="pot">
+                {game.potStacks.map(({ value, count }, i) => (
+                  <span key={value} className="pot-stack" style={{ '--stack': i } as CSSProperties}>
+                    <ChipPile colors={Array<string>(count).fill(colorOf(value))} />
+                  </span>
+                ))}
+              </span>
+              {shownPot > 0 && <span className="pile-label">Pot {shownPot.toLocaleString('en-US')}</span>}
             </output>
             <div className="board">
               {board.map((card, i) => (
@@ -127,15 +131,15 @@ export default function Game({ name }: { name: string }) {
             const isMe = i === HERO
             const blind = blindOf(view, i)
             const won = finished && winnings(view, i) > 0
+            const betChips = game.pile(`bet-${i}`)
+            const bet = total(betChips)
             return (
               <div key={seat!.id}>
-                <div className="bet" style={around(i, seats, 0.52)} data-spot={`bet-${i}`}>
-                  {seat!.bet > 0 && (
-                    <>
-                      <ChipPile amount={seat!.bet} />
-                      <span>{seat!.bet.toLocaleString('en-US')}</span>
-                    </>
-                  )}
+                <div className="bet" style={around(i, seats, 0.52)}>
+                  <span className="pile-slot" data-spot={`bet-${i}`}>
+                    {bet > 0 && <ChipPile colors={betChips.map(colorOf)} />}
+                  </span>
+                  {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
                 <div
                   className={cx('seat', isMe && 'me', view.toAct === i && !game.dealing && 'turn', seat!.folded && 'folded', won && 'winner')}
@@ -172,7 +176,7 @@ export default function Game({ name }: { name: string }) {
         </div>
       </main>
 
-      <aside className="dock">
+      <aside className={cx('dock', hints && 'hinted')}>
         {hints && live && inHand && (
           <div className="hint">
             <b>{describeHand(me.cards, board)}</b>
@@ -197,11 +201,11 @@ export default function Game({ name }: { name: string }) {
           </div>
         )}
 
-        {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing ? '' : `${BOT_NAME} to act`}</p>}
+        {live && !myTurn && <p className="dock-wait">{me.sittingOut ? 'Leaving after this hand' : game.dealing || view.toAct !== 1 - HERO ? '' : `${BOT_NAME} to act`}</p>}
       </aside>
 
       {game.flights.map((flight) => (
-        <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight.id)} />
+        <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight)} />
       ))}
 
       <p className="sr-only" aria-live="polite">
