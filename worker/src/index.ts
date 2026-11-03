@@ -4,7 +4,7 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
-import { addressKey, charge, command, join, newRoom, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
+import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom, setup } from './sql'
 
 interface Env {
@@ -47,6 +47,8 @@ export class Table extends DurableObject<Env> {
   alarmAt: number | null | undefined // undefined until we know, after a wake
   lastChat = new Map<string, number>()
   lastEmote = new Map<string, number>()
+  // the count being asked for a room that's being made, so two first connects at once only count it once
+  opening: Promise<boolean> | null = null
   // ponytail: in memory, so a hibernation hands everyone a fresh bucket. Fine, waking takes a quiet spell
   buckets = new Map<WebSocket, { left: number; at: number; strikes: number }>()
 
@@ -154,7 +156,14 @@ export class Table extends DurableObject<Env> {
     const isPublic = !!this.ctx.id.name?.startsWith(PUBLIC_PREFIX)
     if (!isPublic && !this.loaded && !loadRoom(this.ctx.storage.sql)) {
       const ip = request.headers.get('cf-connecting-ip') ?? 'local'
-      if (!(await this.env.OPENED.getByName(addressKey(ip)).open())) {
+      const asking = (this.opening ??= this.env.OPENED.getByName(addressKey(ip)).open())
+      let allowed
+      try {
+        allowed = await asking
+      } finally {
+        if (this.opening === asking) this.opening = null
+      }
+      if (!allowed) {
         const { 0: client, 1: server } = new WebSocketPair()
         server.accept()
         server.close(TOO_MANY_ROOMS, 'enough rooms today')
@@ -248,12 +257,20 @@ export class Table extends DurableObject<Env> {
   }
 }
 
-// one per address, counting the private rooms it's opened today. Costs a row for each room it lets through
+// one per address, counting the private rooms it's opened today. Costs a row for each room it lets through,
+// and one more on the day's first for the alarm that wipes it, so no address is kept past its day
 export class Opened extends DurableObject<Env> {
   async open() {
-    const next = openRoom(await this.ctx.storage.get<Log>('log'), Date.now())
-    if (next) await this.ctx.storage.put('log', next)
-    return next !== null
+    const now = Date.now()
+    const next = openRoom(await this.ctx.storage.get<Log>('log'), now)
+    if (!next) return false
+    await this.ctx.storage.put('log', next)
+    if (next.rooms === 1) await this.ctx.storage.setAlarm(nextDay(now))
+    return true
+  }
+
+  async alarm() {
+    await this.ctx.storage.deleteAll()
   }
 }
 

@@ -77,10 +77,15 @@
   }
 }
 
-/* still opens, to say it isn't ready, so it's dimmed rather than disabled */
+/* still opens, to say it isn't ready, so it's dimmed rather than disabled. Only the icon and name, the
+   muted "Coming later" is already as faint as small text can go */
 .hub-mode.later {
-  opacity: 0.6;
   box-shadow: none;
+
+  .hub-icon,
+  b {
+    opacity: 0.6;
+  }
 }
 
 .hub-icon {

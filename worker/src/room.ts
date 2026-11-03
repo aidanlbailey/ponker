@@ -116,6 +116,9 @@ export function openRoom(log: Opened | undefined, now: number): Opened | null {
   return rooms >= ROOMS_PER_DAY ? null : { day: today(now), rooms: rooms + 1 }
 }
 
+// the next 00:00 UTC, when every count starts again
+export const nextDay = (now: number) => Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1)
+
 // A home on IPv6 gets a whole /64 to pick addresses from, so v6 counts by its first four groups
 export function addressKey(ip: string) {
   if (!ip.includes(':')) return ip

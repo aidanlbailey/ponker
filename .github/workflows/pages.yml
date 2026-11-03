@@ -27,6 +27,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # without it the live site looks for rooms on :8787 and never finds them
+      - run: test -n "$VITE_ROOMS_URL" || { echo "Set the ROOMS_URL repo variable to the worker's wss:// address"; exit 1; }
+        env:
+          VITE_ROOMS_URL: ${{ vars.ROOMS_URL }}
       - run: npm run build
         env:
           # the deployed rooms worker, wss://... Set under the repo's Actions variables

@@ -25,13 +25,17 @@ const Room = lazy(() => import('./room/Room'))
 
 const ROOM_HASH = new RegExp(`^#(room/[a-z0-9]{4,16}|table/(${PUBLIC_TABLES.join('|')}))$`)
 const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
-const known = (hash: string) => ['', '#', '#chips', '#bots', '#play'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+// lowercased, so a code someone typed or read out in capitals still lands
+const known = (raw: string) => {
+  const hash = raw.toLowerCase()
+  return ['', '#', '#chips', '#bots', '#play'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+}
 const badLink = (): ToastMessage => ({ text: "That link doesn't go anywhere", type: 'error', id: Date.now() })
 // a mistyped or broken link goes home, but says so rather than just looking like the wrong page
-function landOn(hash: string) {
-  if (known(hash)) return hash
-  history.replaceState(null, '', location.pathname)
-  return ''
+function landOn(raw: string) {
+  const hash = known(raw) ? raw.toLowerCase() : ''
+  if (hash !== raw) history.replaceState(null, '', location.pathname + location.search + hash)
+  return hash
 }
 
 const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'

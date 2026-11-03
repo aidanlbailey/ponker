@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
-import { addressKey, BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
+import { addressKey, BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextDay, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -371,6 +371,11 @@ describe('rooms an address can open', () => {
     expect(log?.rooms).toBe(ROOMS_PER_DAY)
     expect(openRoom(log, day)).toBeNull()
     expect(openRoom(log, Date.UTC(2026, 10, 4, 0, 0, 1))).toEqual({ day: '2026-11-04', rooms: 1 })
+  })
+
+  test('counts are wiped at the next 00:00 UTC', () => {
+    expect(nextDay(Date.UTC(2026, 10, 3, 23, 59, 59))).toBe(Date.UTC(2026, 10, 4))
+    expect(nextDay(Date.UTC(2026, 11, 31, 0, 0, 1))).toBe(Date.UTC(2027, 0, 1))
   })
 
   test('v4 counts per address, v6 per /64 however it was written', () => {

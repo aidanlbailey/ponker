@@ -60,7 +60,7 @@ function Connected({ path, name }: { path: string; name: string }) {
       <div className="poker room-gate">
         <p className="room-gate-card" role="status">
           {room.status === 'limit'
-            ? "You've opened a lot of rooms today. Join a friend's, or make a new one tomorrow."
+            ? limitNote
             : room.tries >= LOST_TRIES
               ? lostNote
               : room.status === 'lost'
@@ -74,6 +74,7 @@ function Connected({ path, name }: { path: string; name: string }) {
 }
 
 const lostNote = "Can't reach the room, still trying (ping aidan)"
+const limitNote = "You've opened a lot of rooms today. Join a friend's, or make a new one tomorrow."
 
 function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomView; path: string; name: string }) {
   const [cur, setCur] = useState(first)
@@ -177,6 +178,9 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
         </button>
       </div>
     )
+  } else if (room.status === 'limit') {
+    // the room got cleared while you were away, and coming back would be a new one
+    dock = <p className="dock-wait room-lost">{limitNote}</p>
   } else if (room.status !== 'open') {
     dock = <p className="dock-wait room-lost">{room.tries >= LOST_TRIES ? lostNote : 'Reconnecting…'}</p>
   } else if (cur.resting && stage.idle) {
