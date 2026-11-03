@@ -41,10 +41,13 @@ function Screen({ title, intro = 'Preview, everything here is made up', filler =
 }
 
 const DOWN = "Can't reach the tables. If the free servers have used up today's allowance, they're back at 00:00 UTC."
+// listTables throws the status, and 429 is just the per-minute limit
+const downText = (e: Error) => (e.message === '429' ? 'Too many refreshes. Give it a minute and try again.' : DOWN)
 
 // straight to the busiest table with room, or an empty one where the table offers invite and bots
 function QuickPlay() {
   const [state, setState] = useState<'finding' | 'full' | 'down'>('finding')
+  const [why, setWhy] = useState(DOWN)
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
@@ -57,7 +60,11 @@ function QuickPlay() {
         if (table) location.replace(`#table/${table.id}`)
         else setState('full')
       },
-      () => !gone && setState('down'),
+      (e) => {
+        if (gone) return
+        setWhy(downText(e))
+        setState('down')
+      },
     )
     return () => {
       gone = true
@@ -85,7 +92,7 @@ function QuickPlay() {
           )}
           {state === 'down' && (
             <>
-              <p role="status">{DOWN}</p>
+              <p role="status">{why}</p>
               <div className="picker-actions">
                 <button className="button primary" onClick={() => (setState('finding'), setAttempt((n) => n + 1))}>
                   Try again
@@ -117,13 +124,14 @@ const roomIn = (text: string) => {
 function Rooms() {
   const [link, setLink] = useState('')
   // null while loading. No polling, each look wakes all four tables
-  const [tables, setTables] = useState<TableInfo[] | 'down' | null>(null)
+  // a string is why it couldn't load
+  const [tables, setTables] = useState<TableInfo[] | string | null>(null)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let gone = false
     listTables().then(
       (list) => !gone && setTables(list),
-      () => !gone && setTables('down'),
+      (e) => !gone && setTables(downText(e)),
     )
     return () => {
       gone = true
@@ -147,8 +155,8 @@ function Rooms() {
               </button>
             </div>
             <p className="preview-sub">5/10, 1,000 to sit, free top-ups. Bots give up their seat when someone joins.</p>
-            {tables === 'down' ? (
-              <p role="status">{DOWN}</p>
+            {typeof tables === 'string' ? (
+              <p role="status">{tables}</p>
             ) : (
               <ul className="preview-list" aria-busy={tables === null}>
                 {(tables ?? []).map((table) => (

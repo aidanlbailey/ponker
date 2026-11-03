@@ -243,8 +243,10 @@ export default {
     const origin = request.headers.get('Origin')
     if (origin && !ORIGINS.test(origin)) return new Response('not from here', { status: 403 })
     // per address, before the room ever wakes. Covers reconnect loops, minting rooms by the thousand,
-    // and hammering the list, which wakes all four tables each time
-    const { success } = await env.CONNECTS.limit({ key: request.headers.get('cf-connecting-ip') ?? 'local' })
+    // and hammering the list, which wakes all four tables each time. The list counts on its own, so
+    // mashing Refresh can't stop you sitting down
+    const ip = request.headers.get('cf-connecting-ip') ?? 'local'
+    const { success } = await env.CONNECTS.limit({ key: list ? `list:${ip}` : ip })
     if (!success) return new Response('slow down', { status: 429 })
     if (list) {
       const tables = await Promise.all(
