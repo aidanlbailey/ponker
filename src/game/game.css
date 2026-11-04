@@ -24,8 +24,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* menus aren't a room, they show the hub's page through, whatever the theme */
+.poker:is(.picker, .room-gate) {
+  background: none;
+}
+
 /* the page colour here is felt green, so the room gets its own neutral one and the controls follow it */
-[data-theme='felt'] .poker {
+[data-theme='felt'] .poker:not(.picker, .room-gate) {
   --bg: #121212;
   --surface: linear-gradient(145deg, #2a2a2a, #1f1f1f);
   --surface-raised: #2a2a2a;
