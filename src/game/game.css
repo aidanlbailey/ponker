@@ -990,9 +990,7 @@
     min-width: 0;
     min-height: 52px;
     padding: 0.25rem 0.6rem;
-    font-family: var(--game-font);
     font-size: clamp(1rem, 4.7vw, 1.2rem);
-    font-weight: 500;
     white-space: nowrap;
 
     /* the tracker's green is a touch light for white text at this size */
@@ -1179,9 +1177,18 @@
     display: none;
   }
 
+  /* the dock's narrow here, Raise to 1,000 needs the padding back */
   .bet-actions .button {
     min-height: 42px;
+    padding-inline: 0.3rem;
     font-size: 0.95rem;
+  }
+
+  /* and Waiting for players wraps rather than squeezing Play bots */
+  .dock-wait {
+    flex-shrink: 10;
+    min-height: 42px;
+    text-align: center;
   }
 
   .flick-pile {

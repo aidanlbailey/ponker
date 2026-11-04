@@ -112,7 +112,6 @@
   .button {
     flex: 1;
     padding-inline: 0.75rem;
-    font-family: var(--game-font);
   }
 
   .button:disabled {

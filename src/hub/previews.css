@@ -6,7 +6,6 @@
   }
 
   .button {
-    font-family: var(--game-font);
     text-align: center;
     text-decoration: none;
   }
