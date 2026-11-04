@@ -145,7 +145,7 @@ function Rooms() {
                 <li key={table.id}>
                   <b>{tableName(table.id)}</b>
                   <span>{seatedText(table)}</span>
-                  <a className="poker-toggle" href={`#table/${table.id}`}>
+                  <a className="poker-toggle poker-link" href={`#table/${table.id}`}>
                     {table.humans >= 6 ? 'Watch' : 'Join'}
                   </a>
                 </li>
