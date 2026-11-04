@@ -24,9 +24,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* menus aren't a room, they show the hub's page through, whatever the theme */
+/* menus aren't a room, they show the hub's page through, whatever the theme. The grain eats plain text,
+   so they get the hub's label shadow too */
 .poker:is(.picker, .room-gate) {
   background: none;
+  text-shadow: var(--label-shadow);
 }
 
 /* the page colour here is felt green, so the room gets its own neutral one and the controls follow it */

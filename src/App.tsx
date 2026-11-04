@@ -223,32 +223,34 @@ export function App() {
       {home ? (
         <Hub deck={deckButton} />
       ) : (
-        <main className="app">
-          <Title />
+        <>
+          <a className="home-link" href="#">
+            <span aria-hidden="true">{'‹'}</span> Home
+          </a>
+          <main className="app">
+            <Title />
 
-          <div className="top-bar">
-            {deckButton}
-            {showValues && <output className="total">{total}</output>}
-            <a className="button primary play-link" href="#">
-              Play poker
-            </a>
-          </div>
+            <div className="top-bar">
+              {deckButton}
+              {showValues && <output className="total">{total}</output>}
+            </div>
 
-          <section className="chip-grid" aria-label="Chips">
-            {entries.map(([id, chip]) => (
-              <ChipCard
-                key={id}
-                id={id}
-                chip={chip}
-                showValue={showValues}
-                onAdd={(from) => addChip(id, chip, from)}
-                onRemove={(from) => removeChip(id, chip, from)}
-                onEdit={() => setEditingId(id)}
-                onValueChange={(value) => updateChip(id, { value })}
-              />
-            ))}
-          </section>
-        </main>
+            <section className="chip-grid" aria-label="Chips">
+              {entries.map(([id, chip]) => (
+                <ChipCard
+                  key={id}
+                  id={id}
+                  chip={chip}
+                  showValue={showValues}
+                  onAdd={(from) => addChip(id, chip, from)}
+                  onRemove={(from) => removeChip(id, chip, from)}
+                  onEdit={() => setEditingId(id)}
+                  onValueChange={(value) => updateChip(id, { value })}
+                />
+              ))}
+            </section>
+          </main>
+        </>
       )}
 
       <ChipToss tosses={tosses} onDone={(id) => setTosses((prev) => prev.filter((toss) => toss.id !== id))} />
