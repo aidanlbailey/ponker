@@ -31,6 +31,11 @@
   text-shadow: var(--label-shadow);
 }
 
+/* felt's muted green disappears into the cloth */
+[data-theme='felt'] .poker:is(.picker, .room-gate) {
+  --text-muted: #ffffff;
+}
+
 /* the page colour here is felt green, so the room gets its own neutral one and the controls follow it */
 [data-theme='felt'] .poker:not(.picker, .room-gate) {
   --bg: #121212;
