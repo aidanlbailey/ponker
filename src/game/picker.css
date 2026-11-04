@@ -77,10 +77,10 @@
   gap: 0.3rem;
   min-width: 0;
   padding: 0.4rem 0.2rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--button-border);
   border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text);
+  background: var(--button);
+  color: var(--button-text);
   font-family: var(--game-font);
   font-size: 0.85rem;
   font-weight: 600;
@@ -100,6 +100,7 @@
 
 .picked-empty {
   border-style: dashed;
+  border-color: var(--text-muted);
   background: none;
   color: var(--text-muted);
   font-weight: 500;
@@ -128,8 +129,8 @@
 }
 
 .bot-tile.on {
-  border-color: var(--accent);
-  color: var(--accent-text);
+  border-color: var(--button-on);
+  color: var(--button-on);
 }
 
 @media (min-width: 560px) {
@@ -139,8 +140,9 @@
 }
 
 .picker .avatar {
+  --avatar-text: 1.35rem;
+
   width: 40px;
-  font-size: 1.35rem;
 }
 
 .bio-card {
@@ -162,7 +164,7 @@
 
   .avatar {
     width: 64px;
-    font-size: 2.2rem;
+    --avatar-text: 2.2rem;
   }
 
   p {

@@ -6,6 +6,7 @@ import { ChipEditor } from './components/ChipEditor'
 import { ChipToss, createToss, type Toss } from './components/ChipToss'
 import { NameDialog } from './components/NameDialog'
 import { Presets } from './components/Presets'
+import '@fontsource/rubik-mono-one/latin-400.css'
 import { Title } from './components/Title'
 import { Toast, type ToastMessage } from './components/Toast'
 import { Hub } from './hub/Hub'
@@ -228,7 +229,7 @@ export function App() {
             <span aria-hidden="true">{'‹'}</span> Home
           </a>
           <main className="app">
-            <Title />
+            <Title sub="CHIP TRACKER" />
 
             <div className="top-bar">
               {deckButton}

@@ -36,6 +36,12 @@
   --border: #324238;
   --accent: #39ff6a;
   --accent-text: #8dffb0;
+  /* buttons stand off the page in every theme: a lighter slate here, never the page's own dark */
+  --button: #5f6874;
+  --button-border: #8a94a0;
+  --button-text: #ffffff;
+  --button-muted: #e3e7ec;
+  --button-on: #8dffb0;
   --field: #131a15;
   --field-border: #73897a;
   --title-face: linear-gradient(180deg, #f4fff6 8%, #b4ffc6 42%, #2fe063 52%, #c6ffd4 78%, #f4fff6 100%);
@@ -65,6 +71,12 @@
   --border: #dcd5c5;
   --accent: #0b289d;
   --accent-text: #0b289d;
+  /* dark slate, white buttons on a cream page all but vanish */
+  --button: #3b4350;
+  --button-border: #1f252d;
+  --button-text: #ffffff;
+  --button-muted: #d5dae1;
+  --button-on: #ffcf3f;
   --field: #fffdf8;
   --field-border: #8a8373;
   /* the red and navy off the playing cards */
@@ -81,15 +93,22 @@
     var(--grain), var(--mottle),
     radial-gradient(ellipse 90% 70% at 50% 30%, rgb(255 255 255 / 0.06), transparent 70%, rgb(0 0 0 / 0.2));
   --text: #ffffff;
-  --text-soft: #c8e6c9;
-  --text-muted: #a8e6cf;
-  --surface: linear-gradient(145deg, #1a5f3a, #0f5132);
-  --surface-raised: #2d5a3d;
-  --border: #4a7c59;
+  --text-soft: #ffffff;
+  --text-muted: #e8e8e8;
+  /* panels and fields take the table's greys, green on green felt hides them */
+  --surface: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+  --surface-raised: #2a2a2a;
+  --border: #525252;
   --accent: #ffd700;
   --accent-text: #ffd700;
-  --field: #2d5a3d;
-  --field-border: #8fc7a5;
+  /* the table's grey, green buttons on green felt don't read as buttons */
+  --button: #2a2a2a;
+  --button-border: #7a7a7a;
+  --button-text: #ffffff;
+  --button-muted: #d0d0d0;
+  --button-on: #ffd700;
+  --field: #1a1a1a;
+  --field-border: #8a8a8a;
   --title-face: linear-gradient(180deg, #fff6c4 6%, #ffd700 40%, #a87400 53%, #ffe36b 72%, #d9a514 100%);
   --title-chip: #c8102e;
   --title-stroke: #3a2600;
@@ -182,7 +201,7 @@ button,
 .title {
   position: relative; /* Title.tsx reads each letter's offset from here */
   margin: 0;
-  font-family: Ultra, Georgia, 'Times New Roman', serif;
+  font-family: 'Rubik Mono One', Georgia, 'Times New Roman', serif;
   font-size: clamp(2.5rem, 13vw, 5.25rem);
   font-weight: 400;
   line-height: 1.15;
@@ -278,8 +297,49 @@ button,
   }
 }
 
+/* the tracker's name under the logo, the gold foil's silver sibling */
+.title-sub {
+  --wave-lift: 0.4em;
+  --sub-stroke: #26292e;
+
+  margin: 0.15em 0 0;
+  font-family: 'Rubik Mono One', system-ui, sans-serif;
+  font-size: 1.4rem;
+  font-style: italic;
+  letter-spacing: 0.2em;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  /* same split as the logo, the glyph carries stroke and depth and the foil is a copy on top */
+  > span {
+    position: relative;
+    display: inline-block;
+    transform-origin: center bottom;
+    animation: title-wave 4.5s ease-in-out infinite;
+    color: var(--sub-stroke);
+    -webkit-text-stroke: calc(var(--title-stroke-width) * 0.6) var(--sub-stroke);
+    text-shadow:
+      1px 1px 0 var(--title-depth),
+      2px 2px 0 var(--title-depth),
+      3px 3px 0 var(--title-depth);
+
+    &::after {
+      content: attr(data-letter);
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, #ffffff 6%, #dfe3e8 40%, #7b828c 53%, #f1f3f6 72%, #aeb4bd 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      -webkit-text-stroke: 0;
+      text-shadow: none;
+    }
+  }
+}
+
 .subtitle {
   margin-top: 0.5rem;
+  font-family: VT323, monospace;
   color: var(--text-muted);
   font-size: clamp(0.95rem, 2.5vw, 1.2rem);
   font-style: italic;
@@ -301,6 +361,7 @@ button,
 .chip-total,
 .chip-value,
 .preset-chips {
+  font-family: 'Montserrat Variable', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -707,10 +768,10 @@ button,
   gap: 0.3rem;
   min-height: 34px;
   padding: 0.25rem 0.6rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--button-border);
   border-radius: var(--radius);
-  background: var(--surface-raised);
-  color: var(--text);
+  background: var(--button);
+  color: var(--button-text);
   font-family: 'Manrope Variable', system-ui, sans-serif;
   font-weight: 500;
   text-decoration: none;
@@ -718,6 +779,27 @@ button,
   /* where the menus go side by side, their bar moves in to 1rem */
   @media (min-aspect-ratio: 5/4) {
     margin-left: max(1rem, env(safe-area-inset-left));
+  }
+
+  /* the game's Home grows with the window on desktop and shrinks on short phones, keep these in step with game.css */
+  @media (min-aspect-ratio: 5/4) and (min-height: 600px) {
+    --ui: calc(
+      clamp(1, min(tan(atan2(100dvh, 768px)), tan(atan2(clamp(320px, 32vw, 480px), 320px))), 1.5) *
+        0.75
+    );
+
+    min-height: calc(42px * var(--ui));
+    padding-inline: calc(0.85rem * var(--ui));
+    font-size: calc(1.1rem * var(--ui));
+  }
+
+  @media (max-width: 400px) {
+    padding-inline: 0.45rem;
+  }
+
+  @media (max-height: 480px) {
+    min-height: 28px;
+    padding-block: 0;
   }
 }
 
@@ -1256,7 +1338,7 @@ button,
     transform: rotate(var(--wave-start));
   }
   50% {
-    transform: translateY(-16px) rotate(var(--wave-end));
+    transform: translateY(calc(var(--wave-lift, 16px) * -1)) rotate(var(--wave-end));
   }
 }
 
@@ -1441,6 +1523,7 @@ button,
   .chip-card,
   .dialog,
   .title > span,
+  .title-sub > span,
   .title-chip svg {
     animation: none;
   }

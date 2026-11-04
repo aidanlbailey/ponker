@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { pickTable, PUBLIC_TABLES, tableName, type TableInfo } from '../room/public'
 import { listTables, newRoomId } from '../room/useRoom'
 import '@fontsource-variable/manrope'
+import '@fontsource/roboto/latin-400.css'
 import '../game/game.css'
 import '../game/picker.css'
 import './previews.css'
@@ -132,11 +133,13 @@ function Rooms() {
         <section>
           <div className="preview-heading">
             <h2>Public tables</h2>
-            <button className="poker-toggle" disabled={tables === null} onClick={() => (setTables(null), setAttempt((n) => n + 1))}>
-              Refresh
+            <button className="poker-toggle" aria-label="Refresh" title="Refresh" disabled={tables === null} onClick={() => (setTables(null), setAttempt((n) => n + 1))}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block' }}>
+                <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                <path d="M20 4v5h-5" />
+              </svg>
             </button>
           </div>
-          <p className="preview-sub">5/10, 1,000 to sit, free top-ups. Bots give up their seat when someone joins.</p>
           {typeof tables === 'string' ? (
             <p role="status">{tables}</p>
           ) : (
@@ -156,7 +159,6 @@ function Rooms() {
         </section>
         <section className="picker-seats">
           <h2>Private room</h2>
-          <p>5/10, 1,000 to sit, free top-ups. Share the link and friends drop straight into a seat.</p>
           <a className="button primary" href={`#room/${newRoomId()}`}>
             Create a room
           </a>

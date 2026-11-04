@@ -12,6 +12,7 @@ import { total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import type { TableGame } from './useStage'
 import '@fontsource-variable/manrope'
+import '@fontsource/roboto/latin-400.css'
 import './game.css'
 
 const percent = (share: number) => `${Math.round(share * 100)}%`

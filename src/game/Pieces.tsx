@@ -1,3 +1,4 @@
+import '@fontsource/press-start-2p/greek-400.css'
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { Chip } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
@@ -21,6 +22,13 @@ export const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts
 const EDGE_LAYERS = [-1.2, -0.4, 0.4, 1.2]
 // ponytail: plain letters for now. The art lands in public/ by name (alpha, beta...), swap the letter for an img here.
 const BOT_LETTERS = Object.fromEntries(BOTS.map((bot) => [bot.id, bot.letter]))
+// round the wheel in alphabet order so a colour says nothing about how it plays, light and dark
+// alternate since 15° apart alone reads as the same colour
+const BOT_COLORS = Object.fromEntries(
+  [...BOTS]
+    .sort((a, b) => a.letter.localeCompare(b.letter))
+    .map((bot, i) => [bot.id, `oklch(${i % 2 ? 0.42 : 0.58} 0.17 ${25 + i * 15})`]),
+)
 const DEFAULT_AVATAR = '♠︎'
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -28,7 +36,11 @@ export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)'
 export function Avatar({ id }: { id: string }) {
   const letter = BOT_LETTERS[id]
   return (
-    <span className={`avatar ${letter ? 'bot' : ''}`} aria-hidden="true">
+    <span
+      className={`avatar ${letter ? 'bot' : ''} ${letter && 'ΓΙΤΥΨ'.includes(letter) ? 'centred' : ''}`}
+      style={letter ? ({ '--bot-color': BOT_COLORS[id] } as CSSProperties) : undefined}
+      aria-hidden="true"
+    >
       {letter ?? DEFAULT_AVATAR}
     </span>
   )

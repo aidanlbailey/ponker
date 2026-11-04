@@ -79,12 +79,6 @@
   }
 }
 
-.preview-sub {
-  margin-block: 0.35rem 0.6rem !important;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
 .preview-list .preview-loading {
   justify-content: center;
   color: var(--text-muted);

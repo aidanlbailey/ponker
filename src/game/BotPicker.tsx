@@ -6,6 +6,7 @@ import { Avatar } from './Pieces'
 import { BOTS, botById, randomBots, SKILLS, type Bot } from './roster'
 import { newSolo, STORAGE_KEY } from './solo'
 import '@fontsource-variable/manrope'
+import '@fontsource/roboto/latin-400.css'
 import './game.css'
 import './picker.css'
 

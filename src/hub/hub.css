@@ -24,10 +24,11 @@
   width: min(100%, 460px);
 }
 
-.hub-quick {
+/* .button in styles.css loads later and would win on the font otherwise */
+.hub-quick.button {
   padding: 1.05rem 1.5rem;
   font-family: var(--hub-font);
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   text-align: center;
@@ -36,9 +37,10 @@
 
 .hub-mode,
 .hub-extra {
-  border: 1px solid var(--border);
+  border: 1px solid var(--button-border);
   border-radius: 12px;
-  color: var(--text);
+  background: var(--button);
+  color: var(--button-text);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition:
@@ -46,7 +48,7 @@
     transform 0.15s ease;
 
   &:hover {
-    border-color: var(--accent);
+    border-color: var(--button-on);
   }
 
   &:active {
@@ -60,7 +62,6 @@
   align-items: center;
   gap: 0.05rem 0.85rem;
   padding: 0.7rem 0.9rem;
-  background: var(--surface);
   box-shadow: var(--shadow);
 
   b {
@@ -70,7 +71,7 @@
 
   small {
     overflow: hidden;
-    color: var(--text-muted);
+    color: var(--button-muted);
     font-size: 0.85rem;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -95,7 +96,7 @@
   width: 44px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--surface-raised);
+  background: rgb(255 255 255 / 0.12);
   font-size: 1.35rem;
   line-height: 1;
 }
@@ -110,7 +111,6 @@
   display: grid;
   place-items: center;
   min-height: 44px;
-  background: var(--surface-raised);
   font-weight: 600;
 }
 
@@ -118,21 +118,75 @@
    and the letters paint over it */
 .title-tag {
   position: absolute;
-  top: 0;
-  right: 0;
-  translate: 25% -80%;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: var(--surface-raised);
-  box-shadow: 0 0 0 1px #000000;
-  color: var(--accent-text);
+  /* top and right, not translate. Title.tsx moves it with translate like the letters */
+  top: -3.2em;
+  right: -2.3em;
+  /* over the letters, even one that's been picked up */
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 4.6em;
+  aspect-ratio: 1;
+  transform-origin: center;
+  animation: tag-bob 3.2s ease-in-out infinite;
+  will-change: transform, translate;
+  cursor: grab;
+  color: #111111;
   font-family: var(--hub-font);
-  font-size: clamp(0.65rem, 1.6vw, 0.8rem);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1.3;
-  text-transform: uppercase;
-  pointer-events: none;
+  font-size: clamp(0.65rem, 2.2vw, 1.05rem);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: capitalize;
+  /* turned back by the tilt like .title > span does it, so the depth keeps pointing down and right.
+     At rest that's the bob's lean */
+  --shadow-x: calc((cos(var(--tilt, -12deg)) + sin(var(--tilt, -12deg))) * var(--mirror, 1) * 1px);
+  --shadow-y: calc((cos(var(--tilt, -12deg)) - sin(var(--tilt, -12deg))) * 1px);
+  --burst: polygon(
+    50% 0%, 58% 14.9%, 71.7% 5%, 72.4% 21.9%, 89.1% 18.8%, 82.4% 34.4%, 98.7% 38.9%, 86% 50%, 98.7% 61.1%,
+    82.4% 65.6%, 89.1% 81.2%, 72.4% 78.1%, 71.7% 95%, 58% 85.1%, 50% 100%, 42% 85.1%, 28.3% 95%, 27.6% 78.1%,
+    10.9% 81.2%, 17.6% 65.6%, 1.3% 61.1%, 14% 50%, 1.3% 38.9%, 17.6% 34.4%, 10.9% 18.8%, 27.6% 21.9%,
+    28.3% 5%, 42% 14.9%
+  );
+
+  /* the letters' 9px depth, one burst per pixel. Was nine chained drop-shadow filters, but those
+     re-rasterise every frame and stepped visibly while it spun. Layers just move */
+  > i {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    clip-path: var(--burst);
+    background: var(--title-depth);
+    translate: calc(var(--shadow-x) * var(--k)) calc(var(--shadow-y) * var(--k));
+  }
+
+  &.held,
+  &.away {
+    animation-play-state: paused;
+  }
+
+  &.held {
+    scale: 1.15; /* HELD_SCALE in Title.tsx */
+    cursor: grabbing;
+    transition: scale 0.15s ease-out;
+  }
+
+  /* the starburst, a black one under a yellow one a touch smaller makes the outline */
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    clip-path: var(--burst);
+    background: #111111;
+  }
+
+  &::after {
+    inset: 0.18em;
+    background: radial-gradient(circle, #fff27a 30%, #ffd400 75%);
+  }
 }
 
 /* out of the flow, so it never pushes the logo or the menu around */
@@ -151,9 +205,9 @@
   translate: 0 -50%;
   visibility: visible;
   color: var(--text-soft);
-  font-family: var(--hub-font);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-family: Silkscreen, monospace;
+  font-size: 1.6rem;
+  font-weight: 400;
   text-shadow: var(--label-shadow);
   white-space: nowrap;
 }
@@ -177,7 +231,7 @@
 
   .hub-quick {
     padding-block: 0.7rem;
-    font-size: 1.3rem;
+    font-size: 1.43rem;
   }
 
   .hub-mode {
@@ -197,5 +251,23 @@
 @media (prefers-reduced-motion: reduce) {
   .hub {
     animation: none;
+  }
+}
+
+/* the tag's own float, a slow bob with its tilt kept in the transform so the physics' rotate adds on top */
+@keyframes tag-bob {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-tag {
+    animation: none;
+    transform: rotate(-14deg);
   }
 }

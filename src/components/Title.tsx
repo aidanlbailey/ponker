@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { haptic } from '../lib/haptics'
 import {
   dodgeTarget,
@@ -31,6 +31,7 @@ import {
 import { Chip } from './Chip'
 
 const LETTERS = [...'PONKER']
+const DEPTH = [1, 2, 3, 4, 5, 6, 7, 8, 9] // the tag's extrusion layers, 1px each like the letters' shadow
 const AVOID_RANGE = 70
 const NUDGE = 12 // dropped closer to home than this, it just springs back
 const GRAB_REACH = 60
@@ -75,20 +76,31 @@ const WALL_DIRECTION: Record<Side, { x: number; y: number }> = {
   bottom: { x: 0, y: -1 },
 }
 
-export function Title({ tag }: { tag?: string }) {
+// gentler and slower ripple than the logo, it's the supporting act
+const subWaves = (text: string) =>
+  [...text].map((_, i) => ({
+    animationDelay: `${Math.abs(i - (text.length - 1) / 2) * 0.25}s`,
+    '--wave-start': `${(Math.random() - 0.5) * 4}deg`,
+    '--wave-end': `${(Math.random() - 0.5) * 8}deg`,
+  })) as CSSProperties[]
+
+export function Title({ tag, sub }: { tag?: string; sub?: string }) {
+  const [subStyles] = useState(() => (sub ? subWaves(sub) : []))
   const title = useRef<HTMLHeadingElement>(null)
-  const letters = useRef<HTMLSpanElement[]>([])
-  const springs = useRef<Spring[]>(LETTERS.map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })))
+  // the tag rides along as one more piece, so it can be grabbed and thrown like the letters
+  const letters = useRef<HTMLElement[]>([])
+  const pieces = LETTERS.length + (tag ? 1 : 0)
+  const springs = useRef<Spring[]>(Array.from({ length: pieces }, () => ({ x: 0, y: 0, vx: 0, vy: 0 })))
 
   useEffect(() => {
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
-    const trips: (Trip | null)[] = LETTERS.map(() => null)
+    const trips: (Trip | null)[] = Array.from({ length: pieces }, () => null)
     let held: Hold | null = null
     let pointer: { x: number; y: number } | null = null
     let frame = 0
     let lastTime = 0
 
-    const stand = (letter: HTMLSpanElement) => {
+    const stand = (letter: HTMLElement) => {
       letter.classList.remove('held', 'away', 'flying')
       letter.style.rotate = letter.style.scale = ''
       letter.style.removeProperty('--tilt')
@@ -97,13 +109,13 @@ export function Title({ tag }: { tag?: string }) {
 
     // --tilt is what keeps the cast shadow pointing the same way on screen, see .title in styles.css.
     // the wave is paused while a letter's away but it's still leaning, so that counts too
-    const setTilt = (letter: HTMLSpanElement, tilt: number) => {
+    const setTilt = (letter: HTMLElement, tilt: number) => {
       const { a, b } = new DOMMatrix(getComputedStyle(letter).transform)
       letter.style.rotate = `${tilt}deg`
       letter.style.setProperty('--tilt', `${tilt + (Math.atan2(b, a) * 180) / Math.PI}deg`)
     }
 
-    const pose = (letter: HTMLSpanElement, tilt: number, scaleX = 1, scaleY = 1) => {
+    const pose = (letter: HTMLElement, tilt: number, scaleX = 1, scaleY = 1) => {
       setTilt(letter, tilt)
       letter.style.scale = `${scaleX} ${scaleY}`
       letter.style.setProperty('--mirror', scaleX < 0 ? '-1' : '1')
@@ -200,7 +212,7 @@ export function Title({ tag }: { tag?: string }) {
     }
 
     // hangs by its top from the cursor, swinging like a pendulum
-    const carry = (hold: Hold, letter: HTMLSpanElement, spring: Spring, homeX: number, homeY: number, seconds: number) => {
+    const carry = (hold: Hold, letter: HTMLElement, spring: Spring, homeX: number, homeY: number, seconds: number) => {
       const dt = Math.max(seconds, 0.001)
       const { pivot, swing } = hold
       const follow = 1 - Math.exp(-PIVOT_SMOOTHING * dt)
@@ -272,7 +284,7 @@ export function Title({ tag }: { tag?: string }) {
 
     // letters dodge the cursor, so one can slip out from under it just as you press
     const nearestLetter = (e: PointerEvent) => {
-      const direct = letters.current.indexOf(e.target as HTMLSpanElement)
+      const direct = letters.current.indexOf(e.target as HTMLElement)
       if (direct >= 0) return direct
 
       let nearest = -1
@@ -394,17 +406,11 @@ export function Title({ tag }: { tag?: string }) {
       window.removeEventListener('pointercancel', pointerCancel)
       document.documentElement.removeEventListener('pointerleave', release)
     }
-  }, [])
+  }, [pieces])
 
   return (
     <header className="title-section">
       <h1 ref={title} className="title" aria-label={tag ? `Ponker ${tag}` : 'Ponker'}>
-        {/* first, so the letters paint over it when one's thrown across */}
-        {tag && (
-          <small className="title-tag" aria-hidden="true">
-            {tag}
-          </small>
-        )}
         {LETTERS.map((letter, i) => (
           <span
             key={i}
@@ -419,8 +425,31 @@ export function Title({ tag }: { tag?: string }) {
             {letter === 'O' ? <Chip color="var(--title-chip)" /> : letter}
           </span>
         ))}
+        {tag && (
+          <small
+            ref={(el) => {
+              if (el) letters.current[LETTERS.length] = el
+            }}
+            className="title-tag"
+            aria-hidden="true"
+          >
+            {DEPTH.map((k) => (
+              <i key={k} style={{ '--k': k } as CSSProperties} />
+            ))}
+            {tag}
+          </small>
+        )}
       </h1>
-      <p className="subtitle">by aidan bailey</p>
+      {sub && (
+        <p className="title-sub" aria-label={sub}>
+          {[...sub].map((ch, i) => (
+            <span key={i} aria-hidden="true" data-letter={ch} style={subStyles[i]}>
+              {ch === ' ' ? ' ' : ch}
+            </span>
+          ))}
+        </p>
+      )}
+      {!sub && <p className="subtitle">by aidan bailey</p>}
     </header>
   )
 }
