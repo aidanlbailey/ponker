@@ -1,6 +1,6 @@
 # PONKER 🎲
 
-No-limit Texas hold'em in the browser, with fake chips. Play bots on your own, drop into a public table, or open a private room and send your friends the link. The chip tracker it started as is still here for home games.
+No-limit Texas hold'em in the browser, with fake chips. Play bots on your own, drop into a public table, or open a private room and send your friends the link. The chip tracker it started as is still [here](https://ponker.aidanbailey.com/#chips) for home games.
 
 **[ponker.aidanbailey.com](https://ponker.aidanbailey.com)**
 
@@ -20,8 +20,6 @@ The poker game is in beta.
 ## Chip tracker
 
 A poker chip tracker for players who haven't got the knack of counting their stack yet. Set up your chips, tap as they come and go, and always know what you're holding.
-
-[DEMO](https://github.com/user-attachments/assets/56a589b4-f36b-4fdd-b827-22df6bc7ca6d)
 
 - Add and remove chips with a tap, or swipe down and up on a phone
 - Custom chip values and colors (click or long press a chip)
