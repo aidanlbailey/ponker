@@ -65,8 +65,13 @@ const buffer = (file: string) => {
 
 // browsers only start audio from a tap, so the first one makes the context and warms every file
 export function unlock() {
+  // iOS mutes web audio on the silent switch unless the page asks to be a player. The cost is it pauses
+  // whatever else is playing, which Aidan's fine with for now. Safari 16.4+, nothing elsewhere
+  const session = (navigator as { audioSession?: { type: string } }).audioSession
+  if (session) session.type = 'playback'
   ctx ??= new AudioContext()
-  if (ctx.state === 'suspended') void ctx.resume()
+  // iOS also has 'interrupted', after a call or another app grabbing the audio
+  if (ctx.state !== 'running') void ctx.resume()
   Object.values(FILES).flat().forEach(buffer)
 }
 

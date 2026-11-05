@@ -9,8 +9,9 @@ import { App } from './App'
 import { sound, unlock, type SoundName } from './lib/sound'
 import './styles.css'
 
-addEventListener('pointerdown', unlock)
-addEventListener('keydown', unlock)
+// a touch's pointerdown doesn't count as a gesture, so iOS only lets audio start on the finger coming up.
+// pointerdown stays for mice, so the files start loading a beat sooner
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, unlock)
 
 // every button clicks, unless it says otherwise with data-sound. Things that make their own noise
 // (chips, the menu's cards, bet actions) set data-sound="none"
