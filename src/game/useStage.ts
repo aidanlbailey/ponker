@@ -5,6 +5,7 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { viewFor, type Action, type PlayerAction, type TableState } from '../engine/engine'
 import { haptic } from '../lib/haptics'
+import { sound } from '../lib/sound'
 import { actionText, saidKind } from './betting'
 import { liveOpponents } from './bot'
 import { MAX_STACK, plan, potLayout, ready, settle, total, type Piles, type Trip } from './piles'
@@ -109,11 +110,16 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   // table is about to become next because seat did action. Call it before the table changes
   const acted = (next: TableState, action: Action, seat: number, from?: DOMRect) => {
     const text = actionText(table, action)
+    const kind = text ? saidKind(text) : ''
     // your own moves only, bots buzzing your phone all hand would get old fast. A fold gets nothing
     if (seat === me) {
-      const buzz = BUZZ[text ? saidKind(text) : '']
+      const buzz = BUZZ[kind]
       if (buzz !== null) haptic(buzz ?? 'light')
     }
+    // everyone's though, the table should sound like a table. Bets make their noise when the chips land
+    // the fold borrows the deal's card sound for now, lower so it doesn't read as a card arriving
+    if (kind === 'fold') sound('fold', { rate: 0.8, volume: 0.8 })
+    if (kind === 'check') sound('check')
     fly(chipMoves(table, next), from)
     if (text) setSaid((prev) => (next.street === table.street ? { ...prev, [seat]: text } : { [seat]: text }))
   }
@@ -155,7 +161,9 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
     fly(payouts(table))
     setPaid(true)
     onPaid()
-    haptic(me !== null && winnings(table, me) ? 'success' : 'light')
+    const won = me !== null && winnings(table, me) > 0
+    haptic(won ? 'success' : 'light')
+    sound('collide', { volume: won ? 1 : 0.5 })
   })
 
   useEffect(() => {

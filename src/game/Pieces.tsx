@@ -1,8 +1,9 @@
 import '@fontsource/press-start-2p/greek-400.css'
-import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { ChipParts, ChipStack, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
 import { HIDDEN, type Card } from '../engine/engine'
+import { sound } from '../lib/sound'
 import { chipColors, colorOf } from './betting'
 import { cardName, isRed, rankText, suitText } from './cards'
 import { progress, route, type Box, type Point } from './route'
@@ -52,6 +53,9 @@ export function Avatar({ id }: { id: string }) {
 export function PlayingCard({ card, delay = 0 }: { card: Card; delay?: number }) {
   const hidden = card === HIDDEN
   const style = { '--delay': `${delay}ms` } as CSSProperties
+
+  // cards are keyed by hand and face, so a mount is a deal, a turn or a show
+  useEffect(() => sound('card', { delay }), [delay])
 
   return (
     <span
@@ -206,6 +210,8 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     if (!start || !end) return onLand()
 
     const thrown = flight.to.startsWith('bet')
+    // level 0 is the bottom of a new pile, so it hits the felt. Anything higher clinks on the chip under it
+    const onChip = flight.toAt?.level ? 'stack' : 'chip'
     const chip = el.current!
     const obstacle = thrown ? null : boardObstacle(size)
     // on a phone the board is nearly as wide as the felt, so the way round ran off the edge of the screen.
@@ -217,7 +223,10 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
       return onFelt ? way : [start, to]
     }
     let animations: Animation[]
-    if (thrown) animations = throwChip(chip, start, end, startScale, flight.delay)
+    if (thrown) {
+      animations = throwChip(chip, start, end, startScale, flight.delay)
+      sound(onChip, { delay: flight.delay + THROW_MS * LAND })
+    }
     else if (flight.to === 'pot') {
       // slide up next to the foot of its stack, then flip up onto the top
       const base = spotOf('pot', { ...flight.toAt!, level: 0 })!
@@ -230,7 +239,12 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
         slideChip(chip, path, startScale, flight.delay, false),
         ...throwChip(chip, near, end, 1, flight.delay + slideMs(path), true),
       ]
-    } else animations = [slideChip(chip, slide(end), startScale, flight.delay, true)]
+      sound(onChip, { delay: flight.delay + slideMs(path) + HOP_MS * LAND, volume: 0.7 })
+    } else {
+      animations = [slideChip(chip, slide(end), startScale, flight.delay, true)]
+      // one grab per stack, a payout chip by chip would be a rattle
+      if (flight.order === 0) sound('handle', { delay: flight.delay })
+    }
     // Chips come off the top first, so the first flight made is the top chip and DOM order would draw
     // a waiting stack upside down. Until it goes it layers by its place in the pile, then it rises
     // over everything still waiting, and the ones in the air keep DOM order so later ones land on top.

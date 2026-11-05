@@ -95,6 +95,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
         <button
           ref={chipButton}
           className="chip-button"
+          data-sound="none"
           aria-label={`${chip.count} chips. Edit chip`}
           title="Click or long press to edit. Swipe down to add, up to remove."
           {...gestures}
@@ -120,7 +121,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
         />
       </label>
 
-      <div className="chip-actions">
+      <div className="chip-actions" data-sound="none">
         <button className="button danger" aria-label="Remove chip" onClick={remove} />
         <button className="button add" aria-label="Add chip" onClick={add} />
       </div>

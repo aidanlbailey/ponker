@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { CardMenu, CLUBS, DIAMONDS, HEARTS, NEXT_THEME, SPADES, type MenuCard, type Theme } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
-import { ChipToss, createToss, type Toss } from './components/ChipToss'
+import { ChipToss, LAND_MS, createToss, type Toss } from './components/ChipToss'
 import { NameDialog } from './components/NameDialog'
 import { Presets } from './components/Presets'
 import '@fontsource/rubik-mono-one/latin-400.css'
@@ -16,6 +16,7 @@ import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
 import { haptic } from './lib/haptics'
+import { setSound, sound, soundOn } from './lib/sound'
 import { smoothly } from './lib/smoothly'
 
 // only pulled in when someone sits down, the tracker doesn't pay for the poker game
@@ -93,12 +94,14 @@ export function App() {
   const addChip = (id: string, chip: Chip, from: DOMRect) => {
     updateChip(id, { count: chip.count + 1 })
     setTosses((prev) => [...prev, createToss('fall', chip.color, chip.count + 1, from)])
+    sound('stack', { delay: LAND_MS })
   }
 
   const removeChip = (id: string, chip: Chip, from: DOMRect) => {
     if (!chip.count) return
     updateChip(id, { count: chip.count - 1 })
     setTosses((prev) => [...prev, createToss('rise', chip.color, chip.count, from)])
+    sound('handle')
   }
 
   const deleteChip = (id: string) => {
@@ -193,6 +196,14 @@ export function App() {
   const next = NEXT_THEME[theme]
   const nameCard = { label: userName ? 'Change name' : 'Set your name', run: () => setPanel('name'), opensPanel: true }
   const themeCard = { label: next.label, run: () => smoothly(() => setTheme(next.theme)) }
+  // read fresh each render, the table's toggle can change it while this stays mounted
+  const soundCard = {
+    label: soundOn() ? 'Sound off' : 'Sound on',
+    run: () => {
+      setSound(!soundOn())
+      sound('toggle')
+    },
+  }
   const about = { label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' }
   const coffee = { label: 'Buy me a coffee', href: 'https://ko-fi.com/aidanlbailey' }
   const cards: MenuCard[] = home
@@ -201,6 +212,7 @@ export function App() {
         { rank: 'K', suit: DIAMONDS, ...themeCard },
         { rank: 'Q', suit: CLUBS, ...about },
         { rank: 'J', suit: HEARTS, ...coffee },
+        { rank: '10', suit: SPADES, ...soundCard },
       ]
     : [
         { rank: 'A', suit: SPADES, label: 'Add chip type', run: addChipType },
@@ -216,6 +228,7 @@ export function App() {
         { rank: '9', suit: DIAMONDS, ...themeCard },
         { rank: '8', suit: CLUBS, ...about },
         { rank: '7', suit: HEARTS, ...coffee },
+        { rank: '6', suit: SPADES, ...soundCard },
       ]
 
   return (

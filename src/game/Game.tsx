@@ -1,8 +1,9 @@
-import { isValidElement, useState, type CSSProperties, type ReactNode } from 'react'
+import { isValidElement, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
+import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls } from './BetControls'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
@@ -158,6 +159,8 @@ type TableProps = {
 export function Table({ game, name, bar, dock, children }: TableProps) {
   const { view, board, over, paid, idle } = game
   const [hints, setHints] = useStoredState('ponker-hints', true)
+  // saved straight away rather than through useStoredState, so the toggle's own click hears the new setting
+  const [audible, setAudible] = useState(soundOn)
   const [sheet, setSheet] = useState(false)
   const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
   const [overSeats, setOverSeats] = useState<HTMLDivElement | null>(null)
@@ -183,6 +186,23 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const turnKey = myTurn && me ? `${view.street}-${view.currentBet}-${me.bet}` : ''
   const idleKey = idle && me && (canShow || game.deal) ? `idle-${canShow}-${!!game.deal}` : ''
   const dockKey = dock ? String(isValidElement(dock) ? dock.key : 'dock') : waitText
+  const clock = game.clock?.seat === game.me ? game.clock : null
+
+  // even from a background tab, that's when it's most useful
+  useEffect(() => {
+    if (turnKey) sound('turn', { hidden: true })
+  }, [turnKey])
+
+  // the last five seconds of your clock
+  useEffect(() => {
+    if (!clock) return
+    const timers = [5, 4, 3, 2, 1]
+      .map((left) => clock.ms - left * 1000)
+      .filter((at) => at >= 0)
+      .map((at) => setTimeout(() => sound('tick', { hidden: true }), at))
+    return () => timers.forEach(clearTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clock?.key])
 
   return (
     <div className="poker" style={PILE_LOOK}>
@@ -194,6 +214,16 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
         {bar}
         <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
           Hints
+        </button>
+        <button
+          className={cx('poker-toggle', audible && 'on')}
+          aria-pressed={audible}
+          onClick={() => {
+            setSound(!audible)
+            setAudible(!audible)
+          }}
+        >
+          Sound
         </button>
         <button className="poker-toggle" aria-label="Hand rankings" onClick={() => setSheet(true)}>
           ?

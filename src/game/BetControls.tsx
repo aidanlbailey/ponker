@@ -154,6 +154,7 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
             ref={pile}
             type="button"
             className={`flick-pile ${held ? 'held' : ''}`}
+            data-sound="none"
             style={{ '--x': `${held?.x ?? 0}px`, '--y': `${held?.y ?? 0}px` } as CSSProperties}
             // the labelled buttons below do the same job for keyboards and screen readers
             tabIndex={-1}
@@ -223,7 +224,8 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
         )}
       </div>
 
-      <div className="bet-actions">
+      {/* the chips and cards these move make the noise */}
+      <div className="bet-actions" data-sound="none">
         {!canCheck && (
           <button type="button" className="button danger act fold" onClick={() => onAct({ type: 'fold', seat })}>
             Fold

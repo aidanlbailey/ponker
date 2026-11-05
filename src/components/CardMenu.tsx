@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type AnimationEvent, type CSSProperties, type MouseEvent } from 'react'
 import { haptic } from '../lib/haptics'
+import { sound } from '../lib/sound'
 
 export type Theme = 'dark' | 'light' | 'felt'
 
@@ -59,7 +60,10 @@ export function CardMenu({ deck, cards, onClose }: { deck: DOMRect; cards: MenuC
     if (!dialog.current?.open) dialog.current?.showModal()
   }, [])
 
+  useEffect(() => sound('fan'), [])
+
   const collect = (index: number | null = null, then?: () => void) => {
+    sound('slide')
     afterCollect.current = then
     setPicked(index)
     setLeaving(true)
@@ -110,7 +114,7 @@ export function CardMenu({ deck, cards, onClose }: { deck: DOMRect; cards: MenuC
       onClose={onClose}
       onClick={closeOnBackdrop}
     >
-      <nav className="card-hand" style={origin}>
+      <nav className="card-hand" style={origin} data-sound="none">
         {cards.map(({ run, opensPanel, href, ...card }, i) => {
           const shared = {
             className: `playing-card ${picked === i ? 'picked' : ''}`,

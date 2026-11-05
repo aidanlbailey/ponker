@@ -61,4 +61,6 @@ cd worker && npx wrangler dev   # rooms on ws://localhost:8787, which the dev si
 
 A production build talks to the rooms worker at `VITE_ROOMS_URL` (a `wss://` address).
 
+Sounds are from [Kenney](https://kenney.nl)'s Casino Audio pack (CC0).
+
 Built by Aidan Bailey. [Buy me a coffee](https://ko-fi.com/aidanlbailey) if it saved you at the table.
