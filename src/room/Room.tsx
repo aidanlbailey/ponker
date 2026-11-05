@@ -8,6 +8,8 @@ import { useStage, type TableGame } from '../game/useStage'
 import { EMOTES, tableName } from './public'
 import { useRoom, type RoomSocket, type RoomView } from './useRoom'
 import '../game/game.css'
+import '../game/menus.css'
+import '@fontsource-variable/manrope'
 import './room.css'
 
 // the engine wants a deck to deal the next street from. These never reach the screen

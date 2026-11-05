@@ -4,6 +4,7 @@ import { listTables, newRoomId } from '../room/useRoom'
 import '@fontsource-variable/manrope'
 import '@fontsource/roboto/latin-400.css'
 import '../game/game.css'
+import '../game/menus.css'
 import '../game/picker.css'
 import './previews.css'
 

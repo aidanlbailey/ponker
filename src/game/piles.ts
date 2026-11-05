@@ -9,12 +9,29 @@ export type Piles = Partial<Record<Spot, number[]>> // chip values, bottom first
 export type At = { stack: number; of: number; level: number } // where a chip sits in a pile's layout
 export type Trip = { value: number; from: Spot; to: Spot; fromAt: At | null; toAt: At | null; order: number; move: number }
 
-export const MAX_LEVEL = 11 // piles show 12 chips at most, more just lands on top
+export const MAX_LEVEL = 11 // bet piles show 12 chips at most, more just lands on top
+export const MAX_STACK = 15 // a pot stack this tall starts another of the same chip beside it
 
 export const total = (pile: number[] = []) => pile.reduce((sum, value) => sum + value, 0)
 
-// the pot's stacks left to right, one per chip value, biggest first
-export const stackValues = (chips: number[]) => [...new Set(chips)].sort((a, b) => b - a)
+// the pot's stacks left to right, biggest chip first. A chip with more than MAX_STACK of it gets more stacks,
+// each full but the last
+export function potLayout(chips: number[]) {
+  const counts = new Map<number, number>()
+  for (const value of chips) counts.set(value, (counts.get(value) ?? 0) + 1)
+  return [...counts]
+    .sort(([a], [b]) => b - a)
+    .flatMap(([value, n]) =>
+      Array.from({ length: Math.ceil(n / MAX_STACK) }, (_, part) => ({ value, part, count: Math.min(MAX_STACK, n - part * MAX_STACK) })),
+    )
+}
+
+// where the nth chip of a value in the pot sits, 0 being the bottom of its first stack
+const potAt = (stacks: ReturnType<typeof potLayout>, value: number, n: number): At => ({
+  stack: Math.max(stacks.findIndex((stack) => stack.value === value), 0) + Math.floor(n / MAX_STACK),
+  of: Math.max(stacks.length, 1),
+  level: n % MAX_STACK,
+})
 
 const level = (n: number) => Math.min(Math.max(n, 0), MAX_LEVEL)
 // piles only draw their top chips, so a chip's level counts from the lowest one drawn.
@@ -51,7 +68,7 @@ export function take(pile: number[], amount: number) {
 export function plan(piles: Piles, moves: Move[], inbound: Piles) {
   const next: Piles = { ...piles }
   const trips: Trip[] = []
-  const potBefore = stackValues([...(piles.pot ?? []), ...(inbound.pot ?? [])])
+  const potBefore = potLayout([...(piles.pot ?? []), ...(inbound.pot ?? [])])
 
   moves.forEach((move, m) => {
     let chips: { value: number; fromAt: At | null }[]
@@ -71,11 +88,7 @@ export function plan(piles: Piles, moves: Move[], inbound: Piles) {
         value,
         fromAt:
           move.from === 'pot'
-            ? {
-                stack: Math.max(potBefore.indexOf(was), 0),
-                of: Math.max(potBefore.length, 1),
-                level: drawn((counts[was] = (counts[was] ?? 1) - 1), heights[was] ?? 0),
-              }
+            ? potAt(potBefore, was, Math.max((counts[was] = (counts[was] ?? 1) - 1), 0))
             : { stack: 0, of: 1, level: drawn(index < 0 ? pile.length - 1 : index, pile.length) },
       }))
       next[move.from] = left
@@ -84,7 +97,7 @@ export function plan(piles: Piles, moves: Move[], inbound: Piles) {
   })
 
   // destinations once every chip heading for the pot is known, so its stacks are laid out for all of them
-  const potAfter = stackValues([
+  const potAfter = potLayout([
     ...(next.pot ?? []),
     ...(inbound.pot ?? []),
     ...trips.filter((trip) => trip.to === 'pot').map((trip) => trip.value),
@@ -97,9 +110,7 @@ export function plan(piles: Piles, moves: Move[], inbound: Piles) {
     const key = pot ? `pot-${trip.value}` : trip.to
     const height = heights[key] ?? (pot ? there.filter((value) => value === trip.value).length : there.length)
     heights[key] = height + 1
-    trip.toAt = pot
-      ? { stack: potAfter.indexOf(trip.value), of: potAfter.length, level: level(height) }
-      : { stack: 0, of: 1, level: level(height) }
+    trip.toAt = pot ? potAt(potAfter, trip.value, height) : { stack: 0, of: 1, level: level(height) }
   }
   return { piles: next, trips }
 }

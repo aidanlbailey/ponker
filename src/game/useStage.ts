@@ -7,7 +7,7 @@ import { viewFor, type Action, type PlayerAction, type TableState } from '../eng
 import { haptic } from '../lib/haptics'
 import { actionText } from './betting'
 import { liveOpponents } from './bot'
-import { plan, settle, stackValues, total, type Piles, type Trip } from './piles'
+import { MAX_STACK, plan, potLayout, settle, total, type Piles, type Trip } from './piles'
 import { chipMoves, payouts, winnings, type Move, type Spot, type WorkerRequest } from './solo'
 
 const STREET_MS = 550
@@ -186,9 +186,10 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
       (view.seats[seat]?.chips ?? 0) - (over && !paid ? winnings(table, seat) : 0) - total(inbound[`seat-${seat}`]),
     pile: (spot: Spot) => onFelt[spot] ?? [],
     // stacks are laid out for chips still on their way too, so the row opens up as they set off
-    potStacks: stackValues([...(onFelt.pot ?? []), ...(inbound.pot ?? [])]).map((value) => ({
+    potStacks: potLayout([...(onFelt.pot ?? []), ...(inbound.pot ?? [])]).map(({ value, part }) => ({
       value,
-      count: (onFelt.pot ?? []).filter((v) => v === value).length,
+      part,
+      count: Math.min(Math.max((onFelt.pot ?? []).filter((v) => v === value).length - part * MAX_STACK, 0), MAX_STACK),
     })),
     land,
     acted,

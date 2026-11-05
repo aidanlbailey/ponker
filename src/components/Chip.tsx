@@ -1,48 +1,73 @@
+import type { CSSProperties, ReactNode } from 'react'
 import { accentColor } from '../lib/chips'
+import './chips.css'
 
-const pips = (...positions: [x: number, y: number][]) => positions.map(([x, y]) => [(x - 0.5) * 10, (y - 0.5) * 10])
+// how a stack looks, the same at the table and on the tracker. chips.css draws from these as variables
+export const TILT = 0.58 // a chip's face, height over width. The sides are drawn at the same angle
+const STRIPE_STAGGER = 9 // degrees each chip's edge stripes are turned from the one under it
+const SHADOW_WIDTH = 1.2 // the contact shadow under a stack, in chip widths
+const SHADOW_ALPHA = 0.28
+const OUTLINE = 0.03 // every chip face and side's black outline, in chip widths
 
-const CENTER: [number, number] = [0.5, 0.5]
-const NW: [number, number] = [0.25, 0.25]
-const NE: [number, number] = [0.75, 0.25]
-const SW: [number, number] = [0.25, 0.75]
-const SE: [number, number] = [0.75, 0.75]
+// rise is a chip's thickness in px
+export const chipLook = (tilt: number, rise: number) =>
+  ({
+    '--tilt': tilt,
+    '--outline': OUTLINE,
+    '--stagger': STRIPE_STAGGER,
+    '--shadow-width': SHADOW_WIDTH,
+    '--shadow-alpha': SHADOW_ALPHA,
+    '--rise': `${rise}px`,
+  }) as CSSProperties
 
-const DICE_FACES = [
-  pips(CENTER),
-  pips(NW, SE),
-  pips(NW, CENTER, SE),
-  pips(NW, NE, SW, SE),
-  pips(NW, NE, CENTER, SW, SE),
-  pips([0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]),
-]
+// chunky spots and one ring, each outlined in black like the rest of the game. The middle stays chip
+// colored so contrastColor still holds for the tracker's count. The hub's mode chips draw these too
+export function ChipMarks({ accent, className }: { accent: string; className?: string }) {
+  return (
+    // none, so a table chip drawn as an ellipse squashes its marks with it
+    <svg className={className} viewBox="-66 -66 132 132" preserveAspectRatio="none" fill={accent} stroke="#000" strokeWidth="4" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <path key={i} d="M-15-68H15L9.5-43H-9.5Z" transform={`rotate(${i * 60})`} />
+      ))}
+      <circle r="33" fill="none" strokeWidth="12" />
+      <circle r="33" fill="none" stroke={accent} strokeWidth="5" />
+    </svg>
+  )
+}
 
-// markings only, the chip color is the span's background and the lacquer is .chip::after.
-// the groove is strokes with no fill so the middle stays chip colored and contrastColor still holds for the count
-export function Chip({ color }: { color: string }) {
-  const accent = accentColor(color)
-
+export function Chip({ color, children }: { color: string; children?: ReactNode }) {
   return (
     <span className="chip" style={{ backgroundColor: color }}>
-      <svg viewBox="-66 -66 132 132" fill={accent} aria-hidden="true">
-        {DICE_FACES.map((face, i) => (
-          <g key={i}>
-            <path d="M-11-67H11L6.6-45H-6.6Z" transform={`rotate(${i * 60})`} />
-            <g transform={`rotate(${i * 60 + 30}) translate(0 -55)`}>
-              <rect x="-6" y="-6" width="12" height="12" rx="2" fill="none" stroke={accent} strokeWidth="2" />
-              {face.map(([x, y], j) => (
-                <circle key={j} cx={x} cy={y} r="1.25" />
-              ))}
-            </g>
-          </g>
-        ))}
-        {Array.from({ length: 12 }, (_, i) => (
-          <rect key={i} x="-5" y="-41" width="10" height="4" rx="2" transform={`rotate(${i * 30})`} />
-        ))}
-        <circle r="33.5" fill="none" stroke="#000" strokeOpacity=".28" strokeWidth="1.5" />
-        <circle r="35" fill="none" stroke="#fff" strokeOpacity=".3" />
-        <circle r="64.5" fill="none" stroke="#000" strokeOpacity=".24" strokeWidth="3" strokeDasharray="1 2.4" />
-      </svg>
+      <ChipMarks accent={accentColor(color)} />
+      {children}
+    </span>
+  )
+}
+
+export const sideStyle = (color: string) => ({ '--side': color, '--stripe': accentColor(color) }) as CSSProperties
+
+// a chip's side band and its face on top, at rest in a pile or flipping through the air. Anything on the face
+// (the tracker's count in a toss) goes in as children so the face clips it as it closes
+export function ChipParts({ color, children }: { color: string; children?: ReactNode }) {
+  return (
+    <>
+      <span className="chip-band" />
+      <span className="chip-side" />
+      <Chip color={color}>{children}</Chip>
+    </>
+  )
+}
+
+// Only the top face shows, the rest are covered by the side of the chip above, so the stack's edge is really the
+// chips' sides. Bottom chip first
+export function ChipStack({ colors }: { colors: string[] }) {
+  return (
+    <span className="pile" style={{ '--chips': colors.length } as CSSProperties} aria-hidden="true">
+      {colors.map((color, i) => (
+        <span key={i} style={{ '--n': i, ...sideStyle(color) } as CSSProperties}>
+          <ChipParts color={color} />
+        </span>
+      ))}
     </span>
   )
 }

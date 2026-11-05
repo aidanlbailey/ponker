@@ -1,18 +1,20 @@
-/* the home screen. sits on the tracker's themed background with its logo, but talks in the game's Manrope */
+/* the home screen. The buttons borrow the logo's look: black outlines and a hard shadow down and to the right,
+   same as the letters' extrusion. Titles in Rubik, the small print in Manrope */
 
 .hub {
   --hub-font: 'Manrope Variable', system-ui, sans-serif;
+  --hub-title: var(--ui-title);
+  --hub-depth: #000;
 
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(1.25rem, 5vh, 2.75rem);
+  gap: clamp(1.25rem, 4vh, 2.25rem);
   min-height: 100dvh;
-  /* the top keeps a band clear for the settings deck in the corner */
-  padding: calc(max(1rem, env(safe-area-inset-top)) + var(--deck-height) + 1rem) max(1rem, env(safe-area-inset-right))
-    max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  /* the top keeps a band clear for the settings deck and profile in the corners */
+  padding: calc(max(1rem, env(safe-area-inset-top)) + var(--deck-height) + 2.25rem) max(1.25rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
   font-family: var(--hub-font);
   animation: slide-in 0.5s ease-out;
 }
@@ -20,98 +22,317 @@
 .hub-menu {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  flex-grow: 1;
+  gap: 1rem;
   width: min(100%, 460px);
 }
 
-/* .button in styles.css loads later and would win on the font otherwise */
-.hub-quick.button {
-  padding: 1.05rem 1.5rem;
-  font-family: var(--hub-font);
-  font-size: 1.65rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-align: center;
-  text-decoration: none;
+.hub-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-top: 0.5rem;
 }
 
-.hub-mode,
-.hub-extra {
-  border: 1px solid var(--button-border);
-  border-radius: 12px;
-  background: var(--button);
-  color: var(--button-text);
+/* only a wrapper on desktop, where Daily Race and the tracker share a row */
+.hub-extras {
+  display: contents;
+}
+
+.hub-slab {
+  --slab-inset: inset 0 2px 0 rgb(255 255 255 / 0.08);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  border: 3px solid var(--hub-depth);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1d5a3c, #12402a);
+  box-shadow:
+    var(--slab-inset),
+    5px 5px 0 var(--hub-depth);
+  color: #fff;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition:
-    border-color 0.2s ease,
-    transform 0.15s ease;
+    translate 0.12s ease,
+    box-shadow 0.12s ease;
 
   &:hover {
-    border-color: var(--button-on);
+    translate: -1px -1px;
+    box-shadow:
+      var(--slab-inset),
+      6px 6px 0 var(--hub-depth);
   }
 
+  /* pressed down into its own shadow */
   &:active {
-    transform: scale(0.97);
+    translate: 5px 5px;
+    box-shadow: var(--slab-inset);
   }
-}
-
-.hub-mode {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.05rem 0.85rem;
-  padding: 0.7rem 0.9rem;
-  box-shadow: var(--shadow);
 
   b {
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-family: var(--hub-title);
+    font-size: 1.125rem;
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 var(--hub-depth);
   }
 
   small {
-    overflow: hidden;
-    color: var(--button-muted);
-    font-size: 0.85rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #d3e3d8;
+    font-size: 0.8125rem;
+    font-weight: 600;
   }
 }
 
-/* still opens, to say it isn't ready, so it's dimmed rather than disabled. Only the icon and name, the
-   muted "Coming later" is already as faint as small text can go */
+.hub-text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.hub-quick {
+  --slab-inset: inset 0 -5px 0 #8f0a20;
+
+  gap: 1rem;
+  padding: 1.25rem 1.375rem 1.4rem 1.125rem;
+  background: #c8102e;
+
+  b {
+    font-size: 1.5625rem;
+    letter-spacing: var(--ui-title-spacing);
+  }
+
+  small {
+    color: #ffe3e7;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+}
+
+.hub-play {
+  flex: none;
+  width: 2.5rem;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(2px 2px 0 var(--hub-depth));
+}
+
+.hub-mode {
+  padding: 0.75rem 1rem 0.75rem 0.75rem;
+}
+
+.hub-chevron {
+  flex: none;
+  width: 20px;
+  stroke-width: 3;
+}
+
+/* still opens, to say it isn't ready, so it's dimmed rather than disabled */
 .hub-mode.later {
+  border-style: dashed;
+  border-color: rgb(0 0 0 / 0.55);
+  background: rgb(0 0 0 / 0.16);
   box-shadow: none;
 
-  .hub-icon,
+  &:hover,
+  &:active {
+    translate: none;
+    box-shadow: none;
+  }
+
   b {
-    opacity: 0.6;
+    color: #a9c2b2;
+    text-shadow: none;
+  }
+
+  small {
+    color: #b7cdbf;
   }
 }
 
-.hub-icon {
-  grid-row: span 2;
+.hub-soon {
+  position: absolute;
+  top: -14px;
+  right: 14px;
+  padding: 5px 10px;
+  border: 2.5px solid var(--hub-depth);
+  border-radius: 8px;
+  background: #ffd400;
+  box-shadow: 3px 3px 0 var(--hub-depth);
+  rotate: 6deg;
+  color: #111111;
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* the same edge spots as the logo's chip, with the mode's icon in the middle */
+.hub-chip {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
+  flex: none;
+  width: 54px;
   aspect-ratio: 1;
+  border: 2.5px solid var(--hub-depth);
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.12);
-  font-size: 1.35rem;
-  line-height: 1;
+  overflow: hidden;
+  box-shadow: 4px 4px 0 var(--hub-depth);
+
+  > svg:last-child {
+    position: relative;
+    width: 36%; /* inside the ring */
+    stroke-width: 2.4;
+  }
 }
 
-.hub-extras {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
+.hub-chip-edge {
+  position: absolute;
+  inset: 0;
 }
 
-.hub-extra {
+.hub-chip-rooms {
+  background: #1a1a1a;
+}
+
+.hub-chip-bots {
+  background: #1b5fd1;
+}
+
+.hub-chip-lock {
+  border-color: rgb(0 0 0 / 0.55);
+  background: #4c5a52;
+  box-shadow: none;
+  color: #c9d4ce;
+
+  .hub-chip-edge {
+    display: none;
+  }
+}
+
+.hub-tracker {
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 60px;
+  margin-top: auto;
+  background: #0f3523;
+  box-shadow: 4px 4px 0 var(--hub-depth);
+
+  &:hover {
+    box-shadow: 5px 5px 0 var(--hub-depth);
+  }
+
+  &:active {
+    translate: 4px 4px;
+    box-shadow: none;
+  }
+
+  svg {
+    width: 20px;
+    stroke: #e3b54a;
+    stroke-width: 2.4;
+  }
+
+  b {
+    font-size: 1rem;
+  }
+}
+
+/* opposite the deck, its middle lined up with the deck's */
+.hub-profile {
+  position: absolute;
+  top: calc(max(1rem, env(safe-area-inset-top)) + (var(--deck-height) - 48px) / 2);
+  right: max(1rem, env(safe-area-inset-right));
   display: grid;
   place-items: center;
-  min-height: 44px;
-  font-weight: 600;
+  width: 48px;
+  aspect-ratio: 1;
+  border: 3px solid var(--hub-depth);
+  border-radius: 50%;
+  background: #0f3523;
+  box-shadow: 4px 4px 0 var(--hub-depth);
+  color: #e3b54a;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    translate 0.12s ease,
+    box-shadow 0.12s ease;
+
+  &:active {
+    translate: 4px 4px;
+    box-shadow: none;
+  }
+
+  svg {
+    width: 22px;
+    stroke-width: 2.4;
+  }
+}
+
+/* desktop: the phone's column, wider, with the modes and the extras in pairs */
+@media (min-width: 760px) and (min-height: 600px) {
+  .hub-menu {
+    gap: 1.125rem;
+    width: min(100%, 540px);
+  }
+
+  .hub-modes,
+  .hub-extras {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.125rem;
+  }
+
+  .hub-quick {
+    gap: 1.25rem;
+    padding: 1.5rem 1.625rem 1.75rem 1.375rem;
+
+    b {
+      font-size: 2rem;
+      text-shadow: 3px 3px 0 var(--hub-depth);
+    }
+
+    small {
+      font-size: 1rem;
+    }
+  }
+
+  .hub-play {
+    width: 3rem;
+  }
+
+  .hub-mode {
+    padding: 1rem;
+
+    b {
+      font-size: 1.1875rem;
+    }
+
+    small {
+      font-size: 0.875rem;
+    }
+  }
+
+  .hub-chevron {
+    display: none;
+  }
+
+  .hub-chip {
+    width: 58px;
+  }
+
+  .hub-tracker {
+    margin-top: 0;
+  }
 }
 
 /* stuck on the logo's top right corner, the hub's flex shrinks the h1 to the letters. Nothing to grab,
@@ -194,30 +415,28 @@
   position: absolute;
   top: max(1rem, env(safe-area-inset-top));
   left: max(1rem, env(safe-area-inset-left));
-}
 
-/* inside the deck button so tapping the word opens it too, but absolute so the deal still starts from the cards.
-   the deck hides itself while its cards are out, the caption stays put */
-.deck-caption {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 0.7rem);
-  translate: 0 -50%;
-  visibility: visible;
-  color: var(--text-soft);
-  font-family: Silkscreen, monospace;
-  font-size: 1.6rem;
-  font-weight: 400;
-  text-shadow: var(--label-shadow);
-  white-space: nowrap;
+  /* the same hard shadow as the buttons. A filter so it follows the fanned stack's outline, not one box */
+  .deck {
+    filter: drop-shadow(4px 4px 0 var(--hub-depth));
+  }
+
+  .deck .card-back {
+    box-shadow: none;
+    outline: 2px solid var(--hub-depth);
+    outline-offset: 0;
+  }
 }
 
 /* phones on their side: logo on the left, menu on the right, nothing scrolls */
 @media (max-height: 480px) and (min-aspect-ratio: 5/4) {
   .hub {
     flex-direction: row;
+    justify-content: center;
+    align-items: center;
     gap: clamp(1.5rem, 5vw, 4rem);
-    padding-block: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-bottom));
+    padding-block: calc(max(0.75rem, env(safe-area-inset-top)) + var(--deck-height) + 0.5rem)
+      max(0.75rem, env(safe-area-inset-bottom));
   }
 
   .hub .title {
@@ -225,26 +444,39 @@
   }
 
   .hub-menu {
-    gap: 0.45rem;
+    flex-grow: 0;
+    gap: 0.6rem;
     width: min(50%, 400px);
   }
 
+  .hub-modes {
+    gap: 0.6rem;
+    margin-top: 0.25rem;
+  }
+
   .hub-quick {
-    padding-block: 0.7rem;
-    font-size: 1.43rem;
+    padding-block: 0.6rem 0.75rem;
+
+    b {
+      font-size: 1.3rem;
+    }
+  }
+
+  .hub-play {
+    width: 1.9rem;
   }
 
   .hub-mode {
     padding-block: 0.4rem;
   }
 
-  .hub-icon {
-    width: 36px;
-    font-size: 1.15rem;
+  .hub-chip {
+    width: 40px;
   }
 
-  .hub-extra {
-    min-height: 40px;
+  .hub-tracker {
+    min-height: 44px;
+    margin-top: 0.25rem;
   }
 }
 

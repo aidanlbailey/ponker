@@ -1,6 +1,8 @@
-import type { AnimationEvent, CSSProperties } from 'react'
-import { accentColor, countStyle } from '../lib/chips'
-import { Chip } from './Chip'
+import '@fontsource/roboto/latin-900.css'
+import { Fragment, type AnimationEvent, type CSSProperties } from 'react'
+import { countStyle } from '../lib/chips'
+import { CHIP_RISE, TRACKER_TILT, stackLayers } from '../lib/stack'
+import { ChipParts, chipLook, sideStyle } from './Chip'
 
 export type Toss = {
   id: number
@@ -11,7 +13,8 @@ export type Toss = {
 }
 
 export const CHIP_SIZE = 132
-const EDGE_LAYERS = [-4, -2.5, -1, 1, 2.5, 4]
+export const FACE_HEIGHT = CHIP_SIZE * TRACKER_TILT
+export const TRACKER_LOOK = chipLook(TRACKER_TILT, CHIP_RISE)
 
 // LAND_MS has to stay in step with the 62% landing in the fall-height keyframes
 const FLIGHT_MS = 1100
@@ -28,11 +31,17 @@ export const BOUNCE: Keyframe[] = [
   { translate: '0 0' },
 ]
 
+// the count shrinks evenly past three digits so "1,000" still sits inside the face. Never squashed
+export const countLength = (count: number) => ({ '--len': count.toLocaleString('en-US').length }) as CSSProperties
+
 let nextId = 0
 
+// from is the top chip's face. The toss's box is a whole chip square with the face resting along its bottom,
+// which is how chips.css draws a .chip-flip at rest
 export function createToss(direction: Toss['direction'], color: string, count: number, from: DOMRect): Toss {
   const side = Math.random() < 0.5 ? -1 : 1
   const turns = 3 + Math.floor(Math.random() * 3)
+  const top = from.bottom - CHIP_SIZE
 
   return {
     id: nextId++,
@@ -40,12 +49,15 @@ export function createToss(direction: Toss['direction'], color: string, count: n
     color,
     count,
     style: {
+      ...TRACKER_LOOK,
       left: from.left + from.width / 2 - CHIP_SIZE / 2,
-      top: from.top + from.height / 2 - CHIP_SIZE / 2,
+      top,
+      // the level it lands on or leaves from, for its stripes and to drop its shadow to the pile's foot
+      '--n': stackLayers(count),
       '--toss-duration': `${FLIGHT_MS}ms`,
       // measured from the chip's position so the whole arc stays on screen wherever it sits on the page
-      '--toss-drop': `${from.top + CHIP_SIZE * 2}px`,
-      '--toss-apex': `${Math.max(120, Math.min(from.top * 0.8, innerHeight * 0.35))}px`,
+      '--toss-drop': `${top + CHIP_SIZE * 2}px`,
+      '--toss-apex': `${Math.max(120, Math.min(top * 0.8, innerHeight * 0.35))}px`,
       '--toss-x': `${side * (120 + Math.random() * 140)}px`,
       '--toss-spin': `${side * turns * 360}deg`,
       '--toss-roll': `${(Math.random() - 0.5) * 180}deg`,
@@ -62,30 +74,25 @@ export function ChipToss({ tosses, onDone }: ChipTossProps) {
       if (e.target === e.currentTarget) onDone(id)
     }
 
-    const face = (
-      <>
-        <Chip color={color} />
-        <span className="toss-count" style={countStyle(color)}>
-          {count.toLocaleString('en-US')}
-        </span>
-      </>
-    )
-
     return (
-      <div key={id} className={`toss ${direction}`} style={style} onAnimationEnd={finish}>
-        <div className="toss-height">
-          <div className="toss-spin">
-            <div className="toss-face back">{face}</div>
-            {EDGE_LAYERS.map((depth) => (
-              <i
-                key={depth}
-                style={{ '--depth': `${depth}px`, '--edge': color, '--stripe': accentColor(color) } as CSSProperties}
-              />
-            ))}
-            <div className="toss-face">{face}</div>
+      <Fragment key={id}>
+        {/* its own layer under the piles, a fixed toss is a stacking context so a shadow inside it would
+            darken the pile it lands on. Drifts with the toss but never lifts */}
+        <div className={`toss toss-shade ${direction}`} style={style}>
+          <span className="flight-shadow" />
+        </div>
+        <div className={`toss ${direction}`} style={style} onAnimationEnd={finish}>
+          <div className="toss-height">
+            <div className="toss-spin chip-flip" style={sideStyle(color)}>
+              <ChipParts color={color}>
+                <span className="toss-count" style={{ ...countStyle(color), ...countLength(count) }}>
+                  {count.toLocaleString('en-US')}
+                </span>
+              </ChipParts>
+            </div>
           </div>
         </div>
-      </div>
+      </Fragment>
     )
   })
 }

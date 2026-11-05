@@ -8,6 +8,7 @@ import { newSolo, STORAGE_KEY } from './solo'
 import '@fontsource-variable/manrope'
 import '@fontsource/roboto/latin-400.css'
 import './game.css'
+import './menus.css'
 import './picker.css'
 
 const SEAT_COUNTS = [2, 3, 4, 5, 6]

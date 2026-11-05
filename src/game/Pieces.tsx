@@ -1,9 +1,8 @@
 import '@fontsource/press-start-2p/greek-400.css'
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { Chip } from '../components/Chip'
+import { ChipParts, ChipStack, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
 import { HIDDEN, type Card } from '../engine/engine'
-import { accentColor } from '../lib/chips'
 import { chipColors, colorOf } from './betting'
 import { cardName, isRed, rankText, suitText } from './cards'
 import { progress, route, type Box, type Point } from './route'
@@ -18,8 +17,12 @@ const SLIDE_MS = 420
 const HOP_MS = 560
 const PILE_RISE = 4 // keep in step with .pile in game.css
 const STACK_GAP = 4 // keep in step with .pot-slot in game.css
-export const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts
-const EDGE_LAYERS = [-1.2, -0.4, 0.4, 1.2]
+export const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts. Pot stacks go to MAX_STACK there
+
+// the flick pile's chips are twice the felt's, so their thickness goes with their size. About the felt's 4px on its chips
+const FLICK_RISE = 0.1
+// handed to game.css and chips.css as variables on the table
+export const PILE_LOOK = { ...chipLook(TILT, PILE_RISE), '--flick-rise': FLICK_RISE } as CSSProperties
 // ponytail: plain letters for now. The art lands in public/ by name (alpha, beta...), swap the letter for an img here.
 const BOT_LETTERS = Object.fromEntries(BOTS.map((bot) => [bot.id, bot.letter]))
 // round the wheel in alphabet order so a colour says nothing about how it plays, light and dark
@@ -70,17 +73,8 @@ export function PlayingCard({ card, delay = 0 }: { card: Card; delay?: number })
   )
 }
 
-export function ChipPile({ amount = 0, colors = chipColors(amount) }: { amount?: number; colors?: string[] }) {
-  colors = colors.slice(-SHOWN)
-  return (
-    <span className="pile" style={{ '--chips': colors.length } as CSSProperties} aria-hidden="true">
-      {colors.map((color, i) => (
-        <span key={i} style={{ '--n': i } as CSSProperties}>
-          <Chip color={color} />
-        </span>
-      ))}
-    </span>
-  )
+export function ChipPile({ amount = 0, colors = chipColors(amount), shown = SHOWN }: { amount?: number; colors?: string[]; shown?: number }) {
+  return <ChipStack colors={colors.slice(-shown)} />
 }
 
 // same flight as the tracker's toss: drift, gravity and spin each on their own element so the
@@ -88,8 +82,9 @@ export function ChipPile({ amount = 0, colors = chipColors(amount) }: { amount?:
 // A hop is the little flip up onto a pot stack after a slide. It only fills forwards so the
 // slide keeps hold of the chip until it starts, and does one turn with no roll so it doesn't jump.
 function throwChip(chip: HTMLElement, start: Point, end: Point, startScale: number, delay: number, hop = false) {
-  const height = chip.firstElementChild!
-  const spin = height.firstElementChild!
+  // by name, the shadow sits ahead of them in the flight
+  const height = chip.querySelector('.toss-height')!
+  const spin = chip.querySelector('.toss-spin')!
   const reach = Math.hypot(end.x - start.x, end.y - start.y) * 0.3
   const apex = hop ? Math.min(18 + reach, 56) : Math.min(30 + reach, 110)
   const turns = (Math.random() < 0.5 ? -1 : 1) * (hop ? 1 : 2 + Math.floor(Math.random() * 2)) * 360
@@ -120,11 +115,13 @@ function throwChip(chip: HTMLElement, start: Point, end: Point, startScale: numb
     ),
     spin.animate(
       [
-        { transform: `rotateX(${turns}deg) rotateZ(${roll}deg)`, easing: 'cubic-bezier(0.3, 0.5, 0.6, 1)' },
-        { transform: 'rotateX(16deg) rotateZ(0deg)', offset: LAND },
-        { transform: 'rotateX(-9deg) rotateZ(0deg)', offset: 0.76 },
-        { transform: 'rotateX(4deg) rotateZ(0deg)', offset: 0.88 },
-        { transform: 'rotateX(0deg) rotateZ(0deg)' },
+        // --flip is how far it's turned end over end. game.css draws the face, side and edge from it, so it
+        // opens out to a full circle as it faces you and lands as exactly the chip it becomes
+        { '--flip': `${turns}deg`, transform: `rotateZ(${roll}deg)`, easing: 'cubic-bezier(0.3, 0.5, 0.6, 1)' },
+        { '--flip': '16deg', transform: 'rotateZ(0deg)', offset: LAND },
+        { '--flip': '-9deg', transform: 'rotateZ(0deg)', offset: 0.76 },
+        { '--flip': '4deg', transform: 'rotateZ(0deg)', offset: 0.88 },
+        { '--flip': '0deg', transform: 'rotateZ(0deg)' },
       ],
       timing,
     ),
@@ -153,6 +150,10 @@ function boardObstacle(size: number): Box | null {
   return { left: left - size - clearance, top: top - size - clearance, right: right + clearance, bottom: bottom + clearance }
 }
 
+// unscaled and unrounded. offsetWidth rounds to a whole pixel, and that was enough to put the flying chip a
+// fraction off the one it lands as, so it twitched as it came to rest
+const layoutWidth = (el: HTMLElement) => parseFloat(getComputedStyle(el).width)
+
 export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => void }) {
   const el = useRef<HTMLDivElement>(null)
 
@@ -161,24 +162,26 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const sample = document.querySelector<HTMLElement>('.bet .pile-slot')
     if (!sample || reducedMotion()) return onLand()
 
-    // under the seats the chip lives inside the scaled felt. This undoes the felt's scale and offset,
+    // the chip lives inside the scaled felt, under or over the seats. This undoes the felt's scale and offset,
     // so everything below can keep working in screen pixels wherever the chip is drawn
-    const layer = el.current!.closest<HTMLElement>('.under-seats')
+    const layer = el.current!.closest<HTMLElement>('.under-seats, .over-seats')
     if (layer) {
       const felt = layer.parentElement!
       const box = felt.getBoundingClientRect()
-      layer.style.transform = `scale(${felt.offsetWidth / box.width}) translate(${-box.left}px, ${-box.top}px)`
+      layer.style.transform = `scale(${layoutWidth(felt) / box.width}) translate(${-box.left}px, ${-box.top}px)`
     }
 
     // measured, so the flying chip is exactly the size of the resting one whatever the felt is scaled to
     const size = sample.getBoundingClientRect().width
-    const scale = size / (sample.offsetWidth || size)
+    const scale = size / (layoutWidth(sample) || size)
     const rise = PILE_RISE * scale
     el.current!.style.setProperty('--chip-size', `${size}px`)
     // the face is drawn at the pile's own size and scaled like the felt, or its lacquer and edge come
     // out thinner than the chips it lands on
     el.current!.style.setProperty('--face-size', `${size / scale}px`)
     el.current!.style.setProperty('--face-scale', `${scale}`)
+    // its side's stripes are turned for the level it lands on, the same as the chip that'll be sitting there
+    el.current!.style.setProperty('--n', `${flight.toAt?.level ?? 0}`)
 
     // a chip's top left corner at its place in a pile, or on the avatar for a seat
     const spotOf = (spot: Spot, at: At | null): Point | null => {
@@ -196,7 +199,7 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const start = flick
       ? {
           x: flick.left + flick.width / 2 - size / 2,
-          y: flick.bottom - flick.width / 2 - size / 2 - (flight.fromAt?.level ?? 0) * PILE_RISE * startScale,
+          y: flick.bottom - flick.width / 2 - size / 2 - (flight.fromAt?.level ?? 0) * flick.width * FLICK_RISE,
         }
       : spotOf(flight.from, flight.from.startsWith('seat') ? null : flight.fromAt)
     const end = spotOf(flight.to, flight.toAt)
@@ -246,20 +249,12 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
   const color = colorOf(flight.value)
   return (
     <div ref={el} className="flight" aria-hidden="true">
+      {/* on the felt under it, so outside .toss-height: it slides with the chip but never lifts. Only for a
+          chip starting a new pile, one landing on a pile has that pile's shadow under it already */}
+      {flight.toAt?.level === 0 && <span className="flight-shadow" />}
       <div className="toss-height">
-        <div className="toss-spin">
-          <div className="toss-face back">
-            <Chip color={color} />
-          </div>
-          {EDGE_LAYERS.map((depth) => (
-            <i
-              key={depth}
-              style={{ '--depth': `${depth}px`, '--edge': color, '--stripe': accentColor(color) } as CSSProperties}
-            />
-          ))}
-          <div className="toss-face">
-            <Chip color={color} />
-          </div>
+        <div className="toss-spin chip-flip" style={sideStyle(color)}>
+          <ChipParts color={color} />
         </div>
       </div>
     </div>

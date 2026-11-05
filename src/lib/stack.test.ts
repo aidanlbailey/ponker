@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHIP_RISE, MAX_LAYERS, STACK_ROOM, landedCount, layerJitter, stackLayers, stackLift } from './stack'
+import { CHIP_RISE, MAX_LAYERS, STACK_ROOM, landedCount, stackLayers, stackLift } from './stack'
 
 describe('chip stack', () => {
   it('has no layers until there is a second chip', () => {
@@ -22,9 +22,5 @@ describe('chip stack', () => {
     expect(landedCount(5, 2)).toBe(3)
     // a remove while the only chip is still flying
     expect(landedCount(0, 1)).toBe(0)
-  })
-
-  it('jitters every layer less than the chip ring can hide', () => {
-    for (let i = 0; i < MAX_LAYERS; i++) expect(Math.abs(layerJitter(i))).toBeLessThanOrEqual(1.2)
   })
 })

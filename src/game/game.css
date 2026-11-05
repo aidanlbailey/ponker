@@ -1,8 +1,15 @@
 .poker {
   --table-felt: #17754a;
-  --table-rail: #1c1c1c;
-  --game-font: Roboto, system-ui, sans-serif;
+  --table-rail: #5a3620;
+  --table-trim: #e3b54a;
+  --game-font: 'Manrope Variable', system-ui, sans-serif;
   --table-line: #f2f2f2;
+  /* the hub's cream, for anything sitting on the cloth. The edge is its pressed-in bottom lip */
+  --table-cream: #f3efe6;
+  --table-cream-edge: #d6cdb8;
+  --table-ink: #23211c;
+  --table-slab: #0f3523;
+  --table-slab-edge: #061a10;
 
   position: fixed;
   inset: 0;
@@ -15,18 +22,16 @@
   padding: max(0.4rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
     max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
   overflow: hidden;
-  /* no --bg-image here, its grain is what makes the app read as felt. the table is the only cloth in the room */
-  background: var(--bg);
+  /* the hub's page shows through, stripes and all, so the table sits in the same room as the menus */
+  background: none;
   font-family: var(--game-font);
-  /* only Roboto Regular ships, and a faked bold looked worse than none. Bold text stays regular */
-  font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* menus aren't a room, they show the hub's page through, whatever the theme. The grain eats plain text,
+/* menus aren't a room, they show the hub's page through, whatever the theme. The stripes eat plain text,
    so they get the hub's label shadow too */
 .poker:is(.picker, .room-gate) {
   background: none;
@@ -38,9 +43,8 @@
   --text-muted: #ffffff;
 }
 
-/* the page colour here is felt green, so the room gets its own neutral one and the controls follow it */
+/* green panels and fields vanish on the green page, so the dialogs and fields take greys */
 [data-theme='felt'] .poker:not(.picker, .room-gate) {
-  --bg: #121212;
   --surface: linear-gradient(145deg, #2a2a2a, #1f1f1f);
   --surface-raised: #2a2a2a;
   --border: #525252;
@@ -137,7 +141,10 @@
 
 /* table */
 
+/* over the dock, so a flick flying off the dock stays on top of it. The dock only comes up while the pile's
+   held, and stays up long enough for a missed flick to spring back over the felt */
 .table-wrap {
+  z-index: 1;
   grid-area: table;
   container-type: size;
   display: grid;
@@ -156,15 +163,27 @@
   max-height: 150cqw;
   border-radius: 50cqmin;
   background-color: var(--table-felt);
-  background-image: var(--grain), radial-gradient(ellipse at 50% 42%, rgb(255 255 255 / 0.14), transparent 62%, rgb(0 0 0 / 0.28));
+  /* brass trim, then the wood rail, each with the hub's black outline, then the hard shadow down and right */
   box-shadow:
-    0 0 0 var(--rail) var(--table-rail),
-    inset 0 0 0 2px color-mix(in srgb, var(--table-line) 55%, transparent),
+    inset 0 0 0 2px #000,
     inset 0 6px 24px rgb(0 0 0 / 0.45),
-    0 12px 30px rgb(0 0 0 / 0.45);
+    0 0 0 calc(var(--rail) * 0.4) var(--table-trim),
+    0 0 0 calc(var(--rail) * 0.4 + 2px) #000,
+    0 0 0 calc(var(--rail) * 1.5) var(--table-rail),
+    0 0 0 calc(var(--rail) * 1.5 + 2px) #000,
+    5px 5px 0 calc(var(--rail) * 1.5 + 2px) #000;
   color: #ffffff;
-  scale: 0.975; /* the rail is a shadow, so it needs this room inside the grid cell */
+  scale: 0.94; /* the rail is all shadow, so it needs this room inside the grid cell */
 
+  /* the painted betting line */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 13% 11%;
+    border: 2px dashed rgb(255 253 248 / 0.3);
+    border-radius: 999px;
+    pointer-events: none;
+  }
 }
 
 /* centred with auto margins, not translate. A transform would make this its own layer, and the
@@ -182,6 +201,8 @@
 
 .pot {
   position: relative;
+  /* the bottom chip's side and its shadow hang under the slot, this keeps them off the board */
+  margin-bottom: calc(var(--rise) + var(--chip-size) * 0.12);
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -317,37 +338,23 @@
       translate 0.3s ease;
   }
 
-  /* a light running clockwise round the plate. Both layers are masked down to a ring, the
-     second one wider and blurred for the glow (the mask cuts after the blur, hence the width) */
-  &.turn .seat-plate::before,
+  /* whose turn it is: a ring and a little arrow bobbing over the plate */
+  &.turn .seat-plate {
+    outline: 2px solid var(--table-line);
+  }
+
   &.turn .seat-plate::after {
     content: '';
     position: absolute;
-    inset: calc(-1 * var(--ring));
-    padding: var(--ring);
-    border-radius: inherit;
-    background: conic-gradient(
-      from var(--spin),
-      transparent 55%,
-      color-mix(in srgb, var(--table-line) 40%, transparent) 75%,
-      var(--table-line) 92%,
-      transparent 96%
-    );
-    mask:
-      linear-gradient(#000 0 0) content-box exclude,
-      linear-gradient(#000 0 0);
+    bottom: calc(100% + 6px);
+    left: 50%;
+    margin-left: -7px;
+    border: 7px solid transparent;
+    border-top: 9px solid var(--table-line);
+    border-bottom: 0;
+    filter: drop-shadow(1px 1px 0 #000);
     pointer-events: none;
-    animation: turn-spin 1.8s linear infinite;
-  }
-
-  &.turn .seat-plate::before {
-    --ring: 2px;
-  }
-
-  &.turn .seat-plate::after {
-    --ring: 8px;
-    filter: blur(5px);
-    opacity: 0.8;
+    animation: turn-bob 0.7s ease-in-out infinite alternate;
   }
 
   &.winner .seat-plate {
@@ -502,8 +509,8 @@
   bottom: auto;
 }
 
-/* the top seat and upper corners bet right by their plate and the pot sits under them, so their
-   bubble goes up over their cards or the chips coming in cover it */
+/* the top seat bets right by its plate and the pot sits under it, so its bubble goes up over its cards
+   or the chips coming in cover it */
 .felt.ring .seat.upper .said {
   top: auto;
   bottom: calc(100% + 3px);
@@ -623,18 +630,12 @@
     left: calc(var(--x) + 3rem + var(--chip-size) / 2 + 6px);
   }
 
-  /* level with a lower corner's plate rather than the middle of the seat, as far from the board as it goes */
+  /* level with a corner's plate rather than the middle of the seat, as far from the board as it goes */
   &.side {
     top: calc(var(--y) + 0.6rem);
   }
 
-  /* in front of an upper corner seat, held in off the rail exactly like the seat itself */
-  &.under {
-    top: calc(var(--y) + 1.6rem + var(--chip-size) / 2);
-    left: clamp(3.3rem, var(--x), 100% - 3.3rem);
-  }
-
-  /* the lower corners' and top seat's amounts ride on top of the pile, there's no room under.
+  /* the corners' and top seat's amounts ride on top of the pile, there's no room under.
      4px a chip, same rise as .pile */
   &.side .pile-label,
   &.beside .pile-label {
@@ -647,8 +648,8 @@
 /* on a narrow felt the lower corners bet level with you, and your amount beside the chips ran under theirs */
 @container (max-width: 480px) {
   /* and on the smallest phones it still touches theirs, so yours is the one on top */
-  .felt.ring .bet.mine {
-    z-index: 2;
+  .felt.ring .bet.mine .pile-label {
+    z-index: 5;
   }
 
   .felt.ring .bet.mine .pile-label {
@@ -673,9 +674,11 @@
   }
 }
 
-/* bets thrown from a seat fly in here, over the bet piles and under the seats. Its transform is set by
-   ChipFlight, which makes this a containing block that lines up with the screen for the fixed chip */
-.under-seats {
+/* bets thrown from a seat fly in .under-seats, over the bet piles and under the seats. Everything else flies
+   in .over-seats, over the seats but under the badges (z-index 4). Their transform is set by ChipFlight,
+   which makes each a containing block that lines up with the screen for the fixed chip */
+.under-seats,
+.over-seats {
   position: absolute;
   top: 0;
   left: 0;
@@ -684,36 +687,30 @@
   pointer-events: none;
 }
 
-/* chips */
+.over-seats {
+  z-index: 3;
+}
 
-.pile {
-  position: relative;
-  display: block;
-  flex: none;
-  width: var(--chip-size);
-  height: calc(var(--chip-size) + (var(--chips) - 1) * 4px);
-  min-width: var(--chip-size);
+/* the copy of a seat that only shows its badges, see Game.tsx */
+.seat.seat-badges {
+  z-index: 4;
+  visibility: hidden;
+  pointer-events: none;
 
-  > span {
-    position: absolute;
-    bottom: calc(var(--n) * 4px);
-    left: 0;
-  }
-
-  /* --edge keeps the black rim a hairline on screen, the felt scales up on desktop and a 1px rim went thick */
-  .chip {
-    box-shadow:
-      0 0 0 var(--edge, 1px) #000000,
-      0 1px 2px rgb(0 0 0 / 0.5);
+  :is(.dealer, .seat-blind, .seat-tag, .said) {
+    visibility: visible;
   }
 }
 
-/* always there and always one chip big, so a flight has a fixed place to land and the label can't shove the pile */
+/* chips. how a chip and a stack are drawn lives in components/chips.css, shared with the tracker */
+
+/* always there and always one chip big (its squashed face), so a flight has a fixed place to land and the label
+   can't shove the pile */
 .pile-slot {
   position: relative;
   display: block;
   width: var(--chip-size);
-  height: var(--chip-size);
+  height: calc(var(--chip-size) * var(--tilt));
   transform-origin: 50% 100%;
 
   .pile {
@@ -730,7 +727,7 @@
   bottom: 0;
   left: 0;
   width: var(--chip-size);
-  height: var(--chip-size);
+  height: calc(var(--chip-size) * var(--tilt));
   translate: calc((var(--stack) - (var(--of) - 1) / 2) * (var(--chip-size) + 4px)) 0;
   transition: translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
@@ -742,6 +739,7 @@
 
 .pile-label {
   position: absolute;
+  z-index: 4; /* over any chip, flying ones too */
   top: 50%;
   left: calc(100% + 0.3rem);
   /* sized off the chips so it scales with them. A bundled font with line-height 1 keeps the digits
@@ -761,15 +759,16 @@
   translate: 0 -50%;
 }
 
+/* centred with margins, not translate, and no z-index. Either would make it its own layer and trap the amount
+   under the flying chips. It's one chip's face, the amount hangs off it */
 .bet {
   position: absolute;
   top: var(--y);
   left: var(--x);
-  z-index: 1;
+  margin: calc(var(--chip-size) * var(--tilt) / -2) 0 0 calc(var(--chip-size) / -2);
   font-size: 0.85rem;
   font-weight: 600;
   text-shadow: var(--text-shadow);
-  translate: -50% -50%;
 }
 
 .flight {
@@ -784,34 +783,6 @@
   .toss-spin {
     will-change: transform;
   }
-
-  .toss-face {
-    /* full size, so the back face still flips about the chip's middle */
-    width: var(--chip-size);
-    height: var(--chip-size);
-    transform: translateZ(1.6px);
-
-    &.back {
-      transform: translateZ(-1.6px) rotateY(180deg);
-    }
-
-    .chip {
-      --chip-size: var(--face-size);
-      --edge: calc(1px / var(--face-scale));
-
-      scale: var(--face-scale);
-      transform-origin: 0 0;
-      box-shadow: 0 0 0 var(--edge) #000000;
-    }
-
-    /* same edge and shadow as .pile, or the chip changes look the moment it lands. Only the front casts
-       one, the back face's would show round the edge */
-    &:not(.back) .chip {
-      box-shadow:
-        0 0 0 var(--edge) #000000,
-        0 1px 2px rgb(0 0 0 / 0.5);
-    }
-  }
 }
 
 /* dock */
@@ -819,6 +790,7 @@
 /* fixed height, the table gets whatever's left so a dock that resized between turns would bounce the whole board */
 .dock {
   grid-area: dock;
+  transition: z-index 0s 0.35s;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -828,6 +800,11 @@
 
   &.hinted {
     height: 212px;
+  }
+
+  &:has(.flick-pile.held) {
+    z-index: 2;
+    transition: none;
   }
 }
 
@@ -895,13 +872,16 @@
 
 .flick-pile {
   --chip-size: 52px;
+  --rise: calc(var(--chip-size) * var(--flick-rise)); /* worked out here, so each size below gets its own */
 
   position: relative;
   z-index: 30;
-  /* tall enough for the biggest pile (8 chips, 4px apart) up front, so moving the slider
+  /* the bottom chip's side and shadow hang under the pile, this keeps them off the Flick label */
+  margin-bottom: calc(var(--rise) + var(--chip-size) * 0.1);
+  /* tall enough for the biggest pile (8 chips, MAX_PILE) up front, so moving the slider
      grows the chips upward inside it instead of resizing the row and shoving the hint around */
   width: var(--chip-size);
-  height: calc(var(--chip-size) + 28px);
+  height: calc(var(--chip-size) * var(--tilt) + 7 * var(--rise));
   padding: 0;
   border: 0;
   background: none;
@@ -1054,7 +1034,6 @@
     /* 0.75: blown all the way up it felt spaced out, three quarters reads right */
     --felt-scale: calc(0.975 * var(--k) * 0.75);
     --rail: calc(clamp(6px, 1.6cqmin, 12px) / var(--k));
-    --edge: calc(1px / var(--felt-scale));
 
     container-type: size;
     width: calc(min(100cqw, 170cqh) / var(--k));
@@ -1223,37 +1202,287 @@
   }
 }
 
-/* TRIAL: the chips' black hairline on every card and pill too, to see how it looks. Delete this block to undo.
-   The exact ring the chips use, with each one's own shadow carried along. var(--edge) goes straight into each
-   shadow, a shared variable on .poker would resolve it up there, where the felt's scale isn't. Not an outline
-   either, browsers round those up to a whole pixel before the felt's scale, so they came out twice as thick */
-.poker {
+/* the table in the hub's look: black outlines, a hard shadow down and to the right that buttons press into,
+   cream on the cloth and green slabs for the controls. On the felt they're box-shadow rings, not borders,
+   so nothing changes size and the chip flights still land where they measured. Outlines would also get
+   rounded to whole pixels before the felt's scale */
+.poker:not(.picker, .room-gate) {
+  /* everything in the bar is the same green, Hints included */
+  :is(.poker-link, .poker-toggle) {
+    border: 2.5px solid #000;
+    border-radius: 10px;
+    background: var(--table-slab);
+    box-shadow:
+      inset 0 -3px 0 var(--table-slab-edge),
+      3px 3px 0 #000;
+    color: #fff;
+    font-weight: 800;
+    transition:
+      translate 0.12s ease,
+      box-shadow 0.12s ease;
+
+    &:active:not(:disabled) {
+      translate: 3px 3px;
+      box-shadow: inset 0 -3px 0 var(--table-slab-edge);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .poker-stakes {
+    color: #fff;
+    font-family: var(--ui-title);
+    font-weight: 600;
+    text-shadow: 2px 2px 0 #000;
+  }
+
   .tcard-face,
   .tcard .card-back {
     outline: none;
   }
 
   .tcard-face {
-    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 2px 5px rgb(0 0 0 / 0.4);
+    box-shadow:
+      0 0 0 2px #000,
+      2px 2px 0 2px #000;
   }
 
-  .tcard .card-back,
-  .seat-blind {
-    box-shadow: 0 0 0 var(--edge, 1px) #000000;
+  .tcard .card-back {
+    box-shadow: 0 0 0 2px #000;
   }
 
-  .seat-plate,
-  .pile-label,
-  .result {
-    box-shadow: 0 0 0 var(--edge, 1px) #000000, var(--shadow);
+  .seat-plate {
+    border-radius: 12px;
+    background: var(--table-cream);
+    box-shadow:
+      inset 0 -3px 0 var(--table-cream-edge),
+      0 0 0 2px #000,
+      3px 3px 0 2px #000;
   }
 
-  .said {
-    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 2px 5px rgb(0 0 0 / 0.5);
+  .avatar {
+    border-radius: 8px;
+    background: var(--table-slab);
+    box-shadow: 0 0 0 2px #000;
+    color: #fff;
+    font-family: var(--ui-title);
+    font-weight: 600;
+  }
+
+  /* the green and Rubik above outrank the bot look, so it's put back */
+  .avatar.bot {
+    background: #fff;
+    color: var(--bot-color, #9c1020);
+    font-family: 'Press Start 2P', Georgia, serif;
+    font-weight: 900;
+  }
+
+  .seat-name {
+    color: #605a4e;
+    font-weight: 800;
+  }
+
+  .seat-stack {
+    color: var(--table-ink);
+    font-family: var(--ui-title);
+  }
+
+  .seat.open .seat-plate {
+    border: 2px dashed rgb(255 253 248 / 0.45);
+    background: rgb(0 0 0 / 0.16);
+    box-shadow: none;
+
+    .seat-name {
+      color: #e6efe9;
+    }
   }
 
   .dealer {
-    box-shadow: 0 0 0 var(--edge, 1px) #000000, 0 1px 2px rgb(0 0 0 / 0.6);
+    background: #fff;
+    box-shadow:
+      0 0 0 2px #000,
+      1px 1px 0 2px #000;
+  }
+
+  .seat-blind,
+  .seat-tag {
+    background: var(--table-slab);
+    box-shadow: 0 0 0 2px #000;
+    color: #fff;
+  }
+
+  .seat-tag {
+    rotate: -5deg;
+  }
+
+  .seat-clock {
+    background: #c8102e;
+    box-shadow: 0 0 0 1.5px #000;
+
+    &.banked {
+      background: #ff8a5c;
+    }
+  }
+
+  .said {
+    border-radius: 8px;
+    background: var(--table-trim);
+    box-shadow:
+      0 0 0 2px #000,
+      2px 2px 0 2px #000;
+    rotate: -4deg;
+    color: #111;
+    font-weight: 800;
+  }
+
+  .pile-label {
+    border-radius: 8px;
+    background: var(--table-cream);
+    box-shadow:
+      0 0 0 2px #000,
+      2px 2px 0 2px #000;
+    color: var(--table-ink);
+    font-family: var(--ui-title);
+    font-weight: 600;
+  }
+
+  .pot .pile-label {
+    background: var(--table-slab);
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  .result {
+    border-radius: 12px;
+    background: var(--table-slab);
+    box-shadow:
+      0 0 0 2px #000,
+      3px 3px 0 2px #000;
+    color: #fff;
+    font-family: var(--ui-title);
+    font-weight: 600;
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  /* the dock is off the felt, so it's real borders like the hub's */
+  .hint {
+    border: 2.5px solid #000;
+    border-radius: 12px;
+    background: var(--table-cream);
+    box-shadow:
+      inset 0 -3px 0 var(--table-cream-edge),
+      4px 4px 0 #000;
+    color: var(--table-ink);
+    text-shadow: none;
+
+    b {
+      color: var(--table-slab);
+      font-family: var(--ui-title);
+    }
+
+    span {
+      color: #4d483e;
+      font-weight: 700;
+    }
+
+    em {
+      color: var(--table-ink);
+      font-weight: 600;
+    }
+  }
+
+  .dock-wait,
+  .flick-hint {
+    color: var(--text);
+    font-weight: 700;
+    text-shadow: var(--label-shadow);
+  }
+
+  .bet-presets button {
+    border: 2.5px solid #000;
+    border-radius: 10px;
+    background: #fffdf8;
+    box-shadow:
+      inset 0 -3px 0 var(--table-cream-edge),
+      3px 3px 0 #000;
+    color: var(--table-ink);
+    font-weight: 800;
+    transition:
+      translate 0.12s ease,
+      box-shadow 0.12s ease;
+
+    &:active {
+      translate: 3px 3px;
+      box-shadow: inset 0 -3px 0 var(--table-cream-edge);
+    }
+  }
+
+  .bet-exact input {
+    border: 2.5px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.12);
+    color: var(--table-ink);
+    font-family: var(--ui-title);
+    font-weight: 600;
+  }
+
+  .bet-slider {
+    accent-color: var(--table-trim);
+  }
+
+  .dock .button {
+    --lip: var(--table-slab-edge);
+
+    border: 3px solid #000;
+    border-radius: 12px;
+    background: var(--table-slab);
+    box-shadow:
+      inset 0 -4px 0 var(--lip),
+      4px 4px 0 #000;
+    color: #fff;
+    font-family: var(--ui-title);
+    font-weight: 600;
+    text-shadow: 2px 2px 0 #000;
+    transition:
+      translate 0.12s ease,
+      box-shadow 0.12s ease;
+
+    /* the global .button lifts on hover and shrinks on press, these push down into their shadow instead */
+    &:hover {
+      transform: none;
+      box-shadow:
+        inset 0 -4px 0 var(--lip),
+        4px 4px 0 #000;
+    }
+
+    &:active:not(:disabled) {
+      transform: none;
+      translate: 4px 4px;
+      box-shadow: inset 0 -4px 0 var(--lip);
+    }
+
+    &.danger {
+      --lip: var(--table-cream-edge);
+
+      background: var(--table-cream);
+      color: var(--table-ink);
+      text-shadow: none;
+    }
+
+    &.add {
+      --lip: var(--table-slab);
+
+      background: #1d5a3c;
+    }
+
+    &.primary {
+      --lip: #8f0a20;
+
+      background: #c8102e;
+    }
   }
 }
 
@@ -1265,15 +1494,9 @@
   initial-value: 1;
 }
 
-@property --spin {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes turn-spin {
+@keyframes turn-bob {
   to {
-    --spin: 360deg;
+    translate: 0 -5px;
   }
 }
 
@@ -1309,7 +1532,6 @@
 @media (prefers-reduced-motion: reduce) {
   .seat .tcard,
   .tcard.up .tcard-flip,
-  .seat.turn .seat-plate::before,
   .seat.turn .seat-plate::after,
   .seat.winner .seat-plate,
   .seat.arrive .seat-plate,

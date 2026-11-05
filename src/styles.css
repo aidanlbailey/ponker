@@ -13,21 +13,18 @@
     -1px -1px 2px rgb(255 255 255 / 0.3);
   --label-shadow: var(--text-shadow);
   --primary: linear-gradient(145deg, #2563eb, #1d4ed8);
-  /* the textures are generated in the browser, no image to download. grain is fine speckle, clumps and short
-     fibers both ways, in white and black so it works on any theme (only the opposite tone shows). mottle is big
-     slow blotches on a much larger tile so the repeat doesn't show. the feColorMatrix rows keep each noise's peaks */
-  --grain: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' seed='4' stitchTiles='stitch' result='g'/><feColorMatrix in='g' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.6 0 0 0 -.62' result='a'/><feColorMatrix in='g' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.6 0 0 -.62' result='b'/><feTurbulence type='fractalNoise' baseFrequency='.38' numOctaves='3' seed='11' stitchTiles='stitch' result='p'/><feColorMatrix in='p' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.4 0 0 0 -1.1' result='c'/><feColorMatrix in='p' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 2.4 0 0 -1.1' result='d'/><feTurbulence type='fractalNoise' baseFrequency='.18 .75' numOctaves='2' seed='9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 3.5 0 0 0 -1.85' result='e'/><feTurbulence type='fractalNoise' baseFrequency='.75 .18' numOctaves='2' seed='21' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 3.5 0 0 0 -1.85' result='h'/><feMerge><feMergeNode in='c'/><feMergeNode in='d'/><feMergeNode in='b'/><feMergeNode in='a'/><feMergeNode in='e'/><feMergeNode in='h'/></feMerge></filter><rect width='100%' height='100%' filter='url(%23f)' opacity='.2'/></svg>");
-  --mottle: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'><filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='3' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.5 0 0 0 -1.05'/></filter><rect width='100%' height='100%' filter='url(%23f)' opacity='.12'/></svg>");
   --title-stroke-width: 3px;
+  /* the menus' button titles. Not the logo, that one's always Rubik Mono */
+  --ui-title: 'Rubik Variable', system-ui, sans-serif;
+  --ui-title-weight: 500;
+  --ui-title-case: none;
+  --ui-title-spacing: 0.02em;
 }
 
 :root,
 [data-theme='dark'] {
   --bg: #0a0f0c;
-  --bg-image:
-    var(--grain),
-    radial-gradient(ellipse 80% 60% at 50% 15%, rgb(57 255 106 / 0.1), transparent 75%),
-    radial-gradient(ellipse 100% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.5));
+  --bg-image: repeating-linear-gradient(45deg, #0f1812 0 40px, #0a0f0c 40px 80px);
   --text: #ffffff;
   --text-soft: #cdd8cf;
   --text-muted: #a3b8a8;
@@ -60,9 +57,7 @@
 [data-theme='light'] {
   --bg: #f3efe6;
   --label-shadow: none; /* labels are dark here, so it'd only smudge them */
-  --bg-image:
-    var(--grain), var(--mottle),
-    radial-gradient(ellipse 100% 80% at 50% 25%, rgb(255 255 255 / 0.6), transparent 70%, rgb(120 95 60 / 0.14));
+  --bg-image: repeating-linear-gradient(45deg, #f3efe6 0 40px, #ebe5d8 40px 80px);
   --text: #23211c;
   --text-soft: #4d483e;
   --text-muted: #605a4e;
@@ -89,9 +84,7 @@
 
 [data-theme='felt'] {
   --bg: #0f5132;
-  --bg-image:
-    var(--grain), var(--mottle),
-    radial-gradient(ellipse 90% 70% at 50% 30%, rgb(255 255 255 / 0.06), transparent 70%, rgb(0 0 0 / 0.2));
+  --bg-image: repeating-linear-gradient(45deg, #186e44 0 40px, #14623c 40px 80px);
   --text: #ffffff;
   --text-soft: #ffffff;
   --text-muted: #e8e8e8;
@@ -284,7 +277,7 @@ button,
         0 0 0 var(--title-stroke-width) var(--title-stroke),
         var(--title-shadow);
 
-      /* the lacquer stays still so the shine doesn't roll with it */
+      /* only the marks roll, the lip along the bottom stays put */
       svg {
         animation: title-chip-roll 16s linear infinite;
       }
@@ -468,7 +461,9 @@ button,
   position: relative;
   display: flex;
   align-items: flex-end;
-  height: calc(var(--chip-size) + var(--stack-room));
+  height: calc(var(--chip-size) * var(--tilt) + var(--stack-room));
+  /* the contact shadow and the bottom chip's side hang under the pile's box */
+  margin-bottom: calc(var(--chip-size) * 0.09);
 }
 
 /* the button is the whole pile, so hover and the landing squash move it as one thing */
@@ -477,7 +472,7 @@ button,
   z-index: 10;
   display: block;
   width: var(--chip-size);
-  height: calc(var(--chip-size) + var(--stack-lift));
+  height: calc(var(--chip-size) * var(--tilt) + var(--stack-lift));
   padding: 0;
   border: 0;
   border-radius: calc(var(--chip-size) / 2);
@@ -494,46 +489,12 @@ button,
     transform: scale(1.05);
   }
 
-  /* one shadow under the whole pile, whatever its height. the chips only get a tight contact shadow */
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    width: var(--chip-size);
-    aspect-ratio: 1;
-    border-radius: 50%;
-    box-shadow:
-      0 2px 3px rgb(0 0 0 / 0.5),
-      0 9px 14px rgb(0 0 0 / 0.45);
-  }
-
   /* absolute because buttons center their content vertically, which would only lift it half way */
-  .chip {
+  .pile {
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
-    box-shadow:
-      0 0 0 2px #000000,
-      0 1px 2px rgb(0 0 0 / 0.5);
   }
-}
-
-/* only the crescent under the chip above shows, so the stripes run straight down like a real chip's edge */
-.chip-layer {
-  position: absolute;
-  width: var(--chip-size);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background:
-    linear-gradient(90deg, rgb(0 0 0 / 0.3), transparent 22% 78%, rgb(0 0 0 / 0.3)),
-    repeating-linear-gradient(90deg, var(--edge) 0 16px, var(--stripe) 16px 26px);
-  /* same inner shading as the lacquer on .chip::after so the pile reads as one material */
-  box-shadow:
-    0 0 0 1.5px #000000,
-    inset 0 -1px 1px rgb(255 255 255 / 0.25),
-    inset 0 -3px 5px rgb(0 0 0 / 0.26),
-    inset 0 0 12px rgb(0 0 0 / 0.22);
 }
 
 .chip {
@@ -545,26 +506,27 @@ button,
   overflow: hidden;
   border-radius: 50%;
   box-shadow:
-    0 0 0 2px #000000,
-    0 2px 3px rgb(0 0 0 / 0.5),
-    0 9px 14px rgb(0 0 0 / 0.45);
+    0 0 0 2.5px #000000,
+    4px 4px 0 2.5px #000000;
 
+  /* sized outright, an svg won't stretch to inset on its own, it keeps its square and a table chip's ellipse
+     cut it off */
   svg {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
-  /* the lacquer. has to sit on top of the svg, an inset shadow on .chip itself gets covered by the markings */
+  /* flat, no lacquer. Just a darker lip along the bottom, the pressed-in edge the slabs have. On top of
+     the svg, an inset shadow on .chip itself gets covered by the markings */
   &::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 22%, rgb(255 255 255 / 0.24), transparent 55%);
-    box-shadow:
-      inset 0 1.5px 2px rgb(255 255 255 / 0.45),
-      inset 0 -3px 5px rgb(0 0 0 / 0.4),
-      inset 0 0 12px rgb(0 0 0 / 0.35);
+    /* off the chip's size, 3px was fine on the tracker's but a tenth of a table chip */
+    box-shadow: inset 0 calc(var(--chip-size) * -0.025) 0 rgb(0 0 0 / 0.28);
   }
 }
 
@@ -574,7 +536,7 @@ button,
   top: calc(var(--stack-room) - var(--stack-lift));
   left: 0;
   width: var(--chip-size);
-  height: var(--chip-size);
+  height: calc(var(--chip-size) * var(--tilt));
   z-index: 30;
   /* the bottom of the pile, same origin as .chip-button, so it tracks the chip instead of drifting off it */
   transform-origin: 50% calc(100% + var(--stack-lift));
@@ -590,7 +552,8 @@ button,
   display: grid;
   place-items: center;
   padding-bottom: 0.125em; /* digits sit low in their line box. not translate, the landing bounce animates that */
-  font-size: 2.5rem;
+  font-family: Roboto, system-ui, sans-serif;
+  font-size: calc(2.5rem * min(1, 4 / var(--len, 3)));
   font-weight: 900;
   pointer-events: none;
   text-shadow: var(--text-shadow);
@@ -643,6 +606,9 @@ button,
 }
 
 .toss {
+  --face-size: var(--chip-size);
+  --face-scale: 1;
+
   position: fixed;
   z-index: 35;
   pointer-events: none;
@@ -682,37 +648,27 @@ button,
   }
 }
 
-.toss-height {
-  perspective: 700px;
-}
-
 .toss-spin {
   position: relative;
   width: var(--chip-size);
   height: var(--chip-size);
-  transform-style: preserve-3d;
-
-  /* a stack of striped discs fakes the chip's edge when it turns side on */
-  i {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: repeating-conic-gradient(var(--edge) 0 15deg, var(--stripe) 15deg 30deg);
-    transform: translateZ(var(--depth));
-  }
 }
 
-.toss-face {
-  position: absolute;
-  transform: translateZ(5px);
+/* under the piles (z 10). Gone by the time it reaches the pile's own shadow, or the two stack up darker and the
+   second one pops off when the toss ends */
+.toss-shade {
+  z-index: 5;
 
-  &.back {
-    transform: translateZ(-5px) rotateY(180deg);
+  .flight-shadow {
+    animation: var(--toss-duration) linear forwards;
   }
 
-  /* no drop shadow, both faces would cast one and stack with the resting chip's underneath */
-  .chip {
-    box-shadow: 0 0 0 2px #000000;
+  &.fall .flight-shadow {
+    animation-name: shade-fall;
+  }
+
+  &.rise .flight-shadow {
+    animation-name: shade-rise;
   }
 }
 
@@ -1455,20 +1411,49 @@ button,
 
 @keyframes fall-spin {
   0% {
-    transform: rotateX(var(--toss-spin)) rotateZ(var(--toss-roll));
+    --flip: var(--toss-spin);
+    transform: rotateZ(var(--toss-roll));
     animation-timing-function: cubic-bezier(0.3, 0.5, 0.6, 1);
   }
   62% {
-    transform: rotateX(16deg);
+    --flip: 16deg;
+    transform: none;
   }
   76% {
-    transform: rotateX(-9deg);
+    --flip: -9deg;
   }
   88% {
-    transform: rotateX(4deg);
+    --flip: 4deg;
   }
   100% {
+    --flip: 0deg;
     transform: none;
+  }
+}
+
+@keyframes shade-fall {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  62%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shade-rise {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  40%,
+  100% {
+    opacity: 0;
   }
 }
 
@@ -1493,7 +1478,8 @@ button,
 
 @keyframes rise-spin {
   to {
-    transform: rotateX(var(--toss-spin)) rotateZ(var(--toss-roll));
+    --flip: var(--toss-spin);
+    transform: rotateZ(var(--toss-roll));
   }
 }
 

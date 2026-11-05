@@ -1,0 +1,153 @@
+/* How a chip and a stack of them are drawn, shared by the table (game/) and the tracker. The look comes in as
+   variables from chipLook in Chip.tsx: --tilt, --outline, --stagger, --shadow-width, --shadow-alpha and --rise */
+
+/* Seen from a little above. Each chip's face and side are ellipses --tilt as tall as they're wide, the side
+   hanging --rise under the face, so a stack reads as one solid thing at one angle. Drawn that height rather than
+   squashed, a squash thinned the outlines along the top and bottom. --tilt, --stagger, --outline and the shadow
+   come in from PILE_LOOK in Pieces.tsx */
+.pile {
+  position: relative;
+  display: block;
+  flex: none;
+  width: var(--chip-size);
+  height: calc(var(--chip-size) * var(--tilt) + (var(--chips) - 1) * var(--rise));
+  min-width: var(--chip-size);
+
+  > span {
+    position: absolute;
+    bottom: calc(var(--n) * var(--rise));
+    left: 0;
+  }
+
+  /* one outline weight for every face and side, sized off the chip so the flick pile in the dock (scaled by --ui)
+     matches the felt's (scaled far more). No lip, the side band is the chip's edge now */
+  .chip {
+    height: calc(var(--chip-size) * var(--tilt));
+    box-shadow: 0 0 0 calc(var(--chip-size) * var(--outline)) #000;
+
+    &::after {
+      box-shadow: none;
+    }
+  }
+
+  .chip-side {
+    translate: 0 var(--rise);
+  }
+
+  /* the straight bit of the edge between the face's middle and the side's, the same band a flying chip has. Without
+     it the sides of a stack had a notch the flight didn't, and that sliver of outline vanished as a chip landed */
+  .chip-band {
+    top: calc(var(--chip-size) * var(--tilt) / 2);
+    height: var(--rise);
+    border-radius: 0;
+    box-shadow:
+      calc(var(--chip-size) * var(--outline) * -1) 0 0 #000,
+      calc(var(--chip-size) * var(--outline)) 0 0 #000;
+  }
+
+  /* flat, on the felt, a touch down and right like every other shadow at the table */
+  &::before {
+    content: '';
+    position: absolute;
+    bottom: calc(var(--chip-size) * (var(--tilt) * (0.5 - var(--shadow-width) / 2) - 0.06) - var(--rise));
+    left: 50%;
+    width: calc(var(--chip-size) * var(--shadow-width));
+    height: calc(var(--chip-size) * var(--tilt) * var(--shadow-width));
+    border-radius: 50%;
+    background: rgb(0 0 0 / var(--shadow-alpha));
+    translate: calc(-50% + var(--chip-size) * 0.05) 0;
+  }
+}
+
+/* a flying chip's shadow, the pile's ::before above in screen pixels. Its box is the chip's, whose bottom is where
+   its face sits, and --n drops it from that level to the pile's foot, so it ends up exactly where the pile's own
+   shadow takes over */
+.flight-shadow {
+  position: absolute;
+  top: calc(var(--chip-size) - var(--chip-size) * (var(--tilt) * (0.5 - var(--shadow-width) / 2) - 0.06) + (var(--n, 0) + 1) * var(--rise) * var(--face-scale) - var(--chip-size) * var(--tilt) * var(--shadow-width));
+  left: calc(var(--chip-size) / 2);
+  width: calc(var(--chip-size) * var(--shadow-width));
+  height: calc(var(--chip-size) * var(--tilt) * var(--shadow-width));
+  border-radius: 50%;
+  background: rgb(0 0 0 / var(--shadow-alpha));
+  translate: calc(-50% + var(--chip-size) * 0.05) 0;
+}
+
+/* a chip's edge: the same disc as its face, striped, with a thin outline that separates it from the chip under it.
+   The stripes sit under the face's edge spots (three show, 0.433 of a chip apart) and each chip's are turned
+   --stagger degrees on from the one below, so they never line up into columns */
+.chip-side,
+.chip-band {
+  --band: calc(var(--chip-size) * 0.18);
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--chip-size);
+  height: calc(var(--chip-size) * var(--tilt));
+  border-radius: 50%;
+  background: linear-gradient(90deg, var(--stripe) 0 var(--band), var(--side) var(--band))
+    calc(var(--chip-size) * 0.5 - var(--band) / 2 - var(--n, 0) * var(--chip-size) * 0.5 * var(--stagger) * 3.14159 / 180) 0 /
+    calc(var(--chip-size) * 0.433) 100% repeat-x;
+  box-shadow: 0 0 0 calc(var(--chip-size) * var(--outline)) #000;
+}
+
+/* A chip turning end over end, drawn flat from --flip, the angle the throw turns it through. --phi is how far
+   its face is from facing you: at rest it's acos(--tilt), so it reads exactly like a pile's top chip, and as it
+   turns it opens out to a full circle, closes to its edge and comes back. The face is the side nearest you and
+   the far face drops --d under it, joined by a straight band, which is just how a tilted cylinder looks. The
+   centre stays where a resting chip's is, so a pile's chip sits exactly where it lands */
+.chip-flip {
+  --phi: calc(acos(var(--tilt)) + var(--flip));
+  --s: calc(var(--face-size) * var(--face-scale));
+  --open: max(cos(var(--phi)), -1 * cos(var(--phi)));
+  --d: calc(var(--rise) * var(--face-scale) * sin(var(--phi)) / sin(acos(var(--tilt))));
+  --mid: calc(var(--s) * (1 - var(--tilt) / 2));
+}
+
+/* drawn at the pile's size and scaled like the felt, so outlines and marks match a resting chip's. Outline only,
+   no shadow or lip, same as the top of a pile */
+.chip-flip .chip,
+.chip-flip .chip-side,
+.chip-flip .chip-band {
+  --chip-size: var(--face-size);
+
+  position: absolute;
+  left: 0;
+  scale: var(--face-scale);
+  transform-origin: 0 0;
+}
+
+.chip-flip .chip,
+.chip-flip .chip-side {
+  top: calc(var(--mid) - var(--s) * var(--open) / 2);
+  height: calc(var(--chip-size) * var(--open));
+}
+
+.chip-flip .chip {
+  box-shadow: 0 0 0 calc(var(--chip-size) * var(--outline)) #000;
+
+  &::after {
+    box-shadow: none;
+  }
+}
+
+.chip-flip .chip-side {
+  translate: 0 var(--d);
+}
+
+.chip-flip .chip-band {
+  top: calc(var(--mid) + min(0px, var(--d)));
+  height: calc(max(var(--d), -1 * var(--d)) / var(--face-scale));
+  border-radius: 0;
+  box-shadow:
+    calc(var(--chip-size) * var(--outline) * -1) 0 0 #000,
+    calc(var(--chip-size) * var(--outline)) 0 0 #000;
+}
+
+/* registered so a flight can animate it and the faces under it can do trig with it */
+@property --flip {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}

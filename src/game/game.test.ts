@@ -9,7 +9,7 @@ import {
   type TableState,
 } from '../engine/engine'
 import { actionText, breakdown, chipColors, isFlick, potSize, raiseTo } from './betting'
-import { plan, settle, stackValues, take, total } from './piles'
+import { MAX_STACK, plan, potLayout, settle, take, total } from './piles'
 import { decide, equity } from './bot'
 import { advice, describeHand, priceToCall } from './helpers'
 import { progress, route } from './route'
@@ -362,7 +362,7 @@ describe('the real chips', () => {
   it('stacks each chip on its own colour in the pot', () => {
     const { trips } = plan({ pot: [100, 5], 'bet-1': [5, 25] }, [{ from: 'bet-1', to: 'pot', amount: 30 }], {})
     // stacks will be 100, 25, 5 left to right
-    expect(stackValues([100, 5, 5, 25])).toEqual([100, 25, 5])
+    expect(potLayout([100, 5, 5, 25]).map((stack) => stack.value)).toEqual([100, 25, 5])
     const red = trips.find((trip) => trip.value === 5)!
     const green = trips.find((trip) => trip.value === 25)!
     expect(red.toAt).toEqual({ stack: 2, of: 3, level: 1 }) // on top of the red already there
@@ -395,6 +395,25 @@ describe('the real chips', () => {
     expect(piles.pot).toEqual([])
     expect(trips.every((trip) => trip.toAt === null)).toBe(true)
     expect(trips.map((trip) => trip.fromAt!.stack).sort()).toEqual([0, 1, 1])
+  })
+
+  it('starts another stack of the same chip once a pot stack is full', () => {
+    const full = Array<number>(MAX_STACK).fill(5)
+    expect(potLayout([...full, 5, 5, 25]).map(({ value, count }) => [value, count])).toEqual([
+      [25, 1],
+      [5, MAX_STACK],
+      [5, 2],
+    ])
+    const landing = plan({ pot: full, 'bet-0': [5, 5] }, [{ from: 'bet-0', to: 'pot', amount: 10 }], {}).trips
+    expect(landing.map((trip) => trip.toAt)).toEqual([
+      { stack: 1, of: 2, level: 0 },
+      { stack: 1, of: 2, level: 1 },
+    ])
+    const payout = plan({ pot: [...full, 5] }, [{ from: 'pot', to: 'seat-0', amount: 10 }], {}).trips
+    expect(payout.map((trip) => trip.fromAt)).toEqual([
+      { stack: 1, of: 2, level: 0 },
+      { stack: 0, of: 2, level: MAX_STACK - 1 },
+    ])
   })
 
   it('only falls back to engine amounts when the chips do not add up', () => {

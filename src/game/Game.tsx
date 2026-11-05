@@ -6,13 +6,12 @@ import { useStoredState } from '../hooks/useStoredState'
 import { BetControls } from './BetControls'
 import { colorOf, potSize } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, PlayingCard, SHOWN } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
 import { BIG_BLIND, busted, BUY_IN, SMALL_BLIND, winnings } from './solo'
-import { total } from './piles'
+import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import type { TableGame } from './useStage'
 import '@fontsource-variable/manrope'
-import '@fontsource/roboto/latin-400.css'
 import './game.css'
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
@@ -36,13 +35,12 @@ function around(place: number, seats: number, reach: number, reachY = reach) {
 }
 
 // Heads-up the bets sit halfway in, and so does yours. Round a full ring the middle's taken by the
-// pot and board: the top seat bets beside its plate, the upper corners just under theirs, and the
-// lower ones sideways with the amount riding on the pile, so no two amounts share a row
+// pot and board: the top seat bets beside its plate, and the corners sideways, level with their plate,
+// with the amount riding on the pile
 function betSpot(place: number, seats: number) {
   const angle = angleOf(place, seats)
   if (seats === 2 || place === 0) return { className: 'bet mine', style: around(place, seats, 0.52) }
   if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet beside', style: around(place, seats, 1) }
-  if (Math.sin(angle) < 0) return { className: 'bet under', style: around(place, seats, 1) }
   return { className: 'bet side', style: around(place, seats, 0.62, 1) }
 }
 
@@ -112,6 +110,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const [hints, setHints] = useStoredState('ponker-hints', true)
   const [sheet, setSheet] = useState(false)
   const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
+  const [overSeats, setOverSeats] = useState<HTMLDivElement | null>(null)
 
   const heroName = name || 'You'
   const nameOf = (seat: number) => (seat === game.me ? heroName : game.nameOf(seat))
@@ -130,7 +129,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const quiet = game.dealing || view.toAct < 0 || view.toAct === game.me
 
   return (
-    <div className="poker">
+    <div className="poker" style={PILE_LOOK}>
       <header className="poker-bar">
         <a href="#" className="poker-link" aria-label="Home">
           <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">Home</span>
@@ -161,12 +160,12 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
           <div className="felt-center">
             <output
               className="pot"
-              style={{ '--of': game.potStacks.length, '--tall': Math.min(Math.max(1, ...game.potStacks.map((stack) => stack.count)), SHOWN) } as CSSProperties}
+              style={{ '--of': game.potStacks.length, '--tall': Math.max(1, ...game.potStacks.map((stack) => stack.count)) } as CSSProperties}
             >
               <span className="pile-slot pot-slot" data-spot="pot">
-                {game.potStacks.map(({ value, count }, i) => (
-                  <span key={value} className="pot-stack" style={{ '--stack': i } as CSSProperties}>
-                    <ChipPile colors={Array<string>(count).fill(colorOf(value))} />
+                {game.potStacks.map(({ value, part, count }, i) => (
+                  <span key={`${value}-${part}`} className="pot-stack" style={{ '--stack': i } as CSSProperties}>
+                    <ChipPile colors={Array<string>(count).fill(colorOf(value))} shown={MAX_STACK} />
                   </span>
                 ))}
               </span>
@@ -206,6 +205,16 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             const clock = turn && game.clock?.seat === i ? game.clock : null
             const tag = game.tagOf?.(i)
             const emote = game.emoteOf?.(i)
+            const seatClass = cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', spot.className === 'bet beside' && 'upper')
+            const info = (
+              <>
+                <Avatar id={seat.id} />
+                <div className="seat-info">
+                  <span className="seat-name">{nameOf(i)}</span>
+                  <span className="seat-stack">{out ? 'Out' : game.stack(i).toLocaleString('en-US')}</span>
+                </div>
+              </>
+            )
             return (
               <div key={seat.id}>
                 <div
@@ -217,29 +226,14 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                   </span>
                   {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
                 </div>
-                <div
-                  className={cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', (spot.className === 'bet under' || spot.className === 'bet beside') && 'upper')}
-                  style={around(place, seats, 1)}
-                  data-spot={`seat-${i}`}
-                >
+                <div className={seatClass} style={around(place, seats, 1)} data-spot={`seat-${i}`}>
                   <div className="seat-cards">
                     {seat.cards.map((card, k) => (
                       <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} />
                     ))}
                   </div>
                   <div className="seat-plate">
-                    <Avatar id={seat.id} />
-                    <div className="seat-info">
-                      <span className="seat-name">{nameOf(i)}</span>
-                      <span className="seat-stack">{out ? 'Out' : game.stack(i).toLocaleString('en-US')}</span>
-                    </div>
-                    {view.button === i && view.street !== 'waiting' && (
-                      <span className="dealer" title="Dealer button">
-                        D
-                      </span>
-                    )}
-                    {hints && blind && <span className="seat-blind">{blind}</span>}
-                    {tag && <span className="seat-tag">{tag}</span>}
+                    {info}
                     {clock && (
                       <span
                         key={clock.key}
@@ -247,6 +241,21 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                         style={{ '--from': clock.ms / clock.of, '--ms': `${clock.ms}ms` } as CSSProperties}
                       />
                     )}
+                  </div>
+                </div>
+                {/* the seat again, invisible, carrying only its badges. Same classes and layout so they sit exactly
+                    where they would on the plate, but over the flying chips, which a badge inside the seat can't be */}
+                <div className={cx(seatClass, 'seat-badges')} style={around(place, seats, 1)}>
+                  <div className="seat-cards" />
+                  <div className="seat-plate">
+                    {info}
+                    {view.button === i && view.street !== 'waiting' && (
+                      <span className="dealer" title="Dealer button">
+                        D
+                      </span>
+                    )}
+                    {hints && blind && <span className="seat-blind">{blind}</span>}
+                    {tag && <span className="seat-tag">{tag}</span>}
                   </div>
                   {emote ? (
                     <span key={`emote-${emote.key}`} className="said emote">
@@ -264,6 +273,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             )
           })}
           <div ref={setUnderSeats} className="under-seats" />
+          <div ref={setOverSeats} className="over-seats" />
         </div>
       </main>
 
@@ -302,10 +312,10 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
 
       {game.flights.map((flight) => {
         const chip = <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight)} />
-        // a bet thrown from a seat stays under the seats, same as the pile it lands on. A flick
-        // starts out in the dock, off the felt, so that one has to fly over everything
-        const under = flight.to.startsWith('bet') && !flight.start && underSeats
-        return under ? createPortal(chip, under, String(flight.id)) : chip
+        // a bet thrown from a seat stays under the seats, same as the pile it lands on. The rest, flicks
+        // included, go over the seats but still under every badge, so they're on the felt too
+        const layer = flight.to.startsWith('bet') && !flight.start ? underSeats : overSeats
+        return layer ? createPortal(chip, layer, String(flight.id)) : chip
       })}
 
       <p className="sr-only" aria-live="polite">

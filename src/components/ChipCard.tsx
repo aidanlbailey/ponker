@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useChipGestures } from '../hooks/useChipGestures'
-import { accentColor, countStyle, formatMoney, type Chip as ChipData } from '../lib/chips'
-import { CHIP_RISE, STACK_ROOM, landedCount, layerJitter, stackLayers, stackLift } from '../lib/stack'
-import { Chip } from './Chip'
-import { BOUNCE, BOUNCE_MS, CHIP_SIZE, LAND_MS } from './ChipToss'
+import { countStyle, formatMoney, type Chip as ChipData } from '../lib/chips'
+import { CHIP_RISE, STACK_ROOM, landedCount, stackLayers, stackLift } from '../lib/stack'
+import { ChipStack } from './Chip'
+import { BOUNCE, BOUNCE_MS, CHIP_SIZE, FACE_HEIGHT, LAND_MS, TRACKER_LOOK, countLength } from './ChipToss'
 
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -39,7 +39,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
   // measured off the stack's box, not the button, which grows with the pile and scales on hover
   const topOfPile = (chips: number) => {
     const { left, bottom } = stack.current!.getBoundingClientRect()
-    return new DOMRect(left, bottom - CHIP_SIZE - stackLift(chips), CHIP_SIZE, CHIP_SIZE)
+    return new DOMRect(left, bottom - FACE_HEIGHT - stackLift(chips), CHIP_SIZE, FACE_HEIGHT)
   }
 
   const thud = (keyframes: Keyframe[], delay: number) => {
@@ -70,7 +70,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
   const gestures = useChipGestures({ onSwipeDown: add, onSwipeUp: remove, onEdit })
 
   return (
-    <article className="chip-card" style={{ '--morph-name': `chip-${id}` } as CSSProperties}>
+    <article className="chip-card" style={{ ...TRACKER_LOOK, '--morph-name': `chip-${id}` } as CSSProperties}>
       <p className="chip-total">{showValue && formatMoney(chip.value * chip.count)}</p>
 
       <div
@@ -85,23 +85,9 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
           title="Click or long press to edit. Swipe down to add, up to remove."
           {...gestures}
         >
-          {Array.from({ length: layers }, (_, fromBottom) => (
-            <i
-              key={fromBottom}
-              className="chip-layer"
-              style={
-                {
-                  top: (layers - fromBottom) * CHIP_RISE,
-                  left: layerJitter(fromBottom),
-                  '--edge': chip.color,
-                  '--stripe': accentColor(chip.color),
-                } as CSSProperties
-              }
-            />
-          ))}
-          <Chip color={chip.color} />
+          <ChipStack colors={Array<string>(layers + 1).fill(chip.color)} />
         </button>
-        <span ref={count} className="chip-count" aria-hidden="true" style={countStyle(chip.color)}>
+        <span ref={count} className="chip-count" aria-hidden="true" style={{ ...countStyle(chip.color), ...countLength(landed) }}>
           {landed.toLocaleString('en-US')}
         </span>
       </div>

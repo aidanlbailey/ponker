@@ -186,7 +186,6 @@ export function App() {
       <span className="card-back" />
       <span className="card-back" />
       <span className="card-back" />
-      {home && <span className="deck-caption">Settings</span>}
     </button>
   )
 

@@ -1,0 +1,215 @@
+/* the menus off the hub (bots, rooms, quick play, the room gate) in the hub's look: black outlines, a hard
+   shadow down and to the right like the logo's extrusion, Rubik for titles and Manrope for the rest.
+   Scoped to the menus so the table itself keeps its own buttons */
+
+.poker:is(.picker, .room-gate) {
+  --game-font: 'Manrope Variable', system-ui, sans-serif;
+  --menu-title: var(--ui-title);
+  --menu-depth: #000;
+  --menu-felt: linear-gradient(180deg, #1d5a3c, #12402a);
+  --menu-dark: #0f3523;
+  --menu-red: #c8102e;
+  --menu-soft: #d3e3d8;
+
+  color: #fff;
+  /* Manrope ships every weight, it's only Roboto that couldn't fake a bold */
+  font-synthesis-weight: auto;
+
+  h1,
+  h2 {
+    font-family: var(--menu-title);
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 var(--menu-depth);
+  }
+
+  p {
+    color: var(--menu-soft);
+  }
+
+  /* everything you can press is a slab, and pressing pushes it down into its shadow */
+  :is(.poker-link, .poker-toggle, .button, .picked-bot, .bot-tile) {
+    border: 2.5px solid var(--menu-depth);
+    border-radius: 10px;
+    background: var(--menu-dark);
+    box-shadow: 3px 3px 0 var(--menu-depth);
+    color: #fff;
+    font-family: var(--game-font);
+    font-weight: 800;
+    text-decoration: none;
+    text-shadow: none;
+    transition:
+      translate 0.12s ease,
+      box-shadow 0.12s ease;
+
+    &:active:not(:disabled) {
+      translate: 3px 3px;
+      box-shadow: none;
+      transform: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .button {
+    padding: 0.85rem 1.25rem;
+    border-width: 3px;
+    border-radius: 12px;
+    box-shadow: 4px 4px 0 var(--menu-depth);
+    font-family: var(--menu-title);
+    font-size: 1rem;
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 var(--menu-depth);
+
+    &:active:not(:disabled) {
+      translate: 4px 4px;
+    }
+
+    &:disabled {
+      box-shadow: 4px 4px 0 var(--menu-depth);
+    }
+  }
+
+  .button.primary {
+    background: var(--menu-red);
+    box-shadow:
+      inset 0 -4px 0 #8f0a20,
+      4px 4px 0 var(--menu-depth);
+
+    &:active:not(:disabled) {
+      box-shadow: inset 0 -4px 0 #8f0a20;
+    }
+  }
+
+  .button.neutral {
+    background: var(--menu-felt);
+  }
+
+  /* selected is cream, so it never reads as another red button */
+  .poker-toggle.on {
+    border-color: var(--menu-depth);
+    background: #f3efe6;
+    color: #111;
+  }
+
+  input {
+    min-height: 44px;
+    padding: 0.5rem 0.8rem;
+    border: 2.5px solid var(--menu-depth);
+    border-radius: 10px;
+    background: #0a2419;
+    box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.45);
+    color: #fff;
+    font: 600 1rem var(--game-font);
+    text-shadow: none;
+    user-select: text;
+    -webkit-user-select: text;
+
+    &::placeholder {
+      color: #8fae9b;
+    }
+  }
+}
+
+.poker.picker {
+  .poker-bar {
+    min-height: 52px;
+  }
+
+  .poker-link {
+    min-height: 44px;
+    padding-inline: 0.85rem;
+    font-size: 1rem;
+  }
+
+  .poker-stakes {
+    padding-inline: 0.5rem;
+    color: #fff;
+    font-family: var(--menu-title);
+    font-size: 1.15rem;
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 var(--menu-depth);
+  }
+
+  .picker-body {
+    width: min(100%, 640px);
+    gap: 1.5rem;
+    padding: 0.75rem 6px 1.5rem 0;
+
+    h2 {
+      margin: 0 0 0.75rem;
+      color: #fff;
+      font-size: 0.95rem;
+      text-transform: none;
+    }
+  }
+}
+
+/* a felt panel, the same slab as the hub's mode buttons */
+.picker-seats,
+.room-gate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 3px solid #000;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1d5a3c, #12402a);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.08),
+    5px 5px 0 #000;
+}
+
+/* the bio card is a dialog, so it sits outside the menu and needs the look spelled out */
+.dialog.bio-card {
+  border: 3px solid #000;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1d5a3c, #12402a);
+  box-shadow: 7px 7px 0 #000;
+  color: #fff;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+
+  h2 {
+    font-family: var(--ui-title);
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 #000;
+  }
+
+  p {
+    color: #d3e3d8;
+  }
+
+  .button {
+    border: 3px solid #000;
+    border-radius: 12px;
+    box-shadow: 4px 4px 0 #000;
+    font-family: var(--ui-title);
+    font-weight: var(--ui-title-weight);
+    text-transform: var(--ui-title-case);
+    letter-spacing: var(--ui-title-spacing);
+    text-shadow: 2px 2px 0 #000;
+
+    &.primary {
+      background: #c8102e;
+    }
+
+    &.neutral {
+      background: #0f3523;
+    }
+
+    &:active:not(:disabled) {
+      translate: 4px 4px;
+      box-shadow: none;
+      transform: none;
+    }
+  }
+}
