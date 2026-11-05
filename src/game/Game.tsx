@@ -215,15 +215,20 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
         <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
           Hints
         </button>
+        {/* an icon, a room's bar ran off a phone with it spelled out */}
         <button
-          className={cx('poker-toggle', audible && 'on')}
+          className={cx('poker-toggle', 'poker-icon', audible && 'on')}
+          aria-label="Sound"
           aria-pressed={audible}
           onClick={() => {
             setSound(!audible)
             setAudible(!audible)
           }}
         >
-          Sound
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor" />
+            <path d={audible ? 'M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12' : 'M16 9l6 6M22 9l-6 6'} />
+          </svg>
         </button>
         <button className="poker-toggle" aria-label="Hand rankings" onClick={() => setSheet(true)}>
           ?

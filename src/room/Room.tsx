@@ -245,15 +245,27 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
       <button className="poker-toggle room-toggle" aria-label={`${label}, invite and bots`} onClick={() => setPanel(true)}>
         {label}
       </button>
+      {/* an icon, spelled out the bar ran off a phone */}
       <button
-        className={`poker-toggle ${chatOpen ? 'on' : ''}`}
+        className={`poker-toggle poker-icon ${chatOpen ? 'on' : ''}`}
+        aria-label={cur.public ? 'Emotes' : 'Chat'}
         aria-pressed={chatOpen}
         onClick={() => {
           setChatOpen(!chatOpen)
           setSeen(room.chat.length)
         }}
       >
-        {cur.public ? 'Emotes' : 'Chat'}
+        {cur.public ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" />
+            <path d="M9 9.5v.5M15 9.5v.5" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 5h16v11H9l-5 4z" />
+          </svg>
+        )}
         {!cur.public && unread > 0 && <span className="room-unread">{unread}</span>}
       </button>
     </>

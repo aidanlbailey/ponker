@@ -11,8 +11,10 @@
   --table-slab: #0f3523;
   --table-slab-edge: #061a10;
 
-  position: fixed;
-  inset: 0;
+  /* a screen tall rather than fixed. iOS 26 paints a flat tint under the status bar over anything fixed
+     against the top edge, which hid the stripes there */
+  position: relative;
+  height: 100dvh;
   display: grid;
   grid-template:
     'bar' auto
@@ -122,6 +124,24 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+.poker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding-inline: 0.45rem;
+}
+
+.poker-icon svg {
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .poker-toggle.on {

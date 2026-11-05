@@ -169,6 +169,15 @@
   .poker:has(.room-toggle) .poker-link-text {
     display: none;
   }
+
+  /* and the rest squeeze up a little, seven buttons is a lot for 375px */
+  .poker:has(.room-toggle) .poker-bar {
+    gap: 0.25rem;
+  }
+
+  .poker:has(.room-toggle) :is(.poker-link, .poker-toggle) {
+    padding-inline: 0.4rem;
+  }
 }
 
 .room-emotes {
