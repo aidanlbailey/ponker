@@ -53,6 +53,17 @@ export function isFlick(moved: Point, velocity: Point, aim: Point) {
 }
 
 // what the seat says out loud, read before the action is applied
+// which bubble a said line gets, see .said in game.css. Off the words so rooms, which only get the text, match
+const KINDS = [
+  ['All in', 'allin'],
+  ['Fold', 'fold'],
+  ['Check', 'check'],
+  ['Call', 'call'],
+  ['Bet', 'opens'], // not 'bet', that's the chip pile's class and it dragged the bubble off to the pile
+  ['Raise', 'raise'],
+] as const
+export const saidKind = (text: string) => KINDS.find(([start]) => text.startsWith(start))?.[1] ?? ''
+
 export function actionText(s: TableState, action: Action) {
   const legal = legalActions(s)
   if (!legal) return null

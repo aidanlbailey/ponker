@@ -26,9 +26,11 @@ export function ChipMarks({ accent, className }: { accent: string; className?: s
   return (
     // none, so a table chip drawn as an ellipse squashes its marks with it
     <svg className={className} viewBox="-66 -66 132 132" preserveAspectRatio="none" fill={accent} stroke="#000" strokeWidth="4" aria-hidden="true">
-      {Array.from({ length: 6 }, (_, i) => (
-        <path key={i} d="M-15-68H15L9.5-43H-9.5Z" transform={`rotate(${i * 60})`} />
-      ))}
+      <g className="chip-spots">
+        {Array.from({ length: 6 }, (_, i) => (
+          <path key={i} d="M-15-68H15L9.5-43H-9.5Z" transform={`rotate(${i * 60})`} />
+        ))}
+      </g>
       <circle r="33" fill="none" strokeWidth="12" />
       <circle r="33" fill="none" stroke={accent} strokeWidth="5" />
     </svg>

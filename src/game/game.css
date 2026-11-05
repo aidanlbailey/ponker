@@ -503,6 +503,52 @@
   animation: said 2.6s ease-out forwards;
 }
 
+/* Each action comes in its own way, sits for 2s and goes. Tuned in the bubble lab, --amp is how hard it moves.
+   transform, not translate, which centres it */
+.said.check {
+  --amp: 0.6;
+  animation:
+    said-knock 0.48s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-fade 0.4s ease-in 2.48s forwards;
+}
+
+.said.call {
+  --amp: 0.7;
+  animation:
+    said-nod 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-fade 0.4s ease-in 2.4s forwards;
+}
+
+.said.opens {
+  --amp: 0.5;
+  animation:
+    said-slam 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-fade 0.4s ease-in 2.42s forwards;
+}
+
+.said.raise {
+  --amp: 0.7;
+  animation:
+    said-slam 0.44s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-fade 0.4s ease-in 2.44s forwards;
+}
+
+.said.allin {
+  --amp: 1.2;
+  animation:
+    said-pop 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-fade 0.4s ease-in 2.42s forwards;
+}
+
+/* slumps off its left foot */
+.said.fold {
+  --amp: 1;
+  transform-origin: left bottom;
+  animation:
+    said-pop 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both,
+    said-wilt 0.7s ease-in 2.26s forwards;
+}
+
 /* opposite the rail, or the top seat's bubble ends up off the table */
 .seat:not(.me) .said {
   top: calc(100% + 3px);
@@ -517,6 +563,19 @@
 }
 
 /* a room's empty chair, there so the ring doesn't reshuffle every time someone sits down */
+/* there to show where people can sit, then out of the way. Counts from when it appears, so a seat someone
+   leaves mid-session shows for its own 5s too */
+.seat.open {
+  animation: open-seat-out 0.6s ease 5s forwards;
+}
+
+@keyframes open-seat-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 .seat.open .seat-plate {
   padding: 0.55rem 0.8rem;
   border: 1px dashed rgb(255 255 255 / 0.22);
@@ -671,6 +730,13 @@
   .seat-cards {
     min-height: calc(var(--card-w) * 1.4);
     margin-bottom: calc(var(--card-w) * -0.55);
+    transition: translate 0.25s ease-out;
+  }
+
+  /* tucked is fine face down, but a shown hand needs its suits clear of the plate. translate, not margin,
+     so the plate (and its badge twin) stays put */
+  .seat-cards:has(.tcard.up) {
+    translate: 0 calc(var(--card-w) * -0.45);
   }
 }
 
@@ -757,6 +823,43 @@
   text-shadow: none;
   white-space: nowrap;
   translate: 0 -50%;
+  animation: pill-in 0.3s ease-out both;
+}
+
+.dealer,
+.seat-blind,
+.seat-tag {
+  animation: pill-in 0.3s ease-out both;
+}
+
+/* every pill fades out too, see Fade in Game.tsx. Swapping the animation back on the way in restarts it */
+.hint,
+.swap-layer {
+  animation: pill-in 0.25s ease-out both;
+}
+
+.hint.gone,
+.swap-layer.gone,
+.pile-label.gone,
+.dealer.gone,
+.seat-blind.gone,
+.seat-tag.gone,
+.result.gone {
+  opacity: 0;
+  pointer-events: none;
+  animation: pill-out 0.25s ease-in;
+}
+
+@keyframes pill-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pill-out {
+  from {
+    opacity: 1;
+  }
 }
 
 /* centred with margins, not translate, and no z-index. Either would make it its own layer and trap the amount
@@ -837,6 +940,33 @@
   }
 }
 
+/* every layer in the one cell, sat on the bottom like the dock's own children */
+.swap {
+  display: grid;
+}
+
+.swap-layer {
+  grid-area: 1 / 1;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+}
+
+.swap,
+.swap-layer {
+  gap: inherit;
+}
+
+/* waits out the old layer's 0.25s fade before it starts its own */
+.swap-layer.late:not(.gone) {
+  animation-delay: 0.25s;
+}
+
+/* a flicked pile's already flying, a second copy fading out where it left from read as a double */
+.swap-layer.gone .flick-pile {
+  visibility: hidden;
+}
+
 .dock-wait {
   display: grid;
   place-items: center;
@@ -907,6 +1037,52 @@
   }
 }
 
+/* z by level rather than DOM order, since new chips are appended after any that are still popping off. A chip
+   leaving a level sits under the one arriving at it */
+.pile.live > span {
+  z-index: calc(var(--n) * 2 + 2);
+  transform-origin: 50% 100%;
+
+  &.in {
+    animation: pile-drop 0.24s var(--delay) both;
+  }
+
+  &.out {
+    z-index: calc(var(--n) * 2 + 1);
+    animation: pile-pop 0.18s var(--delay) ease-out both;
+  }
+}
+
+/* falls in from a little above and squashes onto the one under it, the tracker's landing in miniature */
+@keyframes pile-drop {
+  0% {
+    translate: 0 calc(var(--chip-size) * -0.5);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 1);
+  }
+  30% {
+    opacity: 1;
+  }
+  65% {
+    translate: 0 0;
+    scale: 1.05 0.92;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+/* plucked up and off to the side, so it never passes through the chip dropping into its spot */
+@keyframes pile-pop {
+  to {
+    translate: calc(var(--chip-size) * 0.35) calc(var(--chip-size) * -0.4);
+    scale: 0.85;
+    opacity: 0;
+  }
+}
+
 .flick-hint {
   color: var(--text-soft);
   font-size: 0.8rem;
@@ -967,11 +1143,114 @@
   }
 }
 
+/* a chunky gold-filled groove with a cream chip for a thumb, outlined in black like everything else in the dock.
+   --p is where the value sits, 0 to 1, from BetControls. The fill stops under the thumb's middle */
 .bet-slider {
+  --thumb: 28px;
+  --groove: 14px;
+  --fill: #ffd700;
+  --fill-to: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
+
   width: 100%;
-  height: 28px;
+  height: 32px;
   margin: 0;
-  accent-color: var(--accent);
+  background: none;
+  cursor: pointer;
+  appearance: none;
+
+  &::-webkit-slider-runnable-track {
+    box-sizing: border-box;
+    height: var(--groove);
+    border: 2.5px solid #000;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--fill) var(--fill-to), var(--table-slab) 0);
+    box-shadow:
+      inset 0 3px 0 rgb(0 0 0 / 0.3),
+      2px 2px 0 #000;
+  }
+
+  &::-moz-range-track {
+    box-sizing: border-box;
+    height: var(--groove);
+    border: 2.5px solid #000;
+    border-radius: 999px;
+    background: var(--table-slab);
+    box-shadow:
+      inset 0 3px 0 rgb(0 0 0 / 0.3),
+      2px 2px 0 #000;
+  }
+
+  &::-moz-range-progress {
+    height: calc(var(--groove) - 5px);
+    border-radius: 999px;
+    background: var(--fill);
+  }
+
+  &::-webkit-slider-thumb {
+    box-sizing: border-box;
+    width: var(--thumb);
+    height: var(--thumb);
+    /* centred on the groove's inside, which is the groove less its border */
+    margin-top: calc((var(--groove) - 5px - var(--thumb)) / 2);
+    border: 2.5px solid #000;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--table-cream) 0 34%, #000 35% 42%, var(--table-cream) 43%);
+    box-shadow:
+      inset 0 -3px 0 var(--table-cream-edge),
+      2px 2px 0 #000;
+    appearance: none;
+    transition: scale 0.12s ease-out;
+  }
+
+  &::-moz-range-thumb {
+    box-sizing: border-box;
+    width: var(--thumb);
+    height: var(--thumb);
+    border: 2.5px solid #000;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--table-cream) 0 34%, #000 35% 42%, var(--table-cream) 43%);
+    box-shadow:
+      inset 0 -3px 0 var(--table-cream-edge),
+      2px 2px 0 #000;
+    transition: scale 0.12s ease-out;
+  }
+
+  &:active::-webkit-slider-thumb {
+    scale: 1.12;
+  }
+
+  &:active::-moz-range-thumb {
+    scale: 1.12;
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    &::-moz-range-thumb {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
+/* every label stacked in one cell, so the button's as wide as the widest it'll ever say */
+.bet-actions .button.raise {
+  display: inline-grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+
+  > span {
+    grid-area: 1 / 1;
+  }
+}
+
+.raise-room {
+  visibility: hidden;
 }
 
 .bet-actions {
@@ -1106,7 +1385,10 @@
   }
 
   .bet-slider {
-    height: 40px;
+    --thumb: 38px;
+    --groove: 18px;
+
+    height: 44px;
   }
 
   .bet-actions {
@@ -1119,13 +1401,8 @@
   }
 }
 
-/* five buttons and the stakes won't fit across the narrowest phones. The picker screens only have Home,
-   so they keep their title */
+/* five buttons won't fit across the narrowest phones */
 @media (max-width: 400px) {
-  .poker:not(.picker) .poker-stakes {
-    display: none;
-  }
-
   .poker-link,
   .poker-toggle {
     padding-inline: 0.45rem;
@@ -1262,6 +1539,18 @@
       3px 3px 0 2px #000;
   }
 
+  /* stacked drop-shadows on the border triangle smeared into a blob, so it's drawn instead: a stroked
+     outline and the same hard offset as the plate. Cream is baked in since vars don't reach a data url */
+  .seat.turn .seat-plate::after {
+    bottom: calc(100% + 7px);
+    width: 19px;
+    height: 14px;
+    margin-left: -8.5px;
+    border: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 14' stroke='%23000' stroke-width='2.5' stroke-linejoin='round'%3E%3Cpath d='M3.5 3.5h14l-7 8.5z'/%3E%3Cpath d='M1.5 1.5h14l-7 8.5z' fill='%23fffdf8'/%3E%3C/svg%3E") no-repeat;
+    filter: none;
+  }
+
   .avatar {
     border-radius: 8px;
     background: var(--table-slab);
@@ -1326,15 +1615,62 @@
     }
   }
 
+  /* the gold one is an emote now, the actions each get their own below */
   .said {
+    padding: 0.12em 0.55em;
     border-radius: 8px;
-    background: var(--table-trim);
+    background: #ffd700;
     box-shadow:
       0 0 0 2px #000,
       2px 2px 0 2px #000;
+    color: #fff;
+    font-family: var(--ui-title);
+    font-weight: 600;
+  }
+
+  .said.emote {
     rotate: -4deg;
     color: #111;
     font-weight: 800;
+  }
+
+  .said.check {
+    background: #1f3f8f;
+  }
+
+  .said.call {
+    background: #4a2a7d;
+  }
+
+  .said.opens {
+    background: #a1235c;
+  }
+
+  .said.raise {
+    background: #8e1b2b;
+  }
+
+  .said.allin {
+    overflow: hidden;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffd700 32%, #d9a514 52%, #ffd700 74%, #d9a514 100%);
+    color: #1a1200;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -20% auto -20% -60%;
+      width: 45%;
+      background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.85), transparent);
+      animation: said-shine 1.8s ease-in-out 0.42s infinite;
+    }
+  }
+
+  .said.fold {
+    background: #e9e4d8;
+    box-shadow:
+      0 0 0 2px #3a3a3a,
+      2px 2px 0 2px #3a3a3a;
+    color: #6b665c;
   }
 
   .pile-label {
@@ -1423,14 +1759,12 @@
     border: 2.5px solid #000;
     border-radius: 10px;
     background: #fff;
-    box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.12);
+    box-shadow:
+      inset 2px 2px 0 rgb(0 0 0 / 0.12),
+      3px 3px 0 #000;
     color: var(--table-ink);
     font-family: var(--ui-title);
     font-weight: 600;
-  }
-
-  .bet-slider {
-    accent-color: var(--table-trim);
   }
 
   .dock .button {
@@ -1483,6 +1817,60 @@
 
       background: #c8102e;
     }
+
+    /* the action buttons wear the pill the seat says when you press them, see .said above */
+    &.act.fold {
+      --lip: #cfc8b8;
+
+      background: #e9e4d8;
+      color: #6b665c;
+    }
+
+    &.act.check {
+      --lip: #142a61;
+
+      background: #1f3f8f;
+    }
+
+    &.act.call {
+      --lip: #331c57;
+
+      background: #4a2a7d;
+    }
+
+    /* the bet button is always .raise, so opens has to come after it to win */
+    &.act.raise {
+      --lip: #63111d;
+
+      background: #8e1b2b;
+    }
+
+    &.act.opens {
+      --lip: #74183f;
+
+      background: #a1235c;
+    }
+  }
+
+  /* only the slider pushed all the way gets the gold, not the preset or a call that happens to be all in */
+  .dock .button.act.allin {
+    --lip: #a87c0a;
+
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffd700 32%, #d9a514 52%, #ffd700 74%, #d9a514 100%);
+    color: #1a1200;
+    text-shadow: none;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -20% auto -20% -60%;
+      width: 45%;
+      background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.85), transparent);
+      pointer-events: none;
+      animation: said-shine 1.8s ease-in-out infinite;
+    }
   }
 }
 
@@ -1514,6 +1902,103 @@
   }
 }
 
+@keyframes said-pop {
+  from {
+    opacity: 0;
+    transform: scale(calc(1 - 0.3 * var(--amp)));
+  }
+  60% {
+    opacity: 1;
+    transform: scale(calc(1 + 0.08 * var(--amp)));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes said-knock {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(-8px * var(--amp)));
+  }
+  15% {
+    opacity: 1;
+    transform: none;
+  }
+  30%,
+  60% {
+    transform: translateY(calc(6px * var(--amp)));
+  }
+  45%,
+  75%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes said-nod {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  30% {
+    opacity: 1;
+    transform: none;
+  }
+  55% {
+    transform: translateY(calc(5px * var(--amp))) scale(calc(1 - 0.08 * var(--amp)));
+  }
+  80% {
+    transform: scale(calc(1 + 0.04 * var(--amp)));
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes said-slam {
+  0% {
+    opacity: 0;
+    transform: translateY(calc(-44px * var(--amp))) scale(calc(1 + 0.5 * var(--amp)));
+  }
+  50% {
+    opacity: 1;
+    transform: none;
+  }
+  65% {
+    transform: scale(calc(1 + 0.25 * var(--amp)), calc(1 - 0.25 * var(--amp)));
+  }
+  82% {
+    transform: scale(0.96, 1.05);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes said-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes said-wilt {
+  to {
+    opacity: 0;
+    transform: translateY(calc(12px * var(--amp))) rotate(calc(16deg * var(--amp))) scale(0.9);
+  }
+}
+
+@keyframes said-shine {
+  0% {
+    left: -60%;
+  }
+  60%,
+  100% {
+    left: 130%;
+  }
+}
+
 @keyframes said {
   from {
     opacity: 0;
@@ -1536,11 +2021,27 @@
   .seat.winner .seat-plate,
   .seat.arrive .seat-plate,
   .result,
-  .said {
+  .seat .said,
+  .seat .said::after,
+  .allin::after,
+  .pile-label {
     animation: none;
   }
 
   .flick-pile {
     transition: none;
+  }
+
+  /* separate rules, one browser's pseudo in a list throws out the other's */
+  .bet-slider::-webkit-slider-thumb {
+    transition: none;
+  }
+
+  .bet-slider::-moz-range-thumb {
+    transition: none;
+  }
+
+  .pile.live > span {
+    animation: none;
   }
 }

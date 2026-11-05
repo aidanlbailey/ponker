@@ -429,6 +429,42 @@ button,
     flex: 1;
     min-height: 44px; /* still has to be an easy thumb target */
     padding: 0;
+    /* the menus' slabs, colours copied from menus.css and game.css since neither loads here */
+    --edge: #061a10;
+    border: 2.5px solid #000;
+    border-radius: 10px;
+    background: #0f3523;
+    box-shadow:
+      inset 0 -3px 0 var(--edge),
+      3px 3px 0 #000;
+    transition:
+      translate 0.12s ease,
+      box-shadow 0.12s ease;
+
+    /* .button's own add, danger and hover come later in the file, so these have to name them to win */
+    &.add {
+      border-color: #000;
+      background: #0f3523;
+    }
+
+    &.danger {
+      --edge: #8f0a20;
+      border-color: #000;
+      background: #c8102e;
+    }
+
+    &:hover {
+      box-shadow:
+        inset 0 -3px 0 var(--edge),
+        3px 3px 0 #000;
+      transform: none;
+    }
+
+    &:active {
+      translate: 3px 3px;
+      box-shadow: inset 0 -3px 0 var(--edge);
+      transform: none;
+    }
 
     /* drawn, not typed. + and − glyphs sit somewhere different in every font */
     &::before,
@@ -464,6 +500,10 @@ button,
   height: calc(var(--chip-size) * var(--tilt) + var(--stack-room));
   /* the contact shadow and the bottom chip's side hang under the pile's box */
   margin-bottom: calc(var(--chip-size) * 0.09);
+}
+
+.chip-stack.bouncing .pile > span:last-child {
+  visibility: hidden;
 }
 
 /* the button is the whole pile, so hover and the landing squash move it as one thing */
@@ -716,46 +756,35 @@ button,
   }
 }
 
-/* the menus' Home button, in the same corner. game.css isn't loaded here, so it's copied rather than shared */
+/* the menus' Home button, in the same corner and the same slab as menus.css. game.css isn't loaded here, so it's copied rather than shared */
 .home-link {
   display: inline-flex;
   align-items: center;
   margin: max(0.4rem, env(safe-area-inset-top)) 0 0 max(0.5rem, env(safe-area-inset-left));
   gap: 0.3rem;
-  min-height: 34px;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--button-border);
-  border-radius: var(--radius);
-  background: var(--button);
-  color: var(--button-text);
+  min-height: 44px;
+  padding: 0.25rem 0.85rem;
+  border: 2.5px solid #000;
+  border-radius: 10px;
+  background: #0f3523;
+  box-shadow: 3px 3px 0 #000;
+  color: #fff;
   font-family: 'Manrope Variable', system-ui, sans-serif;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 800;
   text-decoration: none;
+  transition:
+    translate 0.12s ease,
+    box-shadow 0.12s ease;
+
+  &:active {
+    translate: 3px 3px;
+    box-shadow: none;
+  }
 
   /* where the menus go side by side, their bar moves in to 1rem */
   @media (min-aspect-ratio: 5/4) {
     margin-left: max(1rem, env(safe-area-inset-left));
-  }
-
-  /* the game's Home grows with the window on desktop and shrinks on short phones, keep these in step with game.css */
-  @media (min-aspect-ratio: 5/4) and (min-height: 600px) {
-    --ui: calc(
-      clamp(1, min(tan(atan2(100dvh, 768px)), tan(atan2(clamp(320px, 32vw, 480px), 320px))), 1.5) *
-        0.75
-    );
-
-    min-height: calc(42px * var(--ui));
-    padding-inline: calc(0.85rem * var(--ui));
-    font-size: calc(1.1rem * var(--ui));
-  }
-
-  @media (max-width: 400px) {
-    padding-inline: 0.45rem;
-  }
-
-  @media (max-height: 480px) {
-    min-height: 28px;
-    padding-block: 0;
   }
 }
 
@@ -897,6 +926,7 @@ button,
     position: absolute;
     inset: 0;
     border-radius: var(--deck-corner);
+    outline: 2px solid #000;
     box-shadow: 0 2px 4px rgb(0 0 0 / 0.4);
     transition: translate 0.15s ease;
 

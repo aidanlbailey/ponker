@@ -1,5 +1,5 @@
 import '@fontsource/roboto/latin-900.css'
-import { Fragment, type AnimationEvent, type CSSProperties } from 'react'
+import { Fragment, useEffect, type AnimationEvent, type CSSProperties } from 'react'
 import { countStyle } from '../lib/chips'
 import { CHIP_RISE, TRACKER_TILT, stackLayers } from '../lib/stack'
 import { ChipParts, chipLook, sideStyle } from './Chip'
@@ -20,6 +20,8 @@ export const TRACKER_LOOK = chipLook(TRACKER_TILT, CHIP_RISE)
 const FLIGHT_MS = 1100
 export const LAND_MS = FLIGHT_MS * 0.62
 export const BOUNCE_MS = FLIGHT_MS - LAND_MS
+// 97% in fall-height, where the toss is back down and starts fading over the pile's own top chip
+export const SETTLE_MS = FLIGHT_MS * 0.97
 
 // the tail of fall-height after landing, so the chip count can ride the same bounces
 export const BOUNCE: Keyframe[] = [
@@ -69,6 +71,15 @@ type ChipTossProps = { tosses: Toss[]; onDone: (id: number) => void }
 
 // sideways drift, gravity and spin each run on their own element, which is what makes the arc a real parabola
 export function ChipToss({ tosses, onDone }: ChipTossProps) {
+  // a phone scrolling mid-toss drags the page out from under the chip, so touch scrolling waits for them all
+  const tossing = tosses.length > 0
+  useEffect(() => {
+    if (!tossing) return
+    const block = (e: TouchEvent) => e.preventDefault()
+    document.addEventListener('touchmove', block, { passive: false })
+    return () => document.removeEventListener('touchmove', block)
+  }, [tossing])
+
   return tosses.map(({ id, direction, color, count, style }) => {
     const finish = (e: AnimationEvent) => {
       if (e.target === e.currentTarget) onDone(id)

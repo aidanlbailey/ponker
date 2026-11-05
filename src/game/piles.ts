@@ -115,6 +115,22 @@ export function plan(piles: Piles, moves: Move[], inbound: Piles) {
   return { piles: next, trips }
 }
 
+// Levels are handed out in plan order but chips land by timing, and a later seat's chips start before an
+// earlier seat's stagger is done. A pile draws by count, so a chip that beat the one under it would drop into
+// its slot and turn to that level's stripes. So a landed chip only joins its pile once nothing headed under it
+// is still in the air, bottom first. Until then it just sits where it landed
+export function ready<T extends Trip>(flights: T[], landed: (flight: T) => boolean) {
+  const under = (a: T, b: T) =>
+    a.to === b.to &&
+    (a.to !== 'pot' || a.value === b.value) &&
+    !!a.toAt &&
+    !!b.toAt &&
+    (a.toAt.stack < b.toAt.stack || (a.toAt.stack === b.toAt.stack && a.toAt.level < b.toAt.level))
+  return flights
+    .filter((f) => landed(f) && !flights.some((o) => !landed(o) && under(o, f)))
+    .sort((a, b) => (a.toAt?.stack ?? 0) - (b.toAt?.stack ?? 0) || (a.toAt?.level ?? 0) - (b.toAt?.level ?? 0))
+}
+
 // What should be on the felt when nothing's moving. Only steps in when the chips don't add up
 // to what the engine says, which is a reload or something gone wrong, never normal play.
 export function settle(piles: Piles, s: TableState, paid: boolean): Piles {

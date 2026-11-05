@@ -5,9 +5,9 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { viewFor, type Action, type PlayerAction, type TableState } from '../engine/engine'
 import { haptic } from '../lib/haptics'
-import { actionText } from './betting'
+import { actionText, saidKind } from './betting'
 import { liveOpponents } from './bot'
-import { MAX_STACK, plan, potLayout, settle, total, type Piles, type Trip } from './piles'
+import { MAX_STACK, plan, potLayout, ready, settle, total, type Piles, type Trip } from './piles'
 import { chipMoves, payouts, winnings, type Move, type Spot, type WorkerRequest } from './solo'
 
 const STREET_MS = 550
@@ -16,6 +16,8 @@ const PAY_MS = 900
 const STAGGER_MS = 40
 const MAX_STAGGER_MS = 420
 const MOVE_GAP_MS = 90
+
+const BUZZ: Record<string, 'light' | 'medium' | 'heavy' | null> = { check: 'light', call: 'light', opens: 'medium', raise: 'medium', allin: 'heavy', fold: null }
 
 // one chip in the air. start is where a flick let go of it, if it was flicked
 export type Flight = Trip & { id: number; delay: number; start?: DOMRect }
@@ -51,6 +53,8 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   const [said, setSaid] = useState<Record<number, string>>({})
   const [flights, setFlights] = useState<Flight[]>([])
   const [piles, setPiles] = useState<Piles>({})
+  // ponytail: never pruned, ids are unique and it's a few hundred numbers a session
+  const [landed, setLanded] = useState<ReadonlySet<number>>(new Set())
   const [odds, setOdds] = useState<{ key: string; chance: number } | null>(null)
   // seats someone new sat down in since the last state
   const [arrivals, setArrivals] = useState<number[]>([])
@@ -82,10 +86,22 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
     ])
   }
 
-  const land = (flight: Flight) => {
-    setFlights((prev) => prev.filter((f) => f.id !== flight.id))
-    if (!flight.to.startsWith('seat')) setPiles((prev) => ({ ...prev, [flight.to]: [...(prev[flight.to] ?? []), flight.value] }))
-  }
+  // ChipFlight holds on to the first onLand it gets, so this can't read flights. The effect below moves
+  // landed chips onto their piles
+  const land = (flight: Flight) => setLanded((prev) => new Set(prev).add(flight.id))
+
+  useEffect(() => {
+    const done = ready(flights, (f) => landed.has(f.id))
+    if (!done.length) return
+    // on purpose. The landing timing was matched frame by frame with this running after paint
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFlights((prev) => prev.filter((f) => !done.includes(f)))
+    setPiles((prev) => {
+      const next = { ...prev }
+      for (const f of done) if (!f.to.startsWith('seat')) next[f.to] = [...(next[f.to] ?? []), f.value]
+      return next
+    })
+  }, [flights, landed])
 
   const arrived = (next: TableState) =>
     setArrivals(next.seats.flatMap((seat, i) => (seat && seat.id !== table.seats[i]?.id ? [i] : [])))
@@ -93,6 +109,11 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   // table is about to become next because seat did action. Call it before the table changes
   const acted = (next: TableState, action: Action, seat: number, from?: DOMRect) => {
     const text = actionText(table, action)
+    // your own moves only, bots buzzing your phone all hand would get old fast. A fold gets nothing
+    if (seat === me) {
+      const buzz = BUZZ[text ? saidKind(text) : '']
+      if (buzz !== null) haptic(buzz ?? 'light')
+    }
     fly(chipMoves(table, next), from)
     if (text) setSaid((prev) => (next.street === table.street ? { ...prev, [seat]: text } : { [seat]: text }))
   }

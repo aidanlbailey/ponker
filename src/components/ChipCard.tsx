@@ -3,7 +3,7 @@ import { useChipGestures } from '../hooks/useChipGestures'
 import { countStyle, formatMoney, type Chip as ChipData } from '../lib/chips'
 import { CHIP_RISE, STACK_ROOM, landedCount, stackLayers, stackLift } from '../lib/stack'
 import { ChipStack } from './Chip'
-import { BOUNCE, BOUNCE_MS, CHIP_SIZE, FACE_HEIGHT, LAND_MS, TRACKER_LOOK, countLength } from './ChipToss'
+import { BOUNCE, BOUNCE_MS, CHIP_SIZE, FACE_HEIGHT, LAND_MS, SETTLE_MS, TRACKER_LOOK, countLength } from './ChipToss'
 
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -27,6 +27,9 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
   const count = useRef<HTMLSpanElement>(null)
   const landings = useRef(new Set<number>())
   const [inFlight, setInFlight] = useState(0)
+  // tosses that have landed but are still bouncing. The pile's top chip hides under them, or the toss bounces
+  // up off a copy of itself (always, once the pile stops growing at MAX_LAYERS)
+  const [bouncing, setBouncing] = useState(0)
 
   const landed = landedCount(chip.count, inFlight)
   const layers = stackLayers(landed)
@@ -55,11 +58,22 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
     if (reducedMotion()) return
     count.current?.animate(BOUNCE, { duration: BOUNCE_MS, delay: LAND_MS })
     setInFlight((n) => n + 1)
-    const timer = window.setTimeout(() => {
-      landings.current.delete(timer)
+    const after = (ms: number, then: () => void) => {
+      const timer = window.setTimeout(() => {
+        landings.current.delete(timer)
+        then()
+      }, ms)
+      landings.current.add(timer)
+    }
+    // add only runs from a swipe or a tap, but it goes through useChipGestures so the compiler reads these
+    // as running during render
+    // eslint-disable-next-line react-hooks/immutability
+    after(LAND_MS, () => {
       setInFlight((n) => n - 1)
-    }, LAND_MS)
-    landings.current.add(timer)
+      setBouncing((n) => n + 1)
+    })
+    // eslint-disable-next-line react-hooks/immutability
+    after(SETTLE_MS, () => setBouncing((n) => n - 1))
   }
 
   const remove = () => {
@@ -75,7 +89,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
 
       <div
         ref={stack}
-        className="chip-stack"
+        className={`chip-stack${bouncing ? ' bouncing' : ''}`}
         style={{ '--stack-room': `${STACK_ROOM}px`, '--stack-lift': `${layers * CHIP_RISE}px` } as CSSProperties}
       >
         <button

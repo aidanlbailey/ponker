@@ -1,7 +1,6 @@
 import { useEffect, useEffectEvent } from 'react'
 import { applyAction, shuffledDeck, viewFor, type Action, type PlayerAction } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
-import { haptic } from '../lib/haptics'
 import { botById } from './roster'
 import { botAction, endOfHand, HERO, isSolo, newSolo, setLeaving, startHand, STORAGE_KEY, type Solo } from './solo'
 import { ask, useStage, type TableGame } from './useStage'
@@ -34,7 +33,6 @@ export function useSoloTable(): TableGame {
   }
 
   const act = (action: PlayerAction, from?: DOMRect) => {
-    haptic('light')
     run(action, HERO, from)
   }
 

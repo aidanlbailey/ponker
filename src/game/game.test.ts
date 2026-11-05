@@ -9,7 +9,8 @@ import {
   type TableState,
 } from '../engine/engine'
 import { actionText, breakdown, chipColors, isFlick, potSize, raiseTo } from './betting'
-import { MAX_STACK, plan, potLayout, settle, take, total } from './piles'
+import { restack } from './BetControls'
+import { MAX_STACK, plan, potLayout, ready, settle, take, total } from './piles'
 import { decide, equity } from './bot'
 import { advice, describeHand, priceToCall } from './helpers'
 import { progress, route } from './route'
@@ -416,6 +417,22 @@ describe('the real chips', () => {
     ])
   })
 
+  it('holds a chip that lands early until the ones under it are down', () => {
+    const { trips } = plan(
+      { 'bet-0': [5, 5], 'bet-1': [5] },
+      [
+        { from: 'bet-0', to: 'pot', amount: 10 },
+        { from: 'bet-1', to: 'pot', amount: 5 },
+      ],
+      {},
+    )
+    const [low, mid, top] = trips
+    expect(top!.toAt!.level).toBe(2)
+    // bet-1's chip starts sooner than bet-0's second one and gets there first
+    expect(ready(trips, (t) => t === low || t === top)).toEqual([low])
+    expect(ready([mid!, top!], () => true)).toEqual([mid, top])
+  })
+
   it('only falls back to engine amounts when the chips do not add up', () => {
     const s = dealt()
     const right = { pot: [], 'bet-0': [10], 'bet-1': [5] }
@@ -555,5 +572,24 @@ describe('six handed', () => {
       expect(payouts(next).reduce((sum, move) => sum + move.amount, 0)).toBe(pileAt(next, 'pot'))
       table = next
     }
+  })
+})
+
+describe('flick pile restack', () => {
+  it('keeps the shared bottom, pops the rest and drops the new ones on', () => {
+    const ids = { current: 0 }
+    const start = restack([], ['a', 'b', 'c'], ids, 0, true)
+    const next = restack(start, ['a', 'd'], ids, 1000, false)
+    expect(next.filter((c) => !c.out).map((c) => c.color)).toEqual(['a', 'd'])
+    expect(next.find((c) => c.color === 'a')).toBe(start[0])
+    expect(next.filter((c) => c.out).map((c) => c.color)).toEqual(['b', 'c'])
+    expect(next.find((c) => c.color === 'd')!.n).toBe(1)
+    expect(restack(next, ['a', 'd'], ids, 2000, false)).toBe(next)
+  })
+
+  it('drops a chip that never showed instead of ghosting it', () => {
+    const ids = { current: 0 }
+    const dropped = restack(restack([], ['a'], ids, 0, true), ['a', 'b'], ids, 1000, false)
+    expect(restack(dropped, ['a'], ids, 1010, false).map((c) => c.color)).toEqual(['a'])
   })
 })

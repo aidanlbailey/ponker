@@ -1,13 +1,13 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { isValidElement, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { BetControls } from './BetControls'
-import { colorOf, potSize } from './betting'
+import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
 import { Avatar, ChipFlight, ChipPile, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
-import { BIG_BLIND, busted, BUY_IN, SMALL_BLIND, winnings } from './solo'
+import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import type { TableGame } from './useStage'
@@ -74,6 +74,56 @@ function resultText(view: TableState, me: number | null, nameOf: (seat: number) 
   return `${nameOf(seat)} ${verb} ${won[seat]}${tail}`
 }
 
+// a pill that fades out instead of vanishing. It hangs on to what it last said so there's something to fade,
+// and isn't there at all until it's first shown, or it'd fade out on mount
+function Fade({ show, className, children, title }: { show: boolean; className: string; children: ReactNode; title?: string }) {
+  const [last, setLast] = useState<ReactNode>(null)
+  if (show && last !== children) setLast(children)
+  const shown = show ? children : last
+  if (shown === null) return null
+  return (
+    <span className={cx(className, !show && 'gone')} aria-hidden={!show || undefined} title={title}>
+      {shown}
+    </span>
+  )
+}
+
+// the dock's main slot. When what it shows changes, the old one fades out and only then does the new one fade
+// in, both in one grid cell so nothing jumps. Each id keeps its last children around so there's something to fade
+// node is what the layer last showed, kept up to date while it's the current one
+type Layer = { id: string; late: boolean; node: ReactNode }
+function Swap({ id, children }: { id: string; children: ReactNode }) {
+  const [layers, setLayers] = useState<Layer[]>([{ id, late: false, node: children }])
+  const top = layers.at(-1)!
+  if (top.id !== id) {
+    // something's already fading out, so whatever was waiting behind it never got seen. Skip it rather than
+    // fade it out too, which would flash it
+    const leaving = layers.length > 1 ? layers.slice(0, 1) : layers
+    // an empty slot has nothing to wait for, '' is Table's id for showing nothing
+    const late = leaving.some((was) => was.id !== '' && was.id !== id)
+    setLayers([...leaving.filter((was) => was.id !== id), { id, late, node: children }])
+  } else if (top.node !== children) setLayers([...layers.slice(0, -1), { ...top, node: children }])
+
+  return (
+    <div className="swap">
+      {layers.map((was) => (
+        <div
+          key={was.id}
+          className={cx('swap-layer', was.late && 'late', was.id !== id && 'gone')}
+          inert={was.id !== id}
+          onAnimationEnd={(e) => {
+            // chips inside animate too, only the layer's own fade counts
+            if (e.target !== e.currentTarget || was.id === id) return
+            setLayers((now) => now.filter((other) => other.id !== was.id))
+          }}
+        >
+          {was.node}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function CheatSheet({ onClose }: { onClose: () => void }) {
   return (
     <Dialog title="Hand rankings" className="cheat-sheet" onClose={onClose}>
@@ -127,6 +177,12 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const canShow = finished && inHand && !me.shown
   const newest = Object.values(game.said).at(-1)
   const quiet = game.dealing || view.toAct < 0 || view.toAct === game.me
+  const showHint = hints && live && inHand
+  const waitText = live && !myTurn ? (me?.sittingOut ? 'Leaving after this hand' : quiet ? '' : `${nameOf(view.toAct)} to act`) : ''
+  // whatever the dock shows, spelled out so Swap knows when it's changed. Rooms key their own docks
+  const turnKey = myTurn && me ? `${view.street}-${view.currentBet}-${me.bet}` : ''
+  const idleKey = idle && me && (canShow || game.deal) ? `idle-${canShow}-${!!game.deal}` : ''
+  const dockKey = dock ? String(isValidElement(dock) ? dock.key : 'dock') : waitText
 
   return (
     <div className="poker" style={PILE_LOOK}>
@@ -134,9 +190,6 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
         <a href="#" className="poker-link" aria-label="Home">
           <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">Home</span>
         </a>
-        <span className="poker-stakes">
-          {SMALL_BLIND}/{BIG_BLIND}
-        </span>
         <span className="poker-spacer" />
         {bar}
         <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
@@ -169,18 +222,18 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                   </span>
                 ))}
               </span>
-              {shownPot > 0 && <span className="pile-label">Pot {shownPot.toLocaleString('en-US')}</span>}
+              <Fade show={shownPot > 0} className="pile-label">
+                Pot {shownPot.toLocaleString('en-US')}
+              </Fade>
             </output>
             <div className="board">
               {board.map((card, i) => (
                 <PlayingCard key={`${game.hand}-${i}`} card={card} delay={i < 3 ? i * 110 : 0} />
               ))}
             </div>
-            {finished && (
-              <p key={game.hand} className="result">
-                {resultText(view, game.me, nameOf)}
-              </p>
-            )}
+            <Fade show={finished} className="result">
+              {resultText(view, game.me, nameOf)}
+            </Fade>
           </div>
 
           {view.seats.map((seat, i) => {
@@ -224,7 +277,9 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                   <span className="pile-slot" data-spot={`bet-${i}`}>
                     {bet > 0 && <ChipPile colors={betChips.map(colorOf)} />}
                   </span>
-                  {bet > 0 && <span className="pile-label">{bet.toLocaleString('en-US')}</span>}
+                  <Fade show={bet > 0} className="pile-label">
+                    {bet.toLocaleString('en-US')}
+                  </Fade>
                 </div>
                 <div className={seatClass} style={around(place, seats, 1)} data-spot={`seat-${i}`}>
                   <div className="seat-cards">
@@ -249,13 +304,15 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                   <div className="seat-cards" />
                   <div className="seat-plate">
                     {info}
-                    {view.button === i && view.street !== 'waiting' && (
-                      <span className="dealer" title="Dealer button">
-                        D
-                      </span>
-                    )}
-                    {hints && blind && <span className="seat-blind">{blind}</span>}
-                    {tag && <span className="seat-tag">{tag}</span>}
+                    <Fade show={view.button === i && view.street !== 'waiting'} className="dealer" title="Dealer button">
+                      D
+                    </Fade>
+                    <Fade show={hints && !!blind} className="seat-blind">
+                      {blind}
+                    </Fade>
+                    <Fade show={!!tag} className="seat-tag">
+                      {tag}
+                    </Fade>
                   </div>
                   {emote ? (
                     <span key={`emote-${emote.key}`} className="said emote">
@@ -263,7 +320,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                     </span>
                   ) : (
                     game.said[i] && (
-                      <span key={game.said[i]} className="said">
+                      <span key={game.said[i]} className={`said ${saidKind(game.said[i])}`}>
                         {game.said[i]}
                       </span>
                     )
@@ -278,36 +335,37 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
       </main>
 
       <aside className={cx('dock', hints && 'hinted')}>
-        {hints && live && inHand && (
-          <div className="hint">
-            <b>{describeHand(me.cards, board)}</b>
-            {game.chance !== null && <span>Win chance {percent(game.chance)}</span>}
-            {myTurn && myTurn.toCall > 0 && <span>Need {percent(priceToCall(myTurn.toCall, pot))} to call</span>}
-            {myTurn && game.chance !== null && <em>{advice(game.chance, myTurn, pot)}</em>}
-          </div>
-        )}
+        <Fade show={showHint} className="hint">
+          {showHint && (
+            <>
+              <b>{describeHand(me.cards, board)}</b>
+              {game.chance !== null && <span>Win chance {percent(game.chance)}</span>}
+              {myTurn && myTurn.toCall > 0 && <span>Need {percent(priceToCall(myTurn.toCall, pot))} to call</span>}
+              {myTurn && game.chance !== null && <em>{advice(game.chance, myTurn, pot)}</em>}
+            </>
+          )}
+        </Fade>
 
-        {myTurn && me && <BetControls key={`${view.street}-${view.currentBet}-${me.bet}`} view={view} legal={myTurn} onAct={game.act} />}
+        <Swap id={turnKey || idleKey || dockKey ? [turnKey, idleKey, dockKey].join('|') : ''}>
+          {myTurn && me && <BetControls key={turnKey} view={view} legal={myTurn} onAct={game.act} />}
 
-        {idle && me && (canShow || game.deal) && (
-          <div className="bet-actions">
-            {canShow && (
-              <button className="button neutral" onClick={() => game.act({ type: 'show', seat: game.me! })}>
-                Show cards
-              </button>
-            )}
-            {game.deal && (
-              <button className="button primary" onClick={game.deal}>
-                {me.chips === 0 ? `Rebuy ${BUY_IN.toLocaleString('en-US')}` : over ? 'Next hand' : 'Deal me in'}
-              </button>
-            )}
-          </div>
-        )}
+          {idleKey && me && (
+            <div className="bet-actions">
+              {canShow && (
+                <button className="button neutral" onClick={() => game.act({ type: 'show', seat: game.me! })}>
+                  Show cards
+                </button>
+              )}
+              {game.deal && (
+                <button className="button primary" onClick={game.deal}>
+                  {me.chips === 0 ? `Rebuy ${BUY_IN.toLocaleString('en-US')}` : over ? 'Next hand' : 'Deal me in'}
+                </button>
+              )}
+            </div>
+          )}
 
-        {dock ??
-          (live && !myTurn && (
-            <p className="dock-wait">{me?.sittingOut ? 'Leaving after this hand' : quiet ? '' : `${nameOf(view.toAct)} to act`}</p>
-          ))}
+          {dock ?? (waitText && <p className="dock-wait">{waitText}</p>)}
+        </Swap>
       </aside>
 
       {game.flights.map((flight) => {

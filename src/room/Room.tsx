@@ -119,8 +119,10 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   // Your own move flies the moment you make it, the server just confirms it. Only the chips: a street
   // it closes waits for the real cards
   const act = (action: PlayerAction, from?: DOMRect) => {
-    haptic('light')
-    if (action.type === 'show') return room.send({ t: 'act', action: { type: 'show' } })
+    if (action.type === 'show') {
+      haptic('light')
+      return room.send({ t: 'act', action: { type: 'show' } })
+    }
     let predicted: TableState
     try {
       predicted = applyAction({ ...cur.table, deck: FILLER }, action)
@@ -173,7 +175,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   let dock = null
   if (room.status === 'replaced') {
     dock = (
-      <div className="bet-actions">
+      <div key="replaced" className="bet-actions">
         <p className="dock-wait">This room is open somewhere else</p>
         <button className="button primary" onClick={room.reconnect}>
           Play here
@@ -182,28 +184,28 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     )
   } else if (room.status === 'limit') {
     // the room got cleared while you were away, and coming back would be a new one
-    dock = <p className="dock-wait room-lost">{limitNote}</p>
+    dock = <p key="limit" className="dock-wait room-lost">{limitNote}</p>
   } else if (room.status !== 'open') {
-    dock = <p className="dock-wait room-lost">{room.tries >= LOST_TRIES ? lostNote : 'Reconnecting…'}</p>
+    dock = <p key={room.tries >= LOST_TRIES ? 'lost' : 'reconnecting'} className="dock-wait room-lost">{room.tries >= LOST_TRIES ? lostNote : 'Reconnecting…'}</p>
   } else if (cur.resting && stage.idle) {
-    dock = <p className="dock-wait">This {cur.public ? 'table' : 'room'} is closed for today. Back at 00:00 UTC.</p>
+    dock = <p key="closed" className="dock-wait">This {cur.public ? 'table' : 'room'} is closed for today. Back at 00:00 UTC.</p>
   } else if (me === null) {
     // a seat only comes with a fresh connect, so taking one is just that
     dock = cur.waiting ? (
-      <p className="dock-wait">A bot gives you its seat after this hand</p>
+      <p key="queued" className="dock-wait">A bot gives you its seat after this hand</p>
     ) : seated < 6 ? (
-        <div className="bet-actions">
+        <div key="watching" className="bet-actions">
           <p className="dock-wait">You're watching</p>
           <button className="button primary" onClick={room.reconnect}>
             Take a seat
           </button>
         </div>
       ) : (
-        <p className="dock-wait">The {cur.public ? 'table' : 'room'} is full, so you're watching</p>
+        <p key="full" className="dock-wait">The {cur.public ? 'table' : 'room'} is full, so you're watching</p>
       )
   } else if (mine?.sittingOut) {
     dock = (
-      <div className="bet-actions">
+      <div key="sitting-out" className="bet-actions">
         <p className="dock-wait">You're sitting out</p>
         <button className="button primary" onClick={() => room.send({ t: 'back' })}>
           I'm back
@@ -212,7 +214,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     )
   } else if (mine?.chips === 0 && stage.idle) {
     dock = (
-      <div className="bet-actions">
+      <div key="rebuy" className="bet-actions">
         <button className="button primary" disabled={cur.topUp} onClick={() => room.send({ t: 'topUp' })}>
           {cur.topUp ? 'Rebuying next hand' : `Rebuy ${BUY_IN.toLocaleString('en-US')}`}
         </button>
@@ -221,7 +223,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   } else if (stage.idle && ready < 2 && cur.public && seated < 6) {
     // alone at a public table: wait, invite, or play bots who make way when people come
     dock = (
-      <div className="bet-actions">
+      <div key="alone" className="bet-actions">
         <p className="dock-wait">Waiting for players</p>
         <button className="button neutral" onClick={() => setPanel(true)}>
           Invite
@@ -233,9 +235,9 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     )
   } else if (stage.idle && ready < 2) {
     const why = seated < 2 ? 'Waiting for someone to join' : 'Waiting for another player to sit in'
-    dock = <p className="dock-wait">{why}. Tap {label} up top to invite{cur.host ? ' or add a bot' : ''}.</p>
+    dock = <p key={why} className="dock-wait">{why}. Tap {label} up top to invite{cur.host ? ' or add a bot' : ''}.</p>
   } else if (!stage.idle && toAct >= 0 && toAct !== me && !stage.dealing) {
-    dock = <p className="dock-wait">{seat(toAct)?.name ?? 'Player'} to act</p>
+    dock = <p key={`act-${toAct}`} className="dock-wait">{seat(toAct)?.name ?? 'Player'} to act</p>
   }
 
   const bar = (

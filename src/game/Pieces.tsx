@@ -208,7 +208,14 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const thrown = flight.to.startsWith('bet')
     const chip = el.current!
     const obstacle = thrown ? null : boardObstacle(size)
-    const slide = (to: Point) => (obstacle ? route(start, to, obstacle) : [start, to])
+    // on a phone the board is nearly as wide as the felt, so the way round ran off the edge of the screen.
+    // Over the cards beats off the table
+    const felt = document.querySelector('.felt')?.getBoundingClientRect()
+    const slide = (to: Point) => {
+      const way = obstacle ? route(start, to, obstacle) : [start, to]
+      const onFelt = !felt || way.every((p) => p.x >= felt.left && p.x + size <= felt.right)
+      return onFelt ? way : [start, to]
+    }
     let animations: Animation[]
     if (thrown) animations = throwChip(chip, start, end, startScale, flight.delay)
     else if (flight.to === 'pot') {
@@ -226,9 +233,12 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     } else animations = [slideChip(chip, slide(end), startScale, flight.delay, true)]
     // Chips come off the top first, so the first flight made is the top chip and DOM order would draw
     // a waiting stack upside down. Until it goes it layers by its place in the pile, then it rises
-    // over everything still waiting, and the ones in the air keep DOM order so later ones land on top
+    // over everything still waiting, and the ones in the air keep DOM order so later ones land on top.
+    // Except a payout, nothing lands, and past the stagger cap a whole stack leaves at once. DOM order
+    // drew that sliding stack upside down, so those keep their pile order in the air too
+    const level = flight.fromAt?.level ?? 0
     animations.push(
-      chip.animate([{ zIndex: 35 + (flight.fromAt?.level ?? 0) }, { zIndex: 100 }], {
+      chip.animate([{ zIndex: 35 + level }, { zIndex: flight.to.startsWith('seat') ? 100 + level : 100 }], {
         duration: 1,
         delay: flight.delay,
         fill: 'both',

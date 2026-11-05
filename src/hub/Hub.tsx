@@ -21,6 +21,11 @@ const ICONS = {
       <path d="M12 4v4M9.5 13h0M14.5 13h0" />
     </svg>
   ),
+  tracker: (
+    <svg {...svg}>
+      <path d="M10 4L8 20M16 4l-2 16M4.5 9h15M4 15h15" />
+    </svg>
+  ),
   lock: (
     <svg {...svg}>
       <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -95,11 +100,13 @@ export function Hub({ deck }: { deck: ReactNode }) {
             </span>
             <span className="hub-soon">Soon!</span>
           </a>
-          <a className="hub-slab hub-tracker" href="#chips">
-            <svg {...svg}>
-              <path d="M4 20h16M7 17v-5M12 17V7M17 17v-8" />
-            </svg>
-            <b>Chip Tracker</b>
+          <a className="hub-slab hub-mode" href="#chips">
+            <ModeChip icon="tracker" />
+            <span className="hub-text">
+              <b>Chip Tracker</b>
+              <small>Count up real chips at a home game</small>
+            </span>
+            <Chevron />
           </a>
         </div>
       </nav>

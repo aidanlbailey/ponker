@@ -82,7 +82,7 @@
   }
 
   small {
-    color: #d3e3d8;
+    color: #fff;
     font-size: 0.8125rem;
     font-weight: 600;
   }
@@ -209,6 +209,11 @@
   background: #1b5fd1;
 }
 
+/* the third of a classic black, blue and red set. Green would sink into the felt */
+.hub-chip-tracker {
+  background: #c8283a;
+}
+
 .hub-chip-lock {
   border-color: rgb(0 0 0 / 0.55);
   background: #4c5a52;
@@ -217,34 +222,6 @@
 
   .hub-chip-edge {
     display: none;
-  }
-}
-
-.hub-tracker {
-  justify-content: center;
-  gap: 0.75rem;
-  min-height: 60px;
-  margin-top: auto;
-  background: #0f3523;
-  box-shadow: 4px 4px 0 var(--hub-depth);
-
-  &:hover {
-    box-shadow: 5px 5px 0 var(--hub-depth);
-  }
-
-  &:active {
-    translate: 4px 4px;
-    box-shadow: none;
-  }
-
-  svg {
-    width: 20px;
-    stroke: #e3b54a;
-    stroke-width: 2.4;
-  }
-
-  b {
-    font-size: 1rem;
   }
 }
 
@@ -261,7 +238,7 @@
   border-radius: 50%;
   background: #0f3523;
   box-shadow: 4px 4px 0 var(--hub-depth);
-  color: #e3b54a;
+  color: #ffd700;
   -webkit-tap-highlight-color: transparent;
   transition:
     translate 0.12s ease,
@@ -328,10 +305,6 @@
 
   .hub-chip {
     width: 58px;
-  }
-
-  .hub-tracker {
-    margin-top: 0;
   }
 }
 
@@ -423,8 +396,6 @@
 
   .deck .card-back {
     box-shadow: none;
-    outline: 2px solid var(--hub-depth);
-    outline-offset: 0;
   }
 }
 
@@ -472,11 +443,6 @@
 
   .hub-chip {
     width: 40px;
-  }
-
-  .hub-tracker {
-    min-height: 44px;
-    margin-top: 0.25rem;
   }
 }
 

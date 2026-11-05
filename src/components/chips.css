@@ -73,12 +73,46 @@
   translate: calc(-50% + var(--chip-size) * 0.05) 0;
 }
 
-/* a chip's edge: the same disc as its face, striped, with a thin outline that separates it from the chip under it.
-   The stripes sit under the face's edge spots (three show, 0.433 of a chip apart) and each chip's are turned
-   --stagger degrees on from the one below, so they never line up into columns */
+/* each chip is turned --stagger degrees on from the one below so the stripes never line up into columns. Spots
+   repeat every 60deg, so it's wrapped to +-30deg, which keeps the side down to five stripes */
+.chip-spots,
 .chip-side,
 .chip-band {
-  --band: calc(var(--chip-size) * 0.18);
+  --turn: calc(var(--n, 0) * var(--stagger, 0) * 1deg - round(var(--n, 0) * var(--stagger, 0) * 1deg, 60deg));
+}
+
+.chip-spots {
+  transform: rotate(var(--turn));
+}
+
+/* a chip's edge: the same disc as its face, striped, with a thin outline that separates it from the chip under it.
+   Each stripe sits under a spot, at 50% + 50% * sin(its angle), so they bunch toward the edges like the spots do,
+   and gets the same black outline down both edges.
+   Clamped to +-90deg so the ones round the back squash to nothing at the edge instead of crossing back over */
+.chip-side,
+.chip-band {
+  --w: 12.8deg; /* half a stripe, out to the middle of the spot's outline at the rim */
+  --e: 1.7deg; /* half the outline, the face's 4 in 132 */
+  --p01: calc(50% + 50% * sin(clamp(-90deg, -120deg - var(--turn) - var(--w) - var(--e), 90deg)));
+  --p02: calc(50% + 50% * sin(clamp(-90deg, -120deg - var(--turn) - var(--w) + var(--e), 90deg)));
+  --p03: calc(50% + 50% * sin(clamp(-90deg, -120deg - var(--turn) + var(--w) - var(--e), 90deg)));
+  --p04: calc(50% + 50% * sin(clamp(-90deg, -120deg - var(--turn) + var(--w) + var(--e), 90deg)));
+  --p11: calc(50% + 50% * sin(clamp(-90deg, -60deg - var(--turn) - var(--w) - var(--e), 90deg)));
+  --p12: calc(50% + 50% * sin(clamp(-90deg, -60deg - var(--turn) - var(--w) + var(--e), 90deg)));
+  --p13: calc(50% + 50% * sin(clamp(-90deg, -60deg - var(--turn) + var(--w) - var(--e), 90deg)));
+  --p14: calc(50% + 50% * sin(clamp(-90deg, -60deg - var(--turn) + var(--w) + var(--e), 90deg)));
+  --p21: calc(50% + 50% * sin(clamp(-90deg, 0deg - var(--turn) - var(--w) - var(--e), 90deg)));
+  --p22: calc(50% + 50% * sin(clamp(-90deg, 0deg - var(--turn) - var(--w) + var(--e), 90deg)));
+  --p23: calc(50% + 50% * sin(clamp(-90deg, 0deg - var(--turn) + var(--w) - var(--e), 90deg)));
+  --p24: calc(50% + 50% * sin(clamp(-90deg, 0deg - var(--turn) + var(--w) + var(--e), 90deg)));
+  --p31: calc(50% + 50% * sin(clamp(-90deg, 60deg - var(--turn) - var(--w) - var(--e), 90deg)));
+  --p32: calc(50% + 50% * sin(clamp(-90deg, 60deg - var(--turn) - var(--w) + var(--e), 90deg)));
+  --p33: calc(50% + 50% * sin(clamp(-90deg, 60deg - var(--turn) + var(--w) - var(--e), 90deg)));
+  --p34: calc(50% + 50% * sin(clamp(-90deg, 60deg - var(--turn) + var(--w) + var(--e), 90deg)));
+  --p41: calc(50% + 50% * sin(clamp(-90deg, 120deg - var(--turn) - var(--w) - var(--e), 90deg)));
+  --p42: calc(50% + 50% * sin(clamp(-90deg, 120deg - var(--turn) - var(--w) + var(--e), 90deg)));
+  --p43: calc(50% + 50% * sin(clamp(-90deg, 120deg - var(--turn) + var(--w) - var(--e), 90deg)));
+  --p44: calc(50% + 50% * sin(clamp(-90deg, 120deg - var(--turn) + var(--w) + var(--e), 90deg)));
 
   position: absolute;
   top: 0;
@@ -86,9 +120,30 @@
   width: var(--chip-size);
   height: calc(var(--chip-size) * var(--tilt));
   border-radius: 50%;
-  background: linear-gradient(90deg, var(--stripe) 0 var(--band), var(--side) var(--band))
-    calc(var(--chip-size) * 0.5 - var(--band) / 2 - var(--n, 0) * var(--chip-size) * 0.5 * var(--stagger) * 3.14159 / 180) 0 /
-    calc(var(--chip-size) * 0.433) 100% repeat-x;
+  background: linear-gradient(
+    90deg,
+    var(--side) var(--p01),
+    #000 var(--p01) var(--p02),
+    var(--stripe) var(--p02) var(--p03),
+    #000 var(--p03) var(--p04),
+    var(--side) var(--p04) var(--p11),
+    #000 var(--p11) var(--p12),
+    var(--stripe) var(--p12) var(--p13),
+    #000 var(--p13) var(--p14),
+    var(--side) var(--p14) var(--p21),
+    #000 var(--p21) var(--p22),
+    var(--stripe) var(--p22) var(--p23),
+    #000 var(--p23) var(--p24),
+    var(--side) var(--p24) var(--p31),
+    #000 var(--p31) var(--p32),
+    var(--stripe) var(--p32) var(--p33),
+    #000 var(--p33) var(--p34),
+    var(--side) var(--p34) var(--p41),
+    #000 var(--p41) var(--p42),
+    var(--stripe) var(--p42) var(--p43),
+    #000 var(--p43) var(--p44),
+    var(--side) var(--p44)
+  );
   box-shadow: 0 0 0 calc(var(--chip-size) * var(--outline)) #000;
 }
 
