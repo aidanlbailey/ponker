@@ -15,7 +15,10 @@
   --primary: linear-gradient(145deg, #2563eb, #1d4ed8);
   --title-stroke-width: 3px;
   /* the menus' button titles. Not the logo, that one's always Rubik Mono */
-  --ui-title: 'Rubik Variable', system-ui, sans-serif;
+  /* one font for everything but the logo, its subtitle and the bots' Greek letters. Headings, stacks and
+     buttons used to be Rubik, they're the same font as the rest now. The dev font picker in main.tsx swaps it */
+  --ui-title: var(--text-font);
+  --text-font: 'Adwaita Mono', ui-monospace, monospace;
   --ui-title-weight: 500;
   --ui-title-case: none;
   --ui-title-spacing: 0.02em;
@@ -74,7 +77,7 @@ body {
   background-color: var(--bg);
   background-image: var(--bg-image);
   color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--text-font);
   touch-action: manipulation;
 }
 
@@ -96,7 +99,7 @@ button {
 /* one font for everything you press. The hub loads Manrope, and it's in the main bundle */
 button,
 .button {
-  font-family: 'Manrope Variable', system-ui, sans-serif;
+  font-family: var(--text-font);
 }
 
 :focus-visible {
@@ -290,7 +293,7 @@ button,
 .chip-total,
 .chip-value,
 .preset-chips {
-  font-family: 'Montserrat Variable', system-ui, sans-serif;
+  font-family: var(--text-font);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -366,10 +369,10 @@ button,
     min-height: 44px; /* still has to be an easy thumb target */
     padding: 0;
     /* the menus' slabs, colours copied from menus.css and game.css since neither loads here */
-    --edge: #061a10;
+    --edge: #151515;
     border: 2.5px solid #000;
     border-radius: 10px;
-    background: #0f3523;
+    background: #2b2b2b;
     box-shadow:
       inset 0 -3px 0 var(--edge),
       3px 3px 0 #000;
@@ -380,7 +383,7 @@ button,
     /* .button's own add, danger and hover come later in the file, so these have to name them to win */
     &.add {
       border-color: #000;
-      background: #0f3523;
+      background: #2b2b2b;
     }
 
     &.danger {
@@ -528,7 +531,7 @@ button,
   display: grid;
   place-items: center;
   padding-bottom: 0.125em; /* digits sit low in their line box. not translate, the landing bounce animates that */
-  font-family: Roboto, system-ui, sans-serif;
+  font-family: var(--text-font);
   font-size: calc(2.5rem * min(1, 4 / var(--len, 3)));
   font-weight: 900;
   pointer-events: none;
@@ -702,10 +705,10 @@ button,
   padding: 0.25rem 0.85rem;
   border: 2.5px solid #000;
   border-radius: 10px;
-  background: #0f3523;
+  background: #2b2b2b;
   box-shadow: 3px 3px 0 #000;
   color: #fff;
-  font-family: 'Manrope Variable', system-ui, sans-serif;
+  font-family: var(--text-font);
   font-size: 1rem;
   font-weight: 800;
   text-decoration: none;
@@ -1051,7 +1054,7 @@ button,
   backface-visibility: hidden;
   transform: rotateY(0deg); /* firefox and safari only honor backface-visibility here with a transform of its own */
   color: #17171c;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--text-font);
 
   &.red {
     color: #c8102e;
@@ -1084,7 +1087,7 @@ button,
   display: block;
   overflow: hidden;
   padding: 0.5rem 3.5rem 0 0.9rem;
-  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-family: var(--text-font);
   font-size: var(--label-size);
   font-weight: 700;
   line-height: 1.2;

@@ -3,7 +3,8 @@
 // ponytail: a fixed pool, nobody can open more. Add names here if four ever fill up
 export const PUBLIC_TABLES = ['venom', 'flash', 'rapier', 'phantom']
 
-export const tableName = (id: string) => id[0]!.toUpperCase() + id.slice(1)
+// the ids stay as they were, they're the urls and the live tables' Durable Object names. Only the label changed
+export const tableName = (id: string) => `Public ${PUBLIC_TABLES.indexOf(id) + 1}`
 
 export const EMOTES = [
   'Good luck',

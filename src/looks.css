@@ -57,7 +57,7 @@ html {
 
   /* the black Rooms chip vanished into the dark tile once its outline went */
   .hub-chip-rooms {
-    outline: 1.5px solid #4a5550;
+    outline: 1.5px solid #525252;
   }
 
   .title > span:not(.title-chip) {
@@ -73,9 +73,9 @@ html {
     border-color: rgb(0 0 0 / 0.2) !important;
   }
 
-  /* the turn arrow's svg has a black stroke and a baked offset copy */
+  /* no turn arrow, the plate's white ring says whose turn it is */
   .seat.turn .seat-plate::after {
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 14'%3E%3Cpath d='M2.5 2h14l-7 8.5z' fill='%23fffdf8'/%3E%3C/svg%3E") no-repeat !important;
+    content: none !important;
   }
 
   /* pressed buttons no longer have a shadow to sink into */
@@ -84,19 +84,19 @@ html {
   }
 }
 
-/* a dark room, the table the only colour in it. Every fill is a solid colour, no soft gradients and
-   nothing see-through. Shadows are the one thing allowed to be soft. The only gradients left are hard-stop
+/* a dark room, the table the only colour in it. Every fill is a solid colour, no gradients and nothing
+   see-through. Shadows are hard too, the same flat one the chips cast: down and right, no blur. The only gradients left are hard-stop
    ones that draw flat bands (chip edges, the slider's fill) */
 html {
   --bg-image: none !important;
-  --bg: #0b0f0d !important;
+  --bg: #0e0e0e !important;
   --title-face: #f5c518 !important;
-  --lit-surface: #151b18;
-  --lit-pill: #111613;
-  --lit-line: #29322d;
+  --lit-surface: #1a1a1a;
+  --lit-pill: #151515;
+  --lit-line: #303030;
 
   .title > span:not(.title-chip) {
-    --title-shadow: 0 4px 14px rgb(0 0 0 / 0.6) !important;
+    --title-shadow: var(--hard-shadow) !important;
   }
 
   .title-sub > span::after {
@@ -111,7 +111,7 @@ html {
   :is(.hub-slab, .picker-seats, .room-gate-card, .bio-card, .preview-list li, .room-chat) {
     background: var(--lit-surface) !important;
     border: 1px solid var(--lit-line) !important;
-    box-shadow: 0 10px 30px rgb(0 0 0 / 0.4) !important;
+    box-shadow: var(--hard-shadow) !important;
   }
 
   .hub-quick.hub-quick {
@@ -130,15 +130,15 @@ html {
 
   :is(.poker-link, .poker-toggle, .home-link, .button, .picked-bot, .bot-tile, .hub-profile, .bet-presets button) {
     border: 1px solid var(--lit-line) !important;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.4) !important;
+    box-shadow: var(--hard-shadow) !important;
   }
 
   .poker:not(.picker, .room-gate) .seat-plate {
     background: var(--lit-surface) !important;
-    box-shadow: 0 0 0 1px var(--lit-line), 0 6px 16px rgb(0 0 0 / 0.4) !important;
+    box-shadow: var(--hard-shadow) !important;
 
     .seat-name {
-      color: #9aa59f !important;
+      color: #a2a2a2 !important;
     }
 
     .seat-stack {
@@ -158,8 +158,13 @@ html {
 
   /* number pills, win line, blinds and tags were all black at 62-75% */
   :is(.total, .chip-total:not(:empty), .chip-value, .result, .seat-blind, .seat-tag, .pile-label) {
-    background: var(--lit-pill) !important;
+    background: var(--lit-surface) !important;
+    box-shadow: var(--hard-shadow) !important;
     color: #fff !important;
+    /* centred on the digits themselves, not the font's line box, which sat Adwaita Mono's numbers 2.5px high.
+       The trim takes about 0.2em off the height, the clear border hands it back so the pills stay their size */
+    text-box: trim-both cap alphabetic;
+    border-block: 0.1em solid transparent !important;
   }
 
   /* folded hands faded to 35% before, now they swap to a dull solid back */
@@ -167,15 +172,15 @@ html {
     opacity: 1 !important;
 
     .card-back {
-      --back: #2f3834;
+      --back: #363636;
 
-      border-color: #5d6a64 !important;
+      border-color: #676767 !important;
     }
   }
 
   .tcard-face,
   .tcard .card-back {
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 16px rgb(0 0 0 / 0.35) !important;
+    box-shadow: var(--hard-shadow) !important;
   }
 
   /* flat red, white edge, nothing else. The lattice, glow and pinstripe frame are gone */
@@ -193,7 +198,45 @@ html {
 
   .said,
   .dealer {
-    box-shadow: 0 3px 10px rgb(0 0 0 / 0.4) !important;
+    box-shadow: var(--hard-shadow) !important;
+  }
+
+  /* quick messages are never gold, the same dark pill as the numbers. Level, with a speech bubble's tail
+     pointing back at whoever said it. ChipShadows in Pieces.tsx draws the tail into its shadow too */
+  .said.emote {
+    background: var(--lit-surface) !important;
+    color: #fff !important;
+    rotate: none !important;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -6px;
+      border: 6px solid transparent;
+      border-top-color: var(--lit-surface);
+      border-bottom-width: 0;
+    }
+  }
+
+  /* the seats whose bubble hangs under the plate, so the tail points up */
+  .seat:not(.me) .said.emote::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-top-width: 0;
+    border-bottom-width: 6px;
+    border-bottom-color: var(--lit-surface);
+  }
+
+  .felt.ring .seat.upper .said.emote::after {
+    top: 100%;
+    bottom: auto;
+    border-top-width: 6px;
+    border-top-color: var(--lit-surface);
+    border-bottom-width: 0;
+    border-bottom-color: transparent;
   }
 
   .said.allin,
@@ -218,10 +261,10 @@ html {
     color: #fff !important;
   }
 
-  /* groove and thumb are pseudo-elements, so the blanket reset never reached them. Solid gold fill on a
-     dark groove, the thumb a plain cream disc */
+  /* groove and thumb are pseudo-elements, so the blanket reset never reached them. Monochrome: a grey fill
+     on the dark groove, the thumb a plain light disc */
   .bet-slider {
-    --fill: #f5c518;
+    --fill: #9e9e9e;
   }
 
   .bet-slider::-webkit-slider-runnable-track {
@@ -244,25 +287,72 @@ html {
   .bet-slider::-webkit-slider-thumb {
     margin-top: calc((var(--groove) - 2px - var(--thumb)) / 2) !important;
     border: 0 !important;
-    background: var(--table-cream) !important;
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.45) !important;
+    background: #f2f2f2 !important;
+    box-shadow: var(--hard-shadow) !important;
   }
 
   .bet-slider::-moz-range-thumb {
     border: 0 !important;
-    background: var(--table-cream) !important;
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.45) !important;
+    background: #f2f2f2 !important;
+    box-shadow: var(--hard-shadow) !important;
   }
 
   .felt {
     background: #17754a !important;
     box-shadow:
       inset 0 0 0 1px #0d4429,
-      0 0 0 calc(var(--rail) * 0.3) #3a4440,
-      0 0 0 calc(var(--rail) * 1.6) #1c2220 !important;
+      0 0 0 calc(var(--rail) * 0.3) #424242,
+      0 0 0 calc(var(--rail) * 1.6) #212121 !important;
   }
 
+  /* the dashed betting line, gone. Plain felt */
   .felt::before {
-    border-color: #4f9a75 !important;
+    content: none !important;
+  }
+}
+
+/* every shadow that isn't a chip's: solid, no blur, the chips' darkness, a touch down and right like theirs. */
+html {
+  --hard-shadow: 3px 4px 0 rgb(0 0 0 / 0.28);
+}
+
+/* on the felt the shadows are drawn by the canvas under everything (ChipShadows in Pieces.tsx), so nothing's
+   shadow can land on top of something lower down */
+.felt {
+  --hard-shadow: 0 0 0 transparent;
+}
+
+/* the BOT tag sits level like the rest */
+.seat-tag {
+  rotate: none !important;
+}
+
+/* desktop with the controls under the table instead of beside it, so the felt gets the full width and sits
+   centred. The side column's rules in game.css are still there underneath, these win over them */
+@media (min-aspect-ratio: 5/4) {
+  html .poker:not(.picker, .room-gate) {
+    grid-template:
+      'bar' auto
+      'table' minmax(0, 1fr)
+      'dock' auto / minmax(0, 1fr);
+  }
+
+  html .poker:not(.picker, .room-gate) .dock {
+    justify-self: center;
+    width: min(100%, 560px);
+  }
+}
+
+/* the side column blows the dock up with scale, which doesn't take up the room, it just grows up into space
+   nobody's using. Under the table that space is the felt, so here it's zoom, which lays out at the bigger size */
+@media (min-aspect-ratio: 5/4) and (min-height: 600px) {
+  html .poker:not(.picker, .room-gate) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html .poker:not(.picker, .room-gate) .dock {
+    width: min(calc(100% / var(--ui)), 560px);
+    scale: none;
+    zoom: var(--ui);
   }
 }

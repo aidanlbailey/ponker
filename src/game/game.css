@@ -2,14 +2,14 @@
   --table-felt: #17754a;
   --table-rail: #5a3620;
   --table-trim: #e3b54a;
-  --game-font: 'Manrope Variable', system-ui, sans-serif;
+  --game-font: var(--text-font);
   --table-line: #f2f2f2;
   /* the hub's cream, for anything sitting on the cloth. The edge is its pressed-in bottom lip */
   --table-cream: #f3efe6;
   --table-cream-edge: #d6cdb8;
   --table-ink: #23211c;
-  --table-slab: #0f3523;
-  --table-slab-edge: #061a10;
+  --table-slab: #2b2b2b;
+  --table-slab-edge: #151515;
 
   /* a screen tall rather than fixed. iOS 26 paints a flat tint under the status bar over anything fixed
      against the top edge, which hid the stripes there */
@@ -225,18 +225,13 @@
 }
 
 .result {
-  position: absolute;
-  top: 100%;
-  z-index: 3; /* over the seats, a long win line runs under the lower corners round a full table */
-  max-width: 92%;
-  margin-top: 0.4rem;
-  padding: 0.2rem 0.8rem;
-  border-radius: 1rem; /* not a full pill, a long win line wraps on a phone */
+  padding: 0.6rem 0.9rem;
+  border-radius: 1rem; /* not a full pill, a long win line wraps in the dock */
   background: rgb(0 0 0 / 0.62);
   box-shadow: var(--shadow);
   color: var(--table-line);
   font-family: var(--game-font);
-  font-size: clamp(1.05rem, 4.8cqmin, 1.4rem);
+  font-size: 1.15rem;
   font-weight: 500;
   line-height: 1.25;
   text-align: center;
@@ -295,7 +290,7 @@
   backface-visibility: hidden;
   transform: rotateY(0deg); /* firefox and safari only honor backface-visibility with a transform of its own */
   color: #17171c;
-  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-family: var(--text-font);
   font-weight: 700;
   line-height: 1;
 
@@ -448,7 +443,7 @@
 .seat-name {
   overflow: hidden;
   max-width: 5.5rem;
-  color: #dfe8e2;
+  color: #e6e6e6;
   font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -604,7 +599,7 @@
   padding-inline: 0.35rem;
   border-radius: 999px;
   background: rgb(0 0 0 / 0.75);
-  color: #dfe8e2;
+  color: #e6e6e6;
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -758,6 +753,22 @@
 
 .over-seats {
   z-index: 3;
+}
+
+/* every chip shadow on the felt, drawn by ChipShadows in Pieces.tsx. First in the felt so the piles and flying
+   chips all draw over it. Out past the felt so a payout's shadow follows its chip out to the seat */
+.chip-shadows {
+  position: absolute;
+  inset: -25%;
+  z-index: 0;
+  width: 150%;
+  height: 150%;
+  pointer-events: none;
+}
+
+/* the canvas draws these now */
+.felt .pile::before {
+  content: none;
 }
 
 /* the copy of a seat that only shows its badges, see Game.tsx */
@@ -915,6 +926,10 @@
 }
 
 .hint {
+  /* over the table. On a short phone your cards and their shadows hang off the felt into the dock and
+     covered the hint's first line */
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1567,7 +1582,7 @@
   .avatar.bot {
     background: #fff;
     color: var(--bot-color, #9c1020);
-    font-family: 'Manrope Variable', system-ui, sans-serif;
+    font-family: 'Manrope Variable', system-ui, sans-serif; /* has the Greek, whatever the text font is */
     font-weight: 800;
   }
 
@@ -1587,7 +1602,7 @@
     box-shadow: none;
 
     .seat-name {
-      color: #e6efe9;
+      color: #ededed;
     }
   }
 

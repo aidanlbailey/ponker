@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { ChipParts, ChipStack, STRIPE_STAGGER, TILT, chipLook, sideStyle } from '../components/Chip'
+import { ChipParts, ChipStack, SHADOW_ALPHA, SHADOW_WIDTH, STRIPE_STAGGER, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
 import { HIDDEN, type Card } from '../engine/engine'
 import { sound } from '../lib/sound'
@@ -173,6 +173,144 @@ function boardObstacle(size: number): Box | null {
 // fraction off the one it lands as, so it twitched as it came to rest
 const layoutWidth = (el: HTMLElement) => parseFloat(getComputedStyle(el).width)
 
+// Every chip shadow on the felt, piles and flying chips alike. They used to be their own elements: a pile's
+// ::before and a span riding along in some flights. Overlaps stacked up darker, empty pot slots waiting for a
+// stack drew one before it got there, and most flights had none. Now each frame reads where every chip actually
+// is and fills its ellipse solid black on one canvas, and the canvas is see-through as a whole, so overlaps merge
+// into one even shadow. Same ellipse the CSS drew (chips.css .pile::before and .flight-shadow), in screen px.
+// ponytail: redraws every frame the table's up, a few dozen rect reads. Only draw while something moves if it ever shows up in a profile
+export function ChipShadows() {
+  const ref = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = ref.current!
+    const ctx = canvas.getContext('2d')!
+    const felt = canvas.parentElement!
+    let frame = 0
+
+    // centre x, the pile's (or chip's) foot, its width and one chip's thickness, all on screen
+    const ellipse = (left: number, foot: number, w: number, rise: number) => {
+      const width = w * SHADOW_WIDTH
+      const height = width * TILT
+      const bottom = foot - (w * (TILT * (0.5 - SHADOW_WIDTH / 2) - 0.06) - rise)
+      ctx.moveTo(left + w * 0.55 + width / 2, bottom - height / 2)
+      ctx.ellipse(left + w * 0.55, bottom - height / 2, width / 2, height / 2, 0, 0, Math.PI * 2)
+    }
+
+    const draw = () => {
+      frame = requestAnimationFrame(draw)
+      const box = canvas.getBoundingClientRect()
+      const dpr = devicePixelRatio || 1
+      const w = Math.round(box.width * dpr)
+      const h = Math.round(box.height * dpr)
+      if (canvas.width !== w || canvas.height !== h) Object.assign(canvas, { width: w, height: h })
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      if (!box.width) return
+      // screen px in, the canvas's own pixels out, whatever the felt is scaled to
+      const sx = w / box.width
+      const sy = h / box.height
+      ctx.setTransform(sx, 0, 0, sy, -box.left * sx, -box.top * sy)
+
+      ctx.beginPath()
+      for (const pile of felt.querySelectorAll<HTMLElement>('.pile')) {
+        // a pot slot with nothing landed in it yet has no chips to cast anything
+        if (!pile.childElementCount || !(pile.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true)) continue
+        const r = pile.getBoundingClientRect()
+        ellipse(r.left, r.bottom, r.width, PILE_RISE * (r.width / (pile.offsetWidth || r.width)))
+      }
+      ctx.fillStyle = '#000'
+      ctx.fill()
+
+      // a flying chip's box is the chip at its slide's place and scale, before any toss lifts it, so its shadow
+      // stays on the felt under it. --n is the level it lands on, the foot it'll stand on when it gets there
+      for (const chip of felt.querySelectorAll<HTMLElement>('.flight')) {
+        const r = chip.getBoundingClientRect()
+        const size = parseFloat(chip.style.getPropertyValue('--chip-size'))
+        if (!r.width || !size) continue
+        const s = r.width / size
+        const rise = PILE_RISE * (parseFloat(chip.style.getPropertyValue('--face-scale')) || 1)
+        const n = parseFloat(chip.style.getPropertyValue('--n')) || 0
+        ctx.globalAlpha = parseFloat(getComputedStyle(chip).opacity)
+        ctx.beginPath()
+        ellipse(r.left, r.top + (size + n * rise) * s, r.width, rise * s)
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+
+      // and everything else on the felt that casts one, so no shadow ever lands on something sitting under it.
+      // Their own box-shadows are off at the table (looks.css). 3px 4px down and right like --hard-shadow
+      const k = felt.getBoundingClientRect().width / (felt.offsetWidth || 1)
+      for (const el of felt.querySelectorAll<HTMLElement>(CASTS)) {
+        if (!(el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true)) continue
+        const { matrix, opacity } = toFelt(el, felt)
+        if (!opacity) continue
+        const r = el.getBoundingClientRect()
+        const w = el.offsetWidth
+        const h = el.offsetHeight
+        const radius = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, w / 2, h / 2)
+        ctx.save()
+        // a box's bounding rect is centred on the box however it's turned, so that's the centre. The turn, any
+        // scale and a card's flip come from the transforms between it and the felt
+        ctx.translate(r.left + r.width / 2 + 3 * k, r.top + r.height / 2 + 4 * k)
+        ctx.transform(matrix.a * k, matrix.b * k, matrix.c * k, matrix.d * k, 0, 0)
+        ctx.globalAlpha = opacity
+        ctx.beginPath()
+        ctx.roundRect(-w / 2, -h / 2, w, h, radius)
+        // a quick message's speech bubble tail, 6px, pointing down or up the way looks.css turned it
+        if (el.matches('.said.emote')) {
+          const down = parseFloat(getComputedStyle(el, '::after').borderTopWidth) > 0 ? 1 : -1
+          ctx.moveTo(-6, (down * h) / 2)
+          ctx.lineTo(0, (down * h) / 2 + down * 6)
+          ctx.lineTo(6, (down * h) / 2)
+        }
+        ctx.fill()
+        ctx.restore()
+      }
+    }
+    draw()
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  return <canvas ref={ref} className="chip-shadows" style={{ opacity: SHADOW_ALPHA }} aria-hidden="true" />
+}
+
+// everything on the felt with a shadow besides the chips. Keep in step with the --hard-shadow rules in looks.css
+const CASTS = [
+  '.tcard-face',
+  '.tcard .card-back',
+  '.seat-plate',
+  '.said',
+  '.dealer',
+  '.total',
+  '.chip-total:not(:empty)',
+  '.chip-value',
+  '.result',
+  '.seat-blind',
+  '.seat-tag',
+  '.pile-label',
+].join(', ')
+
+// how an element is turned, scaled and faded relative to the felt, from its own rotate, scale and transform and
+// every parent's. Translation's left out, the bounding rect's centre already has it
+function toFelt(el: HTMLElement, felt: HTMLElement) {
+  let matrix = new DOMMatrix()
+  let opacity = 1
+  for (let at: HTMLElement | null = el; at && at !== felt; at = at.parentElement) {
+    const style = getComputedStyle(at)
+    opacity *= parseFloat(style.opacity)
+    const own = new DOMMatrix()
+    if (style.rotate !== 'none') own.rotateSelf(0, 0, parseFloat(style.rotate.split(' ').at(-1)!))
+    if (style.scale !== 'none') {
+      const [x, y = x] = style.scale.split(' ').map(parseFloat)
+      own.scaleSelf(x, y)
+    }
+    if (style.transform !== 'none') own.multiplySelf(new DOMMatrix(style.transform))
+    matrix = own.multiply(matrix)
+  }
+  return { matrix, opacity }
+}
+
 export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => void }) {
   const el = useRef<HTMLDivElement>(null)
 
@@ -293,9 +431,6 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
   const color = colorOf(flight.value)
   return (
     <div ref={el} className="flight" aria-hidden="true">
-      {/* on the felt under it, so outside .toss-height: it slides with the chip but never lifts. Only for a
-          chip starting a new pile, one landing on a pile has that pile's shadow under it already */}
-      {flight.toAt?.level === 0 && <span className="flight-shadow" />}
       <div className="toss-height">
         <div className="toss-spin chip-flip" style={sideStyle(color)}>
           <ChipParts color={color} />

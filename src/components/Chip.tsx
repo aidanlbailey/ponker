@@ -5,8 +5,8 @@ import './chips.css'
 // how a stack looks, the same at the table and on the tracker. chips.css draws from these as variables
 export const TILT = 0.58 // a chip's face, height over width. The sides are drawn at the same angle
 export const STRIPE_STAGGER = 9 // degrees each chip's edge stripes are turned from the one under it
-const SHADOW_WIDTH = 1.2 // the contact shadow under a stack, in chip widths
-const SHADOW_ALPHA = 0.28
+export const SHADOW_WIDTH = 1.2 // the contact shadow under a stack, in chip widths
+export const SHADOW_ALPHA = 0.28
 const OUTLINE = 0.03 // every chip face and side's black outline, in chip widths
 
 // rise is a chip's thickness in px

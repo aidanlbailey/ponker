@@ -7,7 +7,7 @@ import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls } from './BetControls'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, ChipShadows, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
 import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
@@ -207,9 +207,15 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   return (
     <div className="poker" style={PILE_LOOK}>
       <header className="poker-bar">
-        <a href="#" className="poker-link" aria-label="Home">
-          <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">Home</span>
-        </a>
+        {/* the way out. Same as Leave always was: gone now if nothing's on, after the hand if you're in one */}
+        <button
+          className={cx('poker-toggle', 'poker-link', game.leaving && 'on')}
+          aria-label={game.leaving ? 'Leaving after this hand' : 'Leave'}
+          aria-pressed={game.leaving}
+          onClick={game.toggleLeaving}
+        >
+          <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">{game.leaving ? 'Leaving' : 'Leave'}</span>
+        </button>
         <span className="poker-spacer" />
         {bar}
         <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
@@ -238,13 +244,11 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             {game.topUp ? 'Topping up' : 'Top up'}
           </button>
         )}
-        <button className={cx('poker-toggle', game.leaving && 'on')} aria-pressed={game.leaving} onClick={game.toggleLeaving}>
-          {game.leaving ? 'Leaving' : 'Leave'}
-        </button>
       </header>
 
       <main className="table-wrap">
         <div className={cx('felt', seats > 2 && 'ring')}>
+          <ChipShadows />
           <div className="felt-center">
             <output
               className="pot"
@@ -266,9 +270,6 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                 <PlayingCard key={`${game.hand}-${i}`} card={card} delay={i < 3 ? i * 110 : 0} />
               ))}
             </div>
-            <Fade show={finished} className="result">
-              {resultText(view, game.me, nameOf)}
-            </Fade>
           </div>
 
           {view.seats.map((seat, i) => {
@@ -379,6 +380,11 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
               {myTurn && game.chance !== null && <em>{advice(game.chance, myTurn, pot)}</em>}
             </>
           )}
+        </Fade>
+
+        {/* who won sits in the dock over Next hand. On the felt it wrapped across the seats */}
+        <Fade show={finished} className="result">
+          {resultText(view, game.me, nameOf)}
         </Fade>
 
         <Swap id={turnKey || idleKey || dockKey ? [turnKey, idleKey, dockKey].join('|') : ''}>
