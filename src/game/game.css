@@ -432,11 +432,32 @@
     line-height: 1;
     text-box: trim-both cap alphabetic;
   }
+
+  /* the disc crops the corners, the editor shows the same circle */
+  &.art {
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    font: inherit;
+  }
+
+  &.art .avatar-art {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+
+  button&.art {
+    cursor: pointer;
+  }
 }
 
+/* min-width and clip so it gives way while Plate eases the plate wider, instead of the number spilling out */
 .seat-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: clip;
   line-height: 1.15;
 }
 

@@ -6,8 +6,10 @@ import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
 import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom } from './sql'
+import { api, API_PATH, type AccountEnv } from './api'
+import { userBySession } from './db'
 
-interface Env {
+interface Env extends AccountEnv {
   TABLE: DurableObjectNamespace<Table>
   OPENED: DurableObjectNamespace<Opened>
   CONNECTS: RateLimit
@@ -143,10 +145,15 @@ export class Table extends DurableObject<Env> {
     const url = new URL(request.url)
     const token = url.searchParams.get('token') ?? ''
     if (!TOKEN.test(token)) return new Response('bad token', { status: 400 })
+    // signed in, they're the account wherever they connect from. u:<id> can't be sent as a guest token, TOKEN has no colon.
+    // A session that's run out just falls back to the guest
+    const session = url.searchParams.get('session')
+    const user = session ? await userBySession(this.env.DB, session, Date.now()) : null
+    const who = user ? `u:${user.id}` : token
     // a socket lost with no close frame still looks open here, so the newest one for a token wins.
     // 4000 tells the old tab it was replaced and not to fight back
     for (const old of this.sockets()) {
-      if ((old.deserializeAttachment() as Attachment).token === token) old.close(4000, 'replaced')
+      if ((old.deserializeAttachment() as Attachment).token === who) old.close(4000, 'replaced')
     }
     if (this.sockets().length >= MAX_SOCKETS) return new Response('room is full', { status: 503 })
     // a private room nobody has open yet is being made. Only that costs a look at the address's count,
@@ -171,9 +178,11 @@ export class Table extends DurableObject<Env> {
     }
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server)
-    server.serializeAttachment({ token } satisfies Attachment)
+    server.serializeAttachment({ token: who } satisfies Attachment)
     // a returning seat with the same name changes nothing, so it only costs a broadcast
-    const changed = await this.change(() => join(this.room, token, url.searchParams.get('name') ?? '', Date.now()))
+    const changed = await this.change(() =>
+      join(this.room, who, user?.name ?? url.searchParams.get('name') ?? '', Date.now(), user && { user: user.id, art: user.avatar }),
+    )
     if (!changed) this.broadcast()
     // the chat so far, only to the one who just arrived
     send(server, { t: 'chat', lines: this.room.chat })
@@ -279,6 +288,13 @@ export class Opened extends DurableObject<Env> {
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname
+    if (API_PATH.test(path)) {
+      const origin = request.headers.get('Origin')
+      if (origin && !ORIGINS.test(origin)) return new Response('not from here', { status: 403 })
+      const { success } = await env.CONNECTS.limit({ key: `api:${request.headers.get('cf-connecting-ip') ?? 'local'}` })
+      if (!success) return new Response('slow down', { status: 429, headers: origin ? { 'Access-Control-Allow-Origin': origin } : {} })
+      return api(request, env, ORIGINS)
+    }
     const list = path === '/tables'
     const pub = path.match(TABLE_PATH)?.[1]
     const name = path.match(ROOM_PATH)?.[1] ?? (pub && PUBLIC_TABLES.includes(pub) ? PUBLIC_PREFIX + pub : null)

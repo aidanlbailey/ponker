@@ -1,0 +1,87 @@
+/* goes with Profile.tsx, sits on menus.css like the other hub screens */
+
+.profile-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-note {
+  color: var(--menu-soft);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+
+  .button-row {
+    align-self: stretch;
+    flex-wrap: wrap;
+  }
+}
+
+/* checks show through where nothing's painted, same as the eraser swatch. Rounded like the table's avatars */
+.profile-canvas {
+  width: min(100%, 384px);
+  aspect-ratio: 1;
+  border: 3px solid #000;
+  border-radius: 8px;
+  background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / calc(100% / 12) calc(100% / 12);
+  box-shadow: 4px 4px 0 #000;
+  image-rendering: pixelated;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.profile-palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.5rem;
+  width: min(100%, 384px);
+
+  button {
+    aspect-ratio: 1;
+    min-width: 0;
+    padding: 0;
+    border: 2.5px solid #000;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* the red slash says it's the see-through one, not white */
+  .eraser {
+    background:
+      linear-gradient(to top right, transparent calc(50% - 1.5px), #e8453c calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+      repeating-conic-gradient(#d9d9d9 0 25%, #fff 0 50%) 0 0 / 50% 50%;
+  }
+
+  [aria-checked='true'] {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.profile-thumb {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #2c2c2c;
+  image-rendering: pixelated;
+}
+
+/* the name takes the room, the count sits by the buttons */
+.profile-reports li span {
+  flex: none;
+}
+
+.profile-reports li b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

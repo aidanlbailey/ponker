@@ -15,6 +15,7 @@ import { PUBLIC_TABLES } from './room/public'
 import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
+import { takeSignIn } from './lib/account'
 import { haptic } from './lib/haptics'
 import { setSound, sound, soundOn } from './lib/sound'
 import { smoothly } from './lib/smoothly'
@@ -24,13 +25,17 @@ const Game = lazy(() => import('./game/Game'))
 const BotPicker = lazy(() => import('./game/BotPicker'))
 const Previews = lazy(() => import('./hub/Previews'))
 const Room = lazy(() => import('./room/Room'))
+const Profile = lazy(() => import('./profile/Profile'))
+
+// before anything reads the hash, or #signin/<token> reads as a broken link
+takeSignIn()
 
 const ROOM_HASH = new RegExp(`^#(room/[a-z0-9]{4,16}|table/(${PUBLIC_TABLES.join('|')}))$`)
-const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race', '#profile': 'profile' }
+const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'rooms', '#race': 'race' }
 // lowercased, so a code someone typed or read out in capitals still lands
 const known = (raw: string) => {
   const hash = raw.toLowerCase()
-  return ['', '#', '#chips', '#bots', '#play'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+  return ['', '#', '#chips', '#bots', '#play', '#profile', '#admin'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
 }
 const badLink = (): ToastMessage => ({ text: "That link doesn't go anywhere", type: 'error', id: Date.now() })
 // a mistyped or broken link goes home, but says so rather than just looking like the wrong page
@@ -153,6 +158,14 @@ export function App() {
     return (
       <Suspense>
         <Room key={roomPath} path={roomPath} name={userName} onName={setUserName} />
+      </Suspense>
+    )
+  }
+
+  if (hash === '#profile' || hash === '#admin') {
+    return (
+      <Suspense>
+        <Profile key={hash} name={userName} admin={hash === '#admin'} />
       </Suspense>
     )
   }

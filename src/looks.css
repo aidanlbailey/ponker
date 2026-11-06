@@ -65,7 +65,20 @@ html {
   }
 
   .title-chip .chip {
-    box-shadow: none !important;
+    box-shadow: var(--hard-shadow) !important;
+  }
+
+  /* the tag's depth stack becomes one burst: the buttons' 3px 4px, turned back by the tilt so it stays
+     down and right while it bobs and spins */
+  .title-tag > i {
+    display: none;
+  }
+
+  .title-tag > i:first-of-type {
+    display: block;
+    background: rgb(0 0 0 / 0.28);
+    translate: calc((3 * cos(var(--tilt, -12deg)) + 4 * sin(var(--tilt, -12deg))) * var(--mirror, 1) * 1px)
+      calc((4 * cos(var(--tilt, -12deg)) - 3 * sin(var(--tilt, -12deg))) * 1px);
   }
 
   /* hard-coded black outlines at the table, borders instead of shadows so nothing moves */

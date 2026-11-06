@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { isValidElement, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
@@ -7,7 +7,7 @@ import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls } from './BetControls'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, ChipShadows, DROP_MS, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, ChipShadows, DROP_MS, PILE_LOOK, PlayingCard, reducedMotion, SHOWN } from './Pieces'
 import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
@@ -84,6 +84,63 @@ function Fade({ show, className, children, title }: { show: boolean; className: 
   return (
     <span className={cx(className, !show && 'gone')} aria-hidden={!show || undefined} title={title}>
       {shown}
+    </span>
+  )
+}
+
+// A seat's plate, sized by its stack. A digit more or less used to snap it wider or narrower, so it eases from
+// the width it had to the one it's got. fit is what it's sized by. Mid ease the number's clipped by .seat-info
+// rather than poking out the end
+function Plate({ fit, children }: { fit: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const was = useRef(0)
+  const easing = useRef<Animation | null>(null)
+  // kept current, or a width read before the font loaded had every plate dip a couple of px on its first change
+  useEffect(() => {
+    const el = ref.current!
+    const watch = new ResizeObserver(() => {
+      if (easing.current?.playState !== 'running') was.current = el.offsetWidth
+    })
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
+  useLayoutEffect(() => {
+    const el = ref.current!
+    // still easing, so it starts from wherever it's got to
+    const from = easing.current?.playState === 'running' ? el.offsetWidth : was.current
+    easing.current?.cancel()
+    const to = el.offsetWidth
+    was.current = to
+    if (!from || from === to || reducedMotion()) return
+    easing.current = el.animate({ width: [`${from}px`, `${to}px`] }, { duration: 300, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1)' })
+  }, [fit])
+  return (
+    <div ref={ref} className="seat-plate">
+      {children}
+    </div>
+  )
+}
+
+const SAID_EXITS =new Set(['said-fade', 'said-wilt'])
+
+// A seat's action pill. Its exit is timed in game.css, and a new street or hand clearing the seat's line used to
+// unmount it partway through. Now it hangs on until its own fade's done. Same words again is a new pill, so n
+function Said({ text }: { text: string }) {
+  const [pill, setPill] = useState({ text, n: 0, faded: false })
+  const [was, setWas] = useState(text)
+  if (text !== was) {
+    setWas(text)
+    if (text) setPill((p) => ({ text, n: p.n + 1, faded: false }))
+  }
+  // reduced motion has no fade to wait for
+  if (!pill.text || (!text && (pill.faded || reducedMotion()))) return null
+  return (
+    <span
+      key={pill.n}
+      className={`said ${saidKind(pill.text)}`}
+      onAnimationEnd={(e) => SAID_EXITS.has(e.animationName) && setPill((p) => ({ ...p, faded: true }))}
+    >
+      {pill.text}
     </span>
   )
 }
@@ -291,12 +348,17 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             const tag = game.tagOf?.(i)
             const emote = game.emoteOf?.(i)
             const seatClass = cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', spot.className === 'bet beside' && 'upper')
+            const stack = out ? 'Out' : game.stack(i).toLocaleString('en-US')
             const info = (
               <>
-                <Avatar id={seat.id} />
+                <Avatar
+                  id={seat.id}
+                  art={game.artOf?.(i)}
+                  onTap={game.reportArt && !isMe ? () => game.reportArt!(i) : undefined}
+                />
                 <div className="seat-info">
                   <span className="seat-name">{nameOf(i)}</span>
-                  <span className="seat-stack">{out ? 'Out' : game.stack(i).toLocaleString('en-US')}</span>
+                  <span className="seat-stack">{stack}</span>
                 </div>
               </>
             )
@@ -329,7 +391,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                       <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} />
                     ))}
                   </div>
-                  <div className="seat-plate">
+                  <Plate fit={stack}>
                     {info}
                     {clock && (
                       <span
@@ -338,13 +400,13 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                         style={{ '--from': clock.ms / clock.of, '--ms': `${clock.ms}ms` } as CSSProperties}
                       />
                     )}
-                  </div>
+                  </Plate>
                 </div>
                 {/* the seat again, invisible, carrying only its badges. Same classes and layout so they sit exactly
                     where they would on the plate, but over the flying chips, which a badge inside the seat can't be */}
                 <div className={cx(seatClass, 'seat-badges')} style={around(place, seats, 1)}>
                   <div className="seat-cards" />
-                  <div className="seat-plate">
+                  <Plate fit={stack}>
                     {info}
                     <Fade show={view.button === i && view.street !== 'waiting'} className="dealer" title="Dealer button">
                       D
@@ -355,17 +417,13 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                     <Fade show={!!tag} className="seat-tag">
                       {tag}
                     </Fade>
-                  </div>
+                  </Plate>
                   {emote ? (
                     <span key={`emote-${emote.key}`} className="said emote">
                       {emote.text}
                     </span>
                   ) : (
-                    game.said[i] && (
-                      <span key={game.said[i]} className={`said ${saidKind(game.said[i])}`}>
-                        {game.said[i]}
-                      </span>
-                    )
+                    <Said text={game.said[i] ?? ''} />
                   )}
                 </div>
               </div>

@@ -8,11 +8,11 @@ import '../game/menus.css'
 import '../game/picker.css'
 import './previews.css'
 
-// The hub's other screens. Daily Race and Profile aren't open yet
+// The hub's other screens. Daily Race isn't open yet
 
-export type PreviewName = 'quick' | 'rooms' | 'race' | 'profile'
+export type PreviewName = 'quick' | 'rooms' | 'race'
 
-function Screen({ title, children }: { title: string; children: ReactNode }) {
+export function Screen({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="poker picker preview">
       <header className="poker-bar">
@@ -191,9 +191,8 @@ function Later({ title }: { title: string }) {
 }
 
 const DailyRace = () => <Later title="Daily Race" />
-const Profile = () => <Later title="Profile" />
 
-const SCREENS = { quick: QuickPlay, rooms: Rooms, race: DailyRace, profile: Profile }
+const SCREENS = { quick: QuickPlay, rooms: Rooms, race: DailyRace }
 
 export default function Previews({ name }: { name: PreviewName }) {
   const Shown = SCREENS[name]

@@ -13,6 +13,11 @@
     { "tag": "v1", "new_sqlite_classes": ["Table"] },
     { "tag": "v2", "new_sqlite_classes": ["Opened"] }
   ],
+  // accounts. Secrets (wrangler secret put, or .dev.vars locally): STATE_KEY, GOOGLE_ID, GOOGLE_SECRET,
+  // DISCORD_ID, DISCORD_SECRET, and ADMIN_ID once Aidan's account exists
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ponker", "database_id": "93b97237-8ce5-47b9-8ac3-5cdc7ec8573c", "migrations_dir": "migrations" }
+  ],
   // socket upgrades per address per minute. A house of friends on one wifi shares this, so it's generous.
   // Deployed on the free plan 2026-11-03 it took the binding but never once returned a 429 (60 list calls in
   // a row, and the probe's connect loop). Kept in case it starts enforcing. Rows are still safe without it,

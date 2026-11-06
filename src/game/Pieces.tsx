@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { ChipParts, ChipStack, SHADOW_ALPHA, SHADOW_WIDTH, STRIPE_STAGGER, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
+import { PixelArt } from '../components/PixelArt'
 import { HIDDEN, type Card } from '../engine/engine'
 import { sound } from '../lib/sound'
 import { chipColors, colorOf } from './betting'
@@ -41,7 +42,18 @@ const DEFAULT_AVATAR = '♠︎'
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function Avatar({ id }: { id: string }) {
+// a signed-in player's picture. Tapping someone else's offers to report it
+export function Avatar({ id, art, onTap }: { id: string; art?: string | null; onTap?: () => void }) {
+  if (art) {
+    const picture = <PixelArt art={art} className="avatar-art" />
+    return onTap ? (
+      <button type="button" className="avatar art" aria-label="Report this picture" onClick={onTap}>
+        {picture}
+      </button>
+    ) : (
+      <span className="avatar art">{picture}</span>
+    )
+  }
   const letter = BOT_LETTERS[id]
   return (
     <span

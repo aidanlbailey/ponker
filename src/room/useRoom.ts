@@ -3,6 +3,7 @@
 // gets the whole table back, so a reconnect is just a fresh start.
 
 import { useEffect, useRef, useState } from 'react'
+import { session } from '../lib/account'
 import { load, save } from '../lib/storage'
 import type { ChatLine, Command, RoomView } from '../../worker/src/room'
 import type { TableInfo } from './public'
@@ -89,7 +90,9 @@ export function useRoom(path: string, name: string) {
       parked = false
       drop()
       clearTimeout(retry)
-      const url = `${BASE}/${path}?token=${encodeURIComponent(guestToken())}&name=${encodeURIComponent(name)}`
+      // signed in, the worker takes the name and picture from the account
+      const signedIn = session()
+      const url = `${BASE}/${path}?token=${encodeURIComponent(guestToken())}&name=${encodeURIComponent(name)}${signedIn ? `&session=${encodeURIComponent(signedIn)}` : ''}`
       const next = (ws = socket.current = new WebSocket(url))
       heard = performance.now()
       setStatus((prev) => (prev === 'open' ? 'lost' : prev))

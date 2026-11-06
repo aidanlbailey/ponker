@@ -55,7 +55,11 @@ export type Member = {
   leaving: boolean
   topUp: boolean
   outSince: number | null // sat out by the clock, the grace period runs from here
+  user?: number // signed in. Their name and picture come from the account
+  art?: string | null
 }
+
+export type Account = { user: number; art: string | null }
 
 export type ChatLine = { name: string; text: string; at: number }
 export type Said = PlayerAction | { type: 'timeout' }
@@ -74,7 +78,7 @@ export type Room = {
   stats: { rows: number; hands: number; actions: number }
   budget: { day: string; rows: number } // rows written today, UTC
   public?: boolean // no host, anyone seated adds bots, and bots make way for people
-  waiting?: { token: string; name: string }[] // public only, watchers a bot is standing up for
+  waiting?: { token: string; name: string; as?: Account | null }[] // public only, watchers a bot is standing up for
 }
 
 export type Command =
@@ -244,10 +248,10 @@ function sweep(r: Room, now: number) {
   return changed
 }
 
-function sit(r: Room, seat: number, token: string, name: string) {
+function sit(r: Room, seat: number, token: string, name: string, as?: Account | null) {
   const id = `guest:${crypto.randomUUID().slice(0, 8)}`
   r.table = applyAction(r.table, { type: 'sit', seat, id, chips: BUY_IN })
-  r.members[seat] = { token, name: cleanName(name), bank: BANK_MS, leaving: false, topUp: false, outSince: null }
+  r.members[seat] = { token, name: cleanName(name), bank: BANK_MS, leaving: false, topUp: false, outSince: null, ...(as && { user: as.user, art: as.art }) }
 }
 
 // gone after the hand it's in
@@ -263,7 +267,7 @@ function deal(r: Room, now: number, online: Set<string>) {
   // whoever a bot just stood up for, if they stuck around to watch
   for (const w of (r.waiting ?? []).filter((w) => online.has(w.token))) {
     const seat = SEAT_ORDER.find((i) => !r.members[i])
-    if (seat !== undefined) sit(r, seat, w.token, w.name)
+    if (seat !== undefined) sit(r, seat, w.token, w.name, w.as)
   }
   r.waiting = []
   r.members.forEach((m, i) => {
@@ -364,12 +368,14 @@ export function stalled(r: Room, online: Set<string>, now: number) {
 }
 
 // At a full public table a bot stands up after the hand for each watcher who asks, and the deal seats them.
-export function join(r: Room, token: string, name: string, now: number) {
+export function join(r: Room, token: string, name: string, now: number, as?: Account | null) {
   if (!r.public) r.host ??= token
   const mine = seatOf(r, token)
   if (mine >= 0) {
     const m = r.members[mine]!
     m.name = cleanName(name)
+    // a new picture, or one that got reset, shows from their next connect
+    if (as) m.art = as.art
     // Leave takes you to the menu straight away and the hand plays on without you, so coming back
     // before it's swept means you changed your mind. Same as I'm back
     if (m.leaving) {
@@ -389,9 +395,9 @@ export function join(r: Room, token: string, name: string, now: number) {
     if (bot < 0) return
     standBot(r, bot, now)
     // between hands it's gone already, so no need to wait
-    if (r.members[bot]) return void waiting.push({ token, name: cleanName(name) })
-    sit(r, bot, token, name)
-  } else sit(r, seat, token, name)
+    if (r.members[bot]) return void waiting.push({ token, name: cleanName(name), as })
+    sit(r, bot, token, name, as)
+  } else sit(r, seat, token, name, as)
   settle(r, now)
 }
 
@@ -488,7 +494,15 @@ export function viewOf(r: Room, token: string, online: Set<string>, now: number)
     last: r.last,
     table: viewFor(r.table, seat >= 0 ? seat : null),
     seats: r.members.map(
-      (x) => x && { name: x.name, bot: !x.token, away: !!x.token && !online.has(x.token), out: x.outSince !== null },
+      (x) =>
+        x && {
+          name: x.name,
+          bot: !x.token,
+          away: !!x.token && !online.has(x.token),
+          out: x.outSince !== null,
+          user: x.user ?? null,
+          art: x.art ?? null,
+        },
     ),
     me: seat >= 0 ? seat : null,
     host: token === r.host,

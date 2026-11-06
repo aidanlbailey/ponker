@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ponker privacy</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 2rem 16px 4rem;
+        background: #1e1e1e;
+        color: #e8e8e8;
+        font: 1rem/1.6 system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.1rem;
+      }
+      a {
+        color: #f5d742;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ponker privacy</h1>
+    <p>Ponker is a free poker game with fake chips, made by Aidan Bailey for fun. Here's everything it keeps about you.</p>
+
+    <h2>Playing as a guest</h2>
+    <p>
+      Nothing leaves your browser except the name you type and a random code that holds your seat if your connection
+      drops. Your chips, settings and name are kept in your browser's local storage.
+    </p>
+
+    <h2>Signing in with Google or Discord</h2>
+    <p>
+      Ponker only asks Google or Discord who you are, as a number they give each account. It never sees or keeps your
+      email address, your real name, your contacts or anything else. Alongside that number it keeps the display name
+      you pick and the pixel picture you draw, both of which other players see at the table.
+    </p>
+    <p>
+      Signing in leaves a token in your browser so you stay signed in. The server only keeps a scrambled copy of it,
+      and it runs out after 90 days.
+    </p>
+
+    <h2>Reports</h2>
+    <p>
+      If someone reports your picture, the report (who made it and when) is kept until it's been looked at. A picture
+      that breaks the rules gets reset to the default.
+    </p>
+
+    <h2>Deleting it</h2>
+    <p>
+      Delete account in Profile removes your account, your name, your picture and your sessions straight away.
+      Signing out on its own just forgets you on that device.
+    </p>
+
+    <h2>Where it lives</h2>
+    <p>
+      The game runs on Cloudflare and the site is hosted by GitHub Pages. Nothing is sold, shared or used for ads, and
+      there's no tracking.
+    </p>
+
+    <h2>Questions</h2>
+    <p>Open an issue on <a href="https://github.com/aidanlbailey/ponker/issues">GitHub</a>.</p>
+
+    <p><a href="/">Back to Ponker</a></p>
+  </body>
+</html>

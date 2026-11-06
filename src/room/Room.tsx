@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
 import { Dialog } from '../components/Dialog'
 import { applyAction, HIDDEN, type Action, type PlayerAction, type TableState } from '../engine/engine'
+import { call, hiddenArt, hideArt, session } from '../lib/account'
 import { haptic } from '../lib/haptics'
 import { Table } from '../game/Game'
 import { BUY_IN } from '../game/solo'
@@ -26,7 +27,8 @@ const roomLink = (path: string) => `${location.origin}${location.pathname}#${pat
 type RoomProps = { path: string; name: string; onName: (name: string) => void }
 
 export default function Room({ path, name, onName }: RoomProps) {
-  if (!name) return <NameFirst onName={onName} />
+  // signed in, the account has a name already
+  if (!name && !session()) return <NameFirst onName={onName} />
   return <Connected path={path} name={name} />
 }
 
@@ -83,6 +85,8 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   const [chatOpen, setChatOpen] = useState(false)
   const [seen, setSeen] = useState(0)
   const [panel, setPanel] = useState(false)
+  const [reporting, setReporting] = useState<{ user: number; name: string } | null>(null)
+  const [hidden, setHidden] = useState(hiddenArt)
   const preflown = useRef<number | null>(null)
   const applied = useRef(-1)
   const me = cur.me
@@ -153,7 +157,16 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     nameOf: (i) => seat(i)?.name ?? 'Player',
     tagOf: (i) => {
       const s = seat(i)
-      return s?.bot ? 'Bot' : s?.away ? 'Away' : s?.out ? 'Sat out' : null
+      // signed-in names are unique, so anyone without an account says so rather than passing for one
+      return s?.bot ? 'Bot' : s?.away ? 'Away' : s?.out ? 'Sat out' : s && s.user === null ? 'Guest' : null
+    },
+    artOf: (i) => {
+      const s = seat(i)
+      return s?.art && !hidden.includes(s.user!) ? s.art : null
+    },
+    reportArt: (i) => {
+      const s = seat(i)
+      if (s?.user) setReporting({ user: s.user, name: s.name })
     },
     clock: caughtUp ? room.clock : null,
     emoteOf: (i) => {
@@ -271,7 +284,8 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   )
 
   return (
-    <Table game={game} name={name} bar={bar} dock={dock}>
+    // signed in, the server's name is the account's and the local one is only the guest fallback
+    <Table game={game} name={(me !== null && cur.seats[me]?.name) || name} bar={bar} dock={dock}>
       {chatOpen &&
         (cur.public ? (
           <section className="room-chat room-emotes" aria-label="Emotes">
@@ -287,6 +301,16 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
           <Chat room={room} seated={me !== null} onClose={() => (setChatOpen(false), setSeen(room.chat.length))} />
         ))}
       {panel && <RoomPanel path={path} view={cur} send={room.send} onClose={() => setPanel(false)} />}
+      {reporting && (
+        <ReportArt
+          {...reporting}
+          onClose={() => setReporting(null)}
+          onReported={() => {
+            hideArt(reporting.user)
+            setHidden(hiddenArt())
+          }}
+        />
+      )}
     </Table>
   )
 }
@@ -430,6 +454,39 @@ function RoomPanel({ path, view, send, onClose }: { path: string; view: RoomView
           <button className="button neutral" disabled={full} onClick={() => send({ t: 'addBot' })}>
             {full ? 'Table is full' : 'Add a random bot'}
           </button>
+        </>
+      )}
+    </Dialog>
+  )
+}
+
+// Hides the picture for you straight away. Signed in, it also goes to Aidan to look at. A guest's report would be
+// one anyone could send by the thousand, so theirs only hides it
+function ReportArt({ user, name, onClose, onReported }: { user: number; name: string; onClose: () => void; onReported: () => void }) {
+  const signedIn = !!session()
+  return (
+    <Dialog title="Report picture" onClose={onClose}>
+      {(close) => (
+        <>
+          <p>
+            Hide {name}'s picture{signedIn ? ' and send it to be looked at' : ''}? You'll see the default from now on.
+          </p>
+          <div className="button-row">
+            <button type="button" className="button neutral" onClick={() => close()}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => {
+                if (signedIn) call('/report', { method: 'POST', body: { user } }).catch(() => {})
+                close(onReported)
+                haptic('success')
+              }}
+            >
+              Report
+            </button>
+          </div>
         </>
       )}
     </Dialog>
