@@ -21,68 +21,8 @@
   --ui-title-spacing: 0.02em;
 }
 
-:root,
-[data-theme='dark'] {
-  --bg: #0a0f0c;
-  --bg-image: repeating-linear-gradient(45deg, #0f1812 0 40px, #0a0f0c 40px 80px);
-  --text: #ffffff;
-  --text-soft: #cdd8cf;
-  --text-muted: #a3b8a8;
-  --surface: linear-gradient(145deg, #171f1a, #1f2922);
-  --surface-raised: #1f2922;
-  --border: #324238;
-  --accent: #39ff6a;
-  --accent-text: #8dffb0;
-  /* buttons stand off the page in every theme: a lighter slate here, never the page's own dark */
-  --button: #5f6874;
-  --button-border: #8a94a0;
-  --button-text: #ffffff;
-  --button-muted: #e3e7ec;
-  --button-on: #8dffb0;
-  --field: #131a15;
-  --field-border: #73897a;
-  --title-face: linear-gradient(180deg, #f4fff6 8%, #b4ffc6 42%, #2fe063 52%, #c6ffd4 78%, #f4fff6 100%);
-  --title-chip: #0e8a3a;
-  --title-stroke: #0e8a3a;
-  --title-depth: transparent;
-  --title-glow:
-    0 0 5px #39ff6a, 0 0 10px #39ff6a, 0 0 15px #39ff6a, 0 0 20px #0e8a3a;
-}
-
-/* not in the block above, that one also matches :root so it would leak into the other themes */
-[data-theme='dark'] {
-  --primary: linear-gradient(145deg, #15803d, #166534); /* white text has to stay readable, so not the neon */
-}
-
-[data-theme='light'] {
-  --bg: #f3efe6;
-  --label-shadow: none; /* labels are dark here, so it'd only smudge them */
-  --bg-image: repeating-linear-gradient(45deg, #f3efe6 0 40px, #ebe5d8 40px 80px);
-  --text: #23211c;
-  --text-soft: #4d483e;
-  --text-muted: #605a4e;
-  --surface: linear-gradient(145deg, #fffdf8, #f3efe6);
-  --surface-raised: #fffdf8;
-  --border: #dcd5c5;
-  --accent: #0b289d;
-  --accent-text: #0b289d;
-  /* dark slate, white buttons on a cream page all but vanish */
-  --button: #3b4350;
-  --button-border: #1f252d;
-  --button-text: #ffffff;
-  --button-muted: #d5dae1;
-  --button-on: #ffcf3f;
-  --field: #fffdf8;
-  --field-border: #8a8373;
-  /* the red and navy off the playing cards */
-  --title-face: linear-gradient(180deg, #ef3b52 10%, #c8102e 48%, #9a0a22 54%, #d81f3b 100%);
-  --title-chip: #0b289d;
-  --title-stroke: #fffdf8;
-  --title-depth: #0b289d;
-  --title-glow: 0 0 transparent;
-}
-
-[data-theme='felt'] {
+/* the one theme now, it used to be felt mode beside dark and light */
+:root {
   --bg: #0f5132;
   --bg-image: repeating-linear-gradient(45deg, #186e44 0 40px, #14623c 40px 80px);
   --text: #ffffff;
@@ -112,10 +52,6 @@
 @media (max-width: 600px) {
   :root {
     --title-stroke-width: 2px;
-  }
-
-  [data-theme='dark'] {
-    --title-glow: 0 0 3px #39ff6a, 0 0 6px #39ff6a;
   }
 
 }
@@ -373,7 +309,7 @@ button,
   line-height: 1;
 }
 
-/* the pill the table puts behind its numbers, hairline and all. Dark in every theme like it is there */
+/* the pill the table puts behind its numbers, hairline and all. Always dark */
 .total,
 .chip-total:not(:empty),
 .chip-value {

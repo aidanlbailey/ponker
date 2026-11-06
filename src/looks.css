@@ -1,0 +1,268 @@
+/* ponytail: the restyle, layered over the old outlined look with !important. Fold it into the real stylesheets
+   once it settles, then this file goes */
+
+/* no black outlines, no hard offsets, no stripes */
+html {
+  --text-shadow: none !important;
+  --label-shadow: none !important;
+  --title-depth: transparent !important;
+  --title-glow: 0 0 transparent !important;
+
+  .hub,
+  .poker {
+    --hub-depth: transparent !important;
+    --menu-depth: transparent !important;
+  }
+
+  /* chips and the felt draw their art with box-shadows, so they're left out and redone below */
+  *:not(.felt, .chip, .chip-band, .chip-side, .chip-flip *, .title *) {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .hub-play,
+  .hub-corner .deck,
+  .poker * {
+    filter: none !important;
+  }
+
+  /* chips have no outline at all, not even a darker shade. Stacked chips part by their staggered stripes */
+  .chip,
+  .chip-flip .chip,
+  .chip-side,
+  .chip-band,
+  .chip::after {
+    box-shadow: none !important;
+  }
+
+  /* no black lines between the edge stripes, they're just bands now */
+  .chip-side,
+  .chip-band {
+    --e: 0deg !important;
+  }
+
+  /* the marks' black stroke, and the wide black ring the accent ring sat on. Only the marks svg, the hub's
+     chips have an icon svg in them too */
+  svg:has(> .chip-spots) {
+    stroke: none;
+
+    > circle:first-of-type {
+      display: none;
+    }
+
+    > circle:last-of-type {
+      stroke-width: 6px;
+    }
+  }
+
+  /* the black Rooms chip vanished into the dark tile once its outline went */
+  .hub-chip-rooms {
+    outline: 1.5px solid #4a5550;
+  }
+
+  .title > span:not(.title-chip) {
+    -webkit-text-stroke-width: 0 !important;
+  }
+
+  .title-chip .chip {
+    box-shadow: none !important;
+  }
+
+  /* hard-coded black outlines at the table, borders instead of shadows so nothing moves */
+  :is(.poker-link, .poker-toggle, .button, .picked-bot, .bot-tile, .hub-slab, .hub-profile, .hub-soon, .bet-presets button, .bet-exact input) {
+    border-color: rgb(0 0 0 / 0.2) !important;
+  }
+
+  /* the turn arrow's svg has a black stroke and a baked offset copy */
+  .seat.turn .seat-plate::after {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 14'%3E%3Cpath d='M2.5 2h14l-7 8.5z' fill='%23fffdf8'/%3E%3C/svg%3E") no-repeat !important;
+  }
+
+  /* pressed buttons no longer have a shadow to sink into */
+  :is(.hub-slab, .poker-link, .poker-toggle, .home-link, .button, .picked-bot, .bot-tile, .bet-presets button):active {
+    translate: 0 1px !important;
+  }
+}
+
+/* a dark room, the table the only colour in it. Every fill is a solid colour, no soft gradients and
+   nothing see-through. Shadows are the one thing allowed to be soft. The only gradients left are hard-stop
+   ones that draw flat bands (chip edges, the slider's fill) */
+html {
+  --bg-image: none !important;
+  --bg: #0b0f0d !important;
+  --title-face: #f5c518 !important;
+  --lit-surface: #151b18;
+  --lit-pill: #111613;
+  --lit-line: #29322d;
+
+  .title > span:not(.title-chip) {
+    --title-shadow: 0 4px 14px rgb(0 0 0 / 0.6) !important;
+  }
+
+  .title-sub > span::after {
+    background: #dfe3e8 !important;
+    background-clip: text !important;
+  }
+
+  .title-tag::after {
+    background: #ffd400 !important;
+  }
+
+  :is(.hub-slab, .picker-seats, .room-gate-card, .bio-card, .preview-list li, .room-chat) {
+    background: var(--lit-surface) !important;
+    border: 1px solid var(--lit-line) !important;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.4) !important;
+  }
+
+  .hub-quick.hub-quick {
+    background: #c8102e !important;
+    border-color: #e0354f !important;
+  }
+
+  /* the dimmed "coming soon" ones, and the empty bot slots */
+  .hub-mode.later.later,
+  .picked-empty,
+  .preview-list .preview-loading.preview-loading {
+    background: var(--bg) !important;
+    border: 1px dashed var(--lit-line) !important;
+    box-shadow: none !important;
+  }
+
+  :is(.poker-link, .poker-toggle, .home-link, .button, .picked-bot, .bot-tile, .hub-profile, .bet-presets button) {
+    border: 1px solid var(--lit-line) !important;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.4) !important;
+  }
+
+  .poker:not(.picker, .room-gate) .seat-plate {
+    background: var(--lit-surface) !important;
+    box-shadow: 0 0 0 1px var(--lit-line), 0 6px 16px rgb(0 0 0 / 0.4) !important;
+
+    .seat-name {
+      color: #9aa59f !important;
+    }
+
+    .seat-stack {
+      color: #fff !important;
+    }
+  }
+
+  .poker:not(.picker, .room-gate) .seat.open .seat-plate {
+    background: #11603a !important;
+    border: 2px dashed #4f9a75 !important;
+    box-shadow: none !important;
+  }
+
+  .poker:not(.picker, .room-gate) .avatar.bot {
+    background: #fff !important;
+  }
+
+  /* number pills, win line, blinds and tags were all black at 62-75% */
+  :is(.total, .chip-total:not(:empty), .chip-value, .result, .seat-blind, .seat-tag, .pile-label) {
+    background: var(--lit-pill) !important;
+    color: #fff !important;
+  }
+
+  /* folded hands faded to 35% before, now they swap to a dull solid back */
+  .seat.folded .seat-cards {
+    opacity: 1 !important;
+
+    .card-back {
+      --back: #2f3834;
+
+      border-color: #5d6a64 !important;
+    }
+  }
+
+  .tcard-face,
+  .tcard .card-back {
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 16px rgb(0 0 0 / 0.35) !important;
+  }
+
+  /* flat red, white edge, nothing else. The lattice, glow and pinstripe frame are gone */
+  .card-back {
+    --back: #c41e30;
+
+    border-color: #fff !important;
+    outline: none !important;
+    background: var(--back) !important;
+
+    &::before {
+      display: none !important;
+    }
+  }
+
+  .said,
+  .dealer {
+    box-shadow: 0 3px 10px rgb(0 0 0 / 0.4) !important;
+  }
+
+  .said.allin,
+  .dock .button.act.allin {
+    background: #ffd700 !important;
+
+    &::after {
+      display: none !important;
+    }
+  }
+
+  /* bet presets and the exact amount, the same dark slabs as Hints and Home up top */
+  .bet-presets button {
+    border: 1px solid var(--lit-line) !important;
+    background: var(--table-slab) !important;
+    color: #fff !important;
+  }
+
+  .bet-exact input {
+    border: 1px solid var(--lit-line) !important;
+    background: var(--lit-pill) !important;
+    color: #fff !important;
+  }
+
+  /* groove and thumb are pseudo-elements, so the blanket reset never reached them. Solid gold fill on a
+     dark groove, the thumb a plain cream disc */
+  .bet-slider {
+    --fill: #f5c518;
+  }
+
+  .bet-slider::-webkit-slider-runnable-track {
+    border: 1px solid var(--lit-line) !important;
+    background: linear-gradient(90deg, var(--fill) var(--fill-to), var(--lit-pill) 0) !important;
+    box-shadow: none !important;
+  }
+
+  .bet-slider::-moz-range-track {
+    border: 1px solid var(--lit-line) !important;
+    background: var(--lit-pill) !important;
+    box-shadow: none !important;
+  }
+
+  .bet-slider::-moz-range-progress {
+    height: calc(var(--groove) - 2px) !important;
+  }
+
+  /* border was 2.5px, so the margin's - 5px becomes - 2px to keep it centred */
+  .bet-slider::-webkit-slider-thumb {
+    margin-top: calc((var(--groove) - 2px - var(--thumb)) / 2) !important;
+    border: 0 !important;
+    background: var(--table-cream) !important;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.45) !important;
+  }
+
+  .bet-slider::-moz-range-thumb {
+    border: 0 !important;
+    background: var(--table-cream) !important;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.45) !important;
+  }
+
+  .felt {
+    background: #17754a !important;
+    box-shadow:
+      inset 0 0 0 1px #0d4429,
+      0 0 0 calc(var(--rail) * 0.3) #3a4440,
+      0 0 0 calc(var(--rail) * 1.6) #1c2220 !important;
+  }
+
+  .felt::before {
+    border-color: #4f9a75 !important;
+  }
+}

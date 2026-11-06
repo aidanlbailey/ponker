@@ -8,6 +8,7 @@ import '@fontsource-variable/rubik'
 import { App } from './App'
 import { sound, unlock, type SoundName } from './lib/sound'
 import './styles.css'
+import './looks.css'
 
 // a touch's pointerdown doesn't count as a gesture, so iOS only lets audio start on the finger coming up.
 // pointerdown stays for mice, so the files start loading a beat sooner

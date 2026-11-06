@@ -1,6 +1,5 @@
-import '@fontsource/press-start-2p/greek-400.css'
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { ChipParts, ChipStack, TILT, chipLook, sideStyle } from '../components/Chip'
+import { ChipParts, ChipStack, STRIPE_STAGGER, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
 import { HIDDEN, type Card } from '../engine/engine'
 import { sound } from '../lib/sound'
@@ -41,7 +40,7 @@ export function Avatar({ id }: { id: string }) {
   const letter = BOT_LETTERS[id]
   return (
     <span
-      className={`avatar ${letter ? 'bot' : ''} ${letter && 'ΓΙΤΥΨ'.includes(letter) ? 'centred' : ''}`}
+      className={`avatar ${letter ? 'bot' : ''}`}
       style={letter ? ({ '--bot-color': BOT_COLORS[id] } as CSSProperties) : undefined}
       aria-hidden="true"
     >
@@ -143,6 +142,22 @@ function slideChip(chip: HTMLElement, path: Point[], startScale: number, delay: 
   return chip.animate(keyframes, { duration: slideMs(path), delay, easing: 'cubic-bezier(0.45, 0, 0.2, 1)', fill: 'both' })
 }
 
+// spots and stripes repeat every 60deg, same wrap as --turn in chips.css
+const wrap60 = (deg: number) => deg - Math.round(deg / 60) * 60
+
+// the pile's per-level stripe turn, eased from where it sat to where it lands the short way round so it
+// doesn't snap on takeoff. Ends a multiple of 60 off the landed chip at most, which draws the same
+function turnChip(chip: HTMLElement, fromLevel: number, toLevel: number, duration: number, delay: number) {
+  const from = wrap60(fromLevel * STRIPE_STAGGER)
+  const to = from + wrap60(toLevel * STRIPE_STAGGER - from)
+  return chip.animate([{ '--flight-turn': `${from}deg` }, { '--flight-turn': `${to}deg` }], {
+    duration,
+    delay,
+    easing: 'cubic-bezier(0.45, 0, 0.2, 1)',
+    fill: 'both',
+  })
+}
+
 const slideMs = (path: Point[]) => SLIDE_MS * (path.length > 2 ? 1.3 : 1) // the long way round takes a little longer
 
 // the board in chip top-left coordinates, with a little clearance
@@ -223,8 +238,11 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
       return onFelt ? way : [start, to]
     }
     let animations: Animation[]
+    // a chip off a seat has no level of its own, so it just starts at the one it lands on
+    const fromLevel = flight.from.startsWith('seat') ? (flight.toAt?.level ?? 0) : (flight.fromAt?.level ?? 0)
+    const turn = (duration: number) => turnChip(chip, fromLevel, flight.toAt?.level ?? 0, duration, flight.delay)
     if (thrown) {
-      animations = throwChip(chip, start, end, startScale, flight.delay)
+      animations = [...throwChip(chip, start, end, startScale, flight.delay), turn(THROW_MS * LAND)]
       sound(onChip, { delay: flight.delay + THROW_MS * LAND })
     }
     else if (flight.to === 'pot') {
@@ -238,10 +256,12 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
       animations = [
         slideChip(chip, path, startScale, flight.delay, false),
         ...throwChip(chip, near, end, 1, flight.delay + slideMs(path), true),
+        turn(slideMs(path)),
       ]
       sound(onChip, { delay: flight.delay + slideMs(path) + HOP_MS * LAND, volume: 0.7 })
     } else {
-      animations = [slideChip(chip, slide(end), startScale, flight.delay, true)]
+      const way = slide(end)
+      animations = [slideChip(chip, way, startScale, flight.delay, true), turn(slideMs(way))]
       // one grab per stack, a payout chip by chip would be a rattle
       if (flight.order === 0) sound('handle', { delay: flight.delay })
     }

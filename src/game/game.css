@@ -33,7 +33,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* menus aren't a room, they show the hub's page through, whatever the theme. The stripes eat plain text,
+/* menus aren't a room, they show the hub's page through. The stripes eat plain text,
    so they get the hub's label shadow too */
 .poker:is(.picker, .room-gate) {
   background: none;
@@ -41,12 +41,12 @@
 }
 
 /* felt's muted green disappears into the cloth */
-[data-theme='felt'] .poker:is(.picker, .room-gate) {
+.poker:is(.picker, .room-gate) {
   --text-muted: #ffffff;
 }
 
 /* green panels and fields vanish on the green page, so the dialogs and fields take greys */
-[data-theme='felt'] .poker:not(.picker, .room-gate) {
+.poker:not(.picker, .room-gate) {
   --surface: linear-gradient(145deg, #2a2a2a, #1f1f1f);
   --surface-raised: #2a2a2a;
   --border: #525252;
@@ -56,18 +56,6 @@
   --text-muted: #c0c0c0;
   --accent: #ffffff;
   --accent-text: #ffffff;
-}
-
-[data-theme='dark'] .poker {
-  --table-felt: #123323;
-  --table-rail: #05080a;
-  --table-line: #39ff6a;
-}
-
-[data-theme='light'] .poker {
-  --table-felt: #14389f;
-  --table-rail: #23211c;
-  --table-line: #fffdf8;
 }
 
 /* table sits beside the controls on anything wider than it is tall */
@@ -439,20 +427,15 @@
 
   font-size: var(--avatar-text);
 
+  /* Manrope, not Rubik, Rubik has no Greek and the letters fell back to a system font. Trimmed to the
+     capital's height so the letter sits dead centre, not low under the ascender space */
   &.bot {
     background: #fffdf8;
-    font-size: calc(var(--avatar-text) * 1.1); /* the pixel letters read small at the spade's size */
-    /* the font draws on an 8x8 grid and leaves its spare row and column bottom right,
-       so the ink sits half a cell up and left. Measured, not eyeballed */
-    padding: 0.125em 0 0 0.125em;
     color: var(--bot-color, #9c1020);
-    font-family: 'Press Start 2P', Georgia, serif;
-    font-weight: 900;
-  }
-
-  /* these are already centred side to side, they only need the drop */
-  &.bot.centred {
-    padding-left: 0;
+    font-family: 'Manrope Variable', system-ui, sans-serif;
+    font-weight: 800;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
   }
 }
 
@@ -1584,8 +1567,8 @@
   .avatar.bot {
     background: #fff;
     color: var(--bot-color, #9c1020);
-    font-family: 'Press Start 2P', Georgia, serif;
-    font-weight: 900;
+    font-family: 'Manrope Variable', system-ui, sans-serif;
+    font-weight: 800;
   }
 
   .seat-name {

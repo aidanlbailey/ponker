@@ -2,14 +2,6 @@ import { useEffect, useRef, useState, type AnimationEvent, type CSSProperties, t
 import { haptic } from '../lib/haptics'
 import { sound } from '../lib/sound'
 
-export type Theme = 'dark' | 'light' | 'felt'
-
-export const NEXT_THEME = {
-  dark: { theme: 'light', label: 'Light mode' },
-  light: { theme: 'felt', label: 'Felt mode' },
-  felt: { theme: 'dark', label: 'Dark mode' },
-} as const
-
 // ︎ keeps these as text, otherwise phones swap in emoji suits
 export const SPADES = '♠︎'
 export const HEARTS = '♥︎'

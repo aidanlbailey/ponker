@@ -81,6 +81,17 @@
   --turn: calc(var(--n, 0) * var(--stagger, 0) * 1deg - round(var(--n, 0) * var(--stagger, 0) * 1deg, 60deg));
 }
 
+/* a flying chip turns from its old level's angle to its new one on the way, ChipFlight animates it */
+.flight :is(.chip-spots, .chip-side, .chip-band) {
+  --turn: var(--flight-turn);
+}
+
+@property --flight-turn {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+
 .chip-spots {
   transform: rotate(var(--turn));
 }

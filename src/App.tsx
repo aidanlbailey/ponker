@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { CardMenu, CLUBS, DIAMONDS, HEARTS, NEXT_THEME, SPADES, type MenuCard, type Theme } from './components/CardMenu'
+import { CardMenu, CLUBS, DIAMONDS, HEARTS, SPADES, type MenuCard } from './components/CardMenu'
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
 import { ChipToss, LAND_MS, createToss, type Toss } from './components/ChipToss'
@@ -40,11 +40,8 @@ function landOn(raw: string) {
   return hash
 }
 
-const isTheme = (data: unknown): data is Theme => data === 'dark' || data === 'light' || data === 'felt'
-
 export function App() {
   const [chips, setChips] = useStoredState<Chips>('ponker-chips', DEFAULT_CHIPS, isChips)
-  const [theme, setTheme] = useStoredState<Theme>('ponker-theme', 'felt', isTheme)
   const [userName, setUserName] = useStoredState('ponker-user-name', '')
   const [showValues, setShowValues] = useStoredState('ponker-show-values', true)
 
@@ -75,10 +72,6 @@ export function App() {
     addEventListener('hashchange', follow)
     return () => removeEventListener('hashchange', follow)
   }, [])
-
-  useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   const notify = (text: string, type: ToastMessage['type'] = 'success') => {
     setToast({ text, type, id: Date.now() })
@@ -193,9 +186,7 @@ export function App() {
   )
 
   // the hub only gets what applies to the whole app, the chip stuff stays with the tracker
-  const next = NEXT_THEME[theme]
   const nameCard = { label: userName ? 'Change name' : 'Set your name', run: () => setPanel('name'), opensPanel: true }
-  const themeCard = { label: next.label, run: () => smoothly(() => setTheme(next.theme)) }
   // read fresh each render, the table's toggle can change it while this stays mounted
   const soundCard = {
     label: soundOn() ? 'Sound off' : 'Sound on',
@@ -209,10 +200,9 @@ export function App() {
   const cards: MenuCard[] = home
     ? [
         { rank: 'A', suit: SPADES, ...nameCard },
-        { rank: 'K', suit: DIAMONDS, ...themeCard },
-        { rank: 'Q', suit: CLUBS, ...about },
-        { rank: 'J', suit: HEARTS, ...coffee },
-        { rank: '10', suit: SPADES, ...soundCard },
+        { rank: 'K', suit: CLUBS, ...about },
+        { rank: 'Q', suit: HEARTS, ...coffee },
+        { rank: 'J', suit: DIAMONDS, ...soundCard },
       ]
     : [
         { rank: 'A', suit: SPADES, label: 'Add chip type', run: addChipType },
@@ -225,10 +215,9 @@ export function App() {
           label: showValues ? 'Hide values' : 'Show values',
           run: () => smoothly(() => setShowValues(!showValues)),
         },
-        { rank: '9', suit: DIAMONDS, ...themeCard },
-        { rank: '8', suit: CLUBS, ...about },
-        { rank: '7', suit: HEARTS, ...coffee },
-        { rank: '6', suit: SPADES, ...soundCard },
+        { rank: '9', suit: CLUBS, ...about },
+        { rank: '8', suit: HEARTS, ...coffee },
+        { rank: '7', suit: DIAMONDS, ...soundCard },
       ]
 
   return (
