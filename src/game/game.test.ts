@@ -10,7 +10,7 @@ import {
 } from '../engine/engine'
 import { actionText, breakdown, chipColors, isFlick, potSize, raiseTo } from './betting'
 import { restack } from './BetControls'
-import { MAX_STACK, plan, potLayout, ready, settle, take, total } from './piles'
+import { MAX_STACK, payOrder, plan, potLayout, ready, settle, splitKept, take, total } from './piles'
 import { decide, equity } from './bot'
 import { advice, describeHand, priceToCall } from './helpers'
 import { progress, route } from './route'
@@ -25,9 +25,9 @@ import {
   newSolo,
   payouts,
   pileAt,
-  setLeaving,
   startHand,
   winnings,
+  type Move,
   type Spot,
 } from './solo'
 
@@ -203,28 +203,6 @@ describe('table loop', () => {
     expect(endOfHand({ ...solo, table, topUp: true }).table.seats[HERO]!.chips).toBe(1500)
   })
 
-  it('leaving mid hand sits the seat out so timeouts can finish the hand', () => {
-    let solo = { ...newSolo(), table: dealt() }
-    solo = setLeaving(solo, true)
-    expect(solo.table.seats[HERO]!.sittingOut).toBe(true)
-    expect(() => applyAction(solo.table, { type: 'leave', seat: HERO })).toThrow()
-
-    let { table } = solo
-    table = applyAction(table, { type: 'call', seat: BOT })
-    table = applyAction(table, { type: 'timeout' }) // hero's option, checks
-    expect(table.street).toBe('flop')
-    table = applyAction(table, { type: 'timeout' }) // first to act, checks
-    table = applyAction(table, { type: 'raise', seat: BOT, to: 20 })
-    table = applyAction(table, { type: 'timeout' }) // facing a bet, folds
-    expect(table.street).toBe('complete')
-  })
-
-  it('can change its mind about leaving', () => {
-    const solo = setLeaving(setLeaving({ ...newSolo(), table: dealt() }, true), false)
-    expect(solo.table.seats[HERO]!.sittingOut).toBe(false)
-    expect(solo.leaving).toBe(false)
-  })
-
   it('falls back to check or fold when the bot answer is no good', () => {
     const s = dealt()
     expect(botAction(s, null)).toEqual({ type: 'fold', seat: BOT })
@@ -250,10 +228,15 @@ describe('table loop', () => {
 describe('chip moves', () => {
   it('posts blinds from the seats', () => {
     const { table } = newSolo()
-    expect(chipMoves(table, startHand(table, ordered), true)).toEqual([
-      { from: 'seat-0', to: 'bet-0', amount: 5 },
-      { from: 'seat-1', to: 'bet-1', amount: 10 },
-    ])
+    const moves = chipMoves(table, startHand(table, ordered), true)
+    expect(moves.now).toEqual(
+      expect.arrayContaining([
+        { from: 'seat-0', to: 'bet-0', amount: 5 },
+        { from: 'seat-1', to: 'bet-1', amount: 10 },
+      ]),
+    )
+    expect(moves.now).toHaveLength(2)
+    expect(moves.sweep).toEqual([])
   })
 
   it('still moves the chips when a blind all in finishes the hand on the deal', () => {
@@ -265,10 +248,12 @@ describe('chip moves', () => {
       table.seats = table.seats.map((seat, i) => (i === HERO ? { ...seat!, chips: 3 } : seat))
       const next = startHand(table, ordered)
       if (next.street === 'complete') finished++
-      const moves = chipMoves(table, next, true)
+      const { now, sweep, kept } = chipMoves(table, next, true)
+      const moves = [...now, ...sweep, ...kept]
       for (const spot of ['pot', 'bet-0', 'bet-1'] as const) {
         const into = moves.filter((move) => move.to === spot).reduce((sum, move) => sum + move.amount, 0)
-        expect(into).toBe(pileAt(next, spot))
+        const out = moves.filter((move) => move.from === spot).reduce((sum, move) => sum + move.amount, 0)
+        expect(into - out).toBe(pileAt(next, spot))
       }
     }
     expect(finished).toBeGreaterThan(0)
@@ -276,39 +261,50 @@ describe('chip moves', () => {
 
   it('puts a bet in front of the seat', () => {
     const s = dealt()
-    expect(chipMoves(s, applyAction(s, { type: 'raise', seat: BOT, to: 30 }))).toEqual([
-      { from: 'seat-1', to: 'bet-1', amount: 25 },
-    ])
+    expect(chipMoves(s, applyAction(s, { type: 'raise', seat: BOT, to: 30 }))).toEqual({
+      now: [{ from: 'seat-1', to: 'bet-1', amount: 25 }],
+      sweep: [],
+      kept: [],
+    })
   })
 
-  it('sweeps everything to the pot when the street closes', () => {
+  it("throws the closing call onto its bet, then sweeps every bet in from the dealer's left", () => {
     const s = applyAction(dealt(), { type: 'call', seat: BOT })
     const raised = applyAction(s, { type: 'raise', seat: HERO, to: 30 })
-    expect(chipMoves(raised, applyAction(raised, { type: 'call', seat: BOT }))).toEqual([
-      { from: 'bet-0', to: 'pot', amount: 30 },
-      { from: 'bet-1', to: 'pot', amount: 10 },
-      { from: 'seat-1', to: 'pot', amount: 20 },
+    const next = applyAction(raised, { type: 'call', seat: BOT })
+    const { now, sweep } = chipMoves(raised, next)
+    expect(now).toEqual([{ from: 'seat-1', to: 'bet-1', amount: 20 }])
+    const left = (next.button + 1) % 2
+    expect(sweep).toEqual([
+      { from: `bet-${left}`, to: 'pot', amount: 30 },
+      { from: `bet-${1 - left}`, to: 'pot', amount: 30 },
     ])
   })
 
-  it('slides an uncalled bet back to its owner instead of into the pot', () => {
+  it("keeps an uncalled bet for its owner's payout pile instead of the pot", () => {
     const s = applyAction(dealt(), { type: 'raise', seat: BOT, to: 100 })
-    expect(chipMoves(s, applyAction(s, { type: 'fold', seat: HERO }))).toEqual([
-      { from: 'bet-0', to: 'pot', amount: 10 },
-      { from: 'bet-1', to: 'seat-1', amount: 90 },
-      { from: 'bet-1', to: 'pot', amount: 10 },
-    ])
+    const { now, sweep, kept } = chipMoves(s, applyAction(s, { type: 'fold', seat: HERO }))
+    expect(now).toEqual([])
+    expect(kept).toEqual([{ from: 'bet-1', to: 'win-1', amount: 90 }])
+    expect(sweep).toEqual(
+      expect.arrayContaining([
+        { from: 'bet-0', to: 'pot', amount: 10 },
+        { from: 'bet-1', to: 'pot', amount: 10 },
+      ]),
+    )
   })
 
-  it('brings a whole bet home when it was never called', () => {
+  it('keeps a whole bet for its owner when it was never called', () => {
     const flop = [
       { type: 'call', seat: BOT },
       { type: 'check', seat: HERO },
     ].reduce((t, a) => applyAction(t, a as PlayerAction), dealt())
     const bet = applyAction(flop, { type: 'raise', seat: HERO, to: 40 })
-    expect(chipMoves(bet, applyAction(bet, { type: 'fold', seat: BOT }))).toEqual([
-      { from: 'bet-0', to: 'seat-0', amount: 40 },
-    ])
+    expect(chipMoves(bet, applyAction(bet, { type: 'fold', seat: BOT }))).toEqual({
+      now: [],
+      sweep: [],
+      kept: [{ from: 'bet-0', to: 'win-0', amount: 40 }],
+    })
   })
 
   it('knows the pile waiting at each spot', () => {
@@ -345,6 +341,79 @@ describe('the real chips', () => {
       ],
       left: [100],
     })
+  })
+
+  it('finds the real chips that make the amount before it ever makes change', () => {
+    // top down grabs the 5, 10 and 5, then has 15 to go and only the 25 left
+    const { taken, left } = take([5, 25, 10, 5], 35)
+    expect(taken.map((chip) => chip.value).sort((a, b) => a - b)).toEqual([10, 25])
+    expect(taken.every((chip) => chip.value === chip.was)).toBe(true)
+    expect(left).toEqual([5, 5])
+  })
+
+  it('puts an uncalled bet in the same banded pile as the pot it won', () => {
+    const { trips } = plan(
+      { pot: [5, 25], 'bet-2': [10, 100] },
+      [
+        { from: 'bet-2', to: 'win-2', amount: 110 },
+        { from: 'pot', to: 'win-2', amount: 30 },
+      ],
+      {},
+    )
+    expect(trips.map((trip) => [trip.value, trip.toAt!.level, trip.order])).toEqual([
+      [100, 0, 0],
+      [25, 1, 1],
+      [10, 2, 2],
+      [5, 3, 3],
+    ])
+  })
+
+  it('takes straight off the top when the top chips make it, so the rest stay put', () => {
+    // 25 + 10 would also make 35, but that pulls the 25 out from under the 10
+    expect(take([25, 5, 10, 10, 10], 30)).toEqual({
+      taken: [
+        { value: 10, index: 4, was: 10 },
+        { value: 10, index: 3, was: 10 },
+        { value: 10, index: 2, was: 10 },
+      ],
+      left: [25, 5],
+    })
+  })
+
+  it('never makes change on an all in that was called short, the whole pile goes in and the rest comes back', () => {
+    // a 1085 shove called for 300. No set of these makes 300
+    const piles = { 'bet-0': [1000, 25, 25, 25, 10] }
+    const sweep = [{ from: 'bet-0', to: 'pot', amount: 300 }] satisfies Move[]
+    const kept = [{ from: 'bet-0', to: 'win-0', amount: 785 }] satisfies Move[]
+    const split = splitKept(piles, sweep, kept)
+    expect(split.sweep).toEqual([{ from: 'bet-0', to: 'pot', amount: 1085 }])
+    expect(split.kept).toEqual([{ from: 'pot', to: 'win-0', amount: 785 }])
+    const swept = plan(piles, split.sweep, {}).trips
+    expect(swept.map((trip) => trip.value).sort((a, b) => b - a)).toEqual([1000, 25, 25, 25, 10])
+  })
+
+  it('pays out so the pot never breaks a chip it did not have to', () => {
+    // the short call above, split. The 305 can be made from the small chips, so the 1000 goes back whole
+    const pot = [10, 10, 25, 25, 25, 100, 100, 10, 25, 25, 25, 1000]
+    const moves = payOrder(pot, [
+      { from: 'pot', to: 'win-0', amount: 785 },
+      { from: 'pot', to: 'win-1', amount: 305 },
+      { from: 'pot', to: 'win-0', amount: 305 },
+    ])
+    expect(moves).toEqual([
+      { from: 'pot', to: 'win-1', amount: 305 },
+      { from: 'pot', to: 'win-0', amount: 1090 },
+    ])
+    const { trips } = plan({ pot }, moves, {})
+    expect(trips.map((trip) => trip.value).sort((a, b) => a - b)).toEqual([...pot].sort((a, b) => a - b))
+  })
+
+  it('leaves an uncalled bet where it is when the called part comes off its top', () => {
+    const piles = { 'bet-0': [100, 25, 10] }
+    const sweep = [{ from: 'bet-0', to: 'pot', amount: 35 }] satisfies Move[]
+    const kept = [{ from: 'bet-0', to: 'win-0', amount: 100 }] satisfies Move[]
+    expect(splitKept(piles, sweep, kept)).toEqual({ sweep, kept })
+    expect(plan(piles, sweep, {}).piles['bet-0']).toEqual([100])
   })
 
   it('makes change when the chips there cannot make the amount', () => {
@@ -396,6 +465,16 @@ describe('the real chips', () => {
     expect(piles.pot).toEqual([])
     expect(trips.every((trip) => trip.toAt === null)).toBe(true)
     expect(trips.map((trip) => trip.fromAt!.stack).sort()).toEqual([0, 1, 1])
+  })
+
+  it('builds a winner\'s pile in bands, biggest at the bottom, as tall as it needs', () => {
+    const pot = [5, 100, 25, 5, ...Array<number>(20).fill(1), 100]
+    const { trips } = plan({ pot }, [{ from: 'pot', to: 'win-1', amount: total(pot) }], {})
+    const landed = [...trips].sort((a, b) => a.toAt!.level - b.toAt!.level)
+    expect(landed.map((trip) => trip.value)).toEqual([100, 100, 25, 5, 5, ...Array<number>(20).fill(1)])
+    expect(landed.at(-1)!.toAt!.level).toBe(pot.length - 1)
+    // and they're thrown in that order, so the bottom lands first
+    expect(trips.map((trip) => trip.order)).toEqual(landed.map((_, i) => i))
   })
 
   it('starts another stack of the same chip once a pot stack is full', () => {
@@ -513,7 +592,7 @@ describe('six handed', () => {
     const { table } = newSolo(lineup)
     expect(table.seats.map((seat) => seat!.id)).toEqual(['you', ...lineup])
     expect(table.seats.every((seat) => seat!.chips === BUY_IN)).toBe(true)
-    expect(isSolo({ table, leaving: false, topUp: false })).toBe(true)
+    expect(isSolo({ table, topUp: false })).toBe(true)
   })
 
   it('swaps a bust bot for one it has not met, and keeps the bust one in its seat until then', () => {
@@ -558,7 +637,8 @@ describe('six handed', () => {
       let next = startHand(prev, shuffledDeck())
       let fresh = true
       while (true) {
-        const moves = chipMoves(prev, next, fresh)
+        const { now, sweep, kept } = chipMoves(prev, next, fresh)
+        const moves = [...now, ...sweep, ...kept]
         for (const spot of spots) {
           const into = moves.filter((move) => move.to === spot).reduce((sum, move) => sum + move.amount, 0)
           const out = moves.filter((move) => move.from === spot).reduce((sum, move) => sum + move.amount, 0)

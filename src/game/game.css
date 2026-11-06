@@ -656,29 +656,11 @@
   --card-w: clamp(32px, min(11.5cqw, 10.5cqh), 80px);
 }
 
-/* the pot's amount rides over its tallest stack, beside the stacks it ran into the upper corners' bets.
-   4px a chip, same rise as .pile */
-.felt.ring .pot .pile-label {
-  top: auto;
-  bottom: calc(100% + 3px + (var(--tall, 1) - 1) * 4px);
-  left: 50%;
-  translate: -50% 0;
-  transition: bottom 0.25s ease-out;
-}
-
 /* a side seat held in off the rail pushes its bet in too, so the chips land past the plate */
 .felt.ring .bet {
   --room: calc(2 * 3.3rem + var(--chip-size) / 2 + 4px);
 
   left: clamp(var(--room), var(--x), 100% - var(--room));
-
-  /* under the chips, not beside them. Beside, the right hand seats' amounts ran under their own cards.
-     Yours can't go under, your cards are there */
-  &:not(.mine) .pile-label {
-    top: calc(100% + 3px);
-    left: 50%;
-    translate: -50% 0;
-  }
 
   /* the top seat's, off to the right of its plate, level with it. Its cards stack above, so the plate
      sits a little under the seat's middle */
@@ -692,29 +674,21 @@
     top: calc(var(--y) + 0.6rem);
   }
 
-  /* the corners' and top seat's amounts ride on top of the pile, there's no room under.
-     4px a chip, same rise as .pile */
-  &.side .pile-label,
-  &.beside .pile-label {
-    top: auto;
-    bottom: calc(100% + 3px + (var(--chips, 1) - 1) * 4px);
-    transition: bottom 0.25s ease-out;
+  /* amounts sit off the pile's bottom chip so they never have to climb the stack. Beside it for you and the
+     top seat. The corners go under, beside had the two upper corners' amounts meeting in the middle on a phone */
+  &.side .pile-label {
+    top: calc(100% + 3px);
+    left: 50%;
+    translate: -50% 0;
   }
 }
 
-/* on a narrow felt the lower corners bet level with you, and your amount beside the chips ran under theirs */
+/* on a narrow felt the lower corners bet level with you, and yours beside ran into theirs */
 @container (max-width: 480px) {
-  /* and on the smallest phones it still touches theirs, so yours is the one on top */
   .felt.ring .bet.mine .pile-label {
-    z-index: 5;
-  }
-
-  .felt.ring .bet.mine .pile-label {
-    top: auto;
-    bottom: calc(100% + 3px + (var(--chips, 1) - 1) * 4px);
+    top: calc(100% + 3px);
     left: 50%;
     translate: -50% 0;
-    transition: bottom 0.25s ease-out;
   }
 }
 
@@ -797,6 +771,37 @@
     position: absolute;
     bottom: 0;
     left: 0;
+  }
+}
+
+/* a payout pile after a band's banked from under it. The chips drop, not the pile, so its shadow stays on the
+   felt. Falls like gravity, hits at 70% (DROP_HIT_MS in Pieces.tsx) and settles with a little hop */
+.win-pile {
+  display: contents;
+}
+
+.win-pile.drop .pile > span {
+  animation: win-fall var(--drop-ms) both;
+}
+
+@keyframes win-fall {
+  from {
+    translate: 0 calc(var(--by) * var(--rise) * -1);
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6);
+  }
+
+  70% {
+    translate: 0 0;
+    animation-timing-function: ease-out;
+  }
+
+  85% {
+    translate: 0 calc(var(--rise) * -0.5);
+    animation-timing-function: ease-in;
+  }
+
+  to {
+    translate: 0 0;
   }
 }
 

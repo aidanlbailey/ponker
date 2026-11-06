@@ -151,6 +151,17 @@ describe('room', () => {
     expect(r.members[seat]).toBeNull()
   })
 
+  test('a leaver who comes back before the hand ends keeps their seat', () => {
+    const r = twoPlayers()
+    const seat = r.table.toAct
+    const token = tokenOn(r, seat)
+    command(r, token, { t: 'leave' }, 1)
+    join(r, token, 'Ann', 2)
+    expect(r.members[seat]!.leaving).toBe(false)
+    expect(r.table.seats[seat]!.sittingOut).toBe(false)
+    expect(r.turn!.ends).toBe(2 + TURN_MS)
+  })
+
   test('hands keep coming with bots, and every chip stays on the table', () => {
     const r = newRoom()
     join(r, A, 'Ann', 0)

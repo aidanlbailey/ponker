@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent } from 'react'
 import { applyAction, shuffledDeck, viewFor, type Action, type PlayerAction } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { botById } from './roster'
-import { botAction, endOfHand, HERO, isSolo, newSolo, setLeaving, startHand, STORAGE_KEY, type Solo } from './solo'
+import { botAction, endOfHand, HERO, isSolo, newSolo, startHand, STORAGE_KEY, type Solo } from './solo'
 import { ask, useStage, type TableGame } from './useStage'
 import { save } from '../lib/storage'
 
@@ -20,11 +20,9 @@ const wait = (ms: number) => new Promise((done) => setTimeout(done, ms))
 export function useSoloTable(): TableGame {
   const [solo, setSolo] = useStoredState<Solo>(STORAGE_KEY, FRESH, isSolo)
   const { table } = solo
-  // a reload after the payout shouldn't play it again. A held leave or top-up means the hand
-  // end never ran though, so that one does replay, it's what applies them
-  const stage = useStage(table, HERO, table.street === 'complete' && !solo.leaving && !solo.topUp, () => {
-    if (!solo.leaving) setSolo(endOfHand)
-  })
+  // a reload after the payout shouldn't play it again. A held top-up means the hand
+  // end never ran though, so that one does replay, it's what applies it
+  const stage = useStage(table, HERO, table.street === 'complete' && !solo.topUp, () => setSolo(endOfHand))
 
   const run = (action: Action, seat: number, from?: DOMRect) => {
     const next = applyAction(table, action)
@@ -48,16 +46,11 @@ export function useSoloTable(): TableGame {
     else setSolo((prev) => ({ ...prev, topUp: !prev.topUp }))
   }
 
-  // saved by hand: the hash change unmounts this before useStoredState's effect gets to run,
-  // and a stale leaving flag would throw you straight back out next time you sit down
-  const exit = () => {
+  // straight out, mid hand or not. The save goes with you so there's no half played hand to come back to.
+  // Saved by hand: the hash change unmounts this before useStoredState's effect gets to run
+  const leave = () => {
     save(STORAGE_KEY, null)
     location.hash = ''
-  }
-
-  const toggleLeaving = () => {
-    if (stage.idle) exit()
-    else setSolo((prev) => setLeaving(prev, !prev.leaving))
   }
 
   const onBotAnswer = useEffectEvent((answer: PlayerAction | null) => run(botAction(table, answer), table.toAct))
@@ -91,12 +84,6 @@ export function useSoloTable(): TableGame {
     return () => clearTimeout(timer)
   }, [toAct, table])
 
-  // leaving waits for the winnings to land, not just to set off
-  const onLeft = useEffectEvent(exit)
-  useEffect(() => {
-    if (stage.over && stage.paid && solo.leaving && !stage.moving) onLeft()
-  }, [stage.over, stage.paid, solo.leaving, stage.moving])
-
   return {
     ...stage,
     me: HERO,
@@ -104,9 +91,8 @@ export function useSoloTable(): TableGame {
     deal,
     bustLeaves: true,
     nameOf: (seat) => botById(table.seats[seat]?.id ?? '')?.name ?? 'Bot',
-    leaving: solo.leaving,
     topUp: solo.topUp,
     toggleTopUp,
-    toggleLeaving,
+    leave,
   }
 }

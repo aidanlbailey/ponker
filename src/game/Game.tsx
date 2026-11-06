@@ -7,7 +7,7 @@ import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls } from './BetControls'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, ChipShadows, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, ChipShadows, DROP_MS, PILE_LOOK, PlayingCard, SHOWN } from './Pieces'
 import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
@@ -36,8 +36,7 @@ function around(place: number, seats: number, reach: number, reachY = reach) {
 }
 
 // Heads-up the bets sit halfway in, and so does yours. Round a full ring the middle's taken by the
-// pot and board: the top seat bets beside its plate, and the corners sideways, level with their plate,
-// with the amount riding on the pile
+// pot and board: the top seat bets beside its plate, and the corners sideways, level with their plate.
 function betSpot(place: number, seats: number) {
   const angle = angleOf(place, seats)
   if (seats === 2 || place === 0) return { className: 'bet mine', style: around(place, seats, 0.52) }
@@ -181,7 +180,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const newest = Object.values(game.said).at(-1)
   const quiet = game.dealing || view.toAct < 0 || view.toAct === game.me
   const showHint = hints && live && inHand
-  const waitText = live && !myTurn ? (me?.sittingOut ? 'Leaving after this hand' : quiet ? '' : `${nameOf(view.toAct)} to act`) : ''
+  const waitText = live && !myTurn && !quiet ? `${nameOf(view.toAct)} to act` : ''
   // whatever the dock shows, spelled out so Swap knows when it's changed. Rooms key their own docks
   const turnKey = myTurn && me ? `${view.street}-${view.currentBet}-${me.bet}` : ''
   const idleKey = idle && me && (canShow || game.deal) ? `idle-${canShow}-${!!game.deal}` : ''
@@ -207,14 +206,9 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   return (
     <div className="poker" style={PILE_LOOK}>
       <header className="poker-bar">
-        {/* the way out. Same as Leave always was: gone now if nothing's on, after the hand if you're in one */}
-        <button
-          className={cx('poker-toggle', 'poker-link', game.leaving && 'on')}
-          aria-label={game.leaving ? 'Leaving after this hand' : 'Leave'}
-          aria-pressed={game.leaving}
-          onClick={game.toggleLeaving}
-        >
-          <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">{game.leaving ? 'Leaving' : 'Leave'}</span>
+        {/* the way out, straight away even mid hand. A room plays your seat out without you */}
+        <button className="poker-toggle poker-link" aria-label="Leave" onClick={game.leave}>
+          <span aria-hidden="true">{'‹'}</span> <span className="poker-link-text">Leave</span>
         </button>
         <span className="poker-spacer" />
         {bar}
@@ -288,7 +282,9 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
             const won = finished && winnings(view, i) > 0
             const out = finished && !!game.bustLeaves && busted(view, i, game.me)
             const betChips = game.pile(`bet-${i}`)
-            const bet = total(betChips)
+            const winChips = game.pile(`win-${i}`)
+            const drop = game.drop(i)
+            const bet = total(betChips) + total(winChips)
             const spot = betSpot(place, seats)
             const turn = view.toAct === i && !game.dealing && !game.moving
             const clock = turn && game.clock?.seat === i ? game.clock : null
@@ -308,10 +304,20 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
               <div key={seat.id}>
                 <div
                   className={spot.className}
-                  style={{ ...spot.style, '--chips': Math.min(betChips.length, SHOWN) } as CSSProperties}
+                  style={{ ...spot.style, '--chips': winChips.length || Math.min(betChips.length, SHOWN) } as CSSProperties}
                 >
                   <span className="pile-slot" data-spot={`bet-${i}`}>
-                    {bet > 0 && <ChipPile colors={betChips.map(colorOf)} />}
+                    {betChips.length > 0 && <ChipPile colors={betChips.map(colorOf)} />}
+                    {/* a winner's pile builds where the bets were. Keyed by band so each one banked replays the fall */}
+                    {winChips.length > 0 && (
+                      <span
+                        key={drop.n}
+                        className={cx('win-pile', drop.by > 0 && 'drop')}
+                        style={{ '--by': drop.by, '--drop-ms': `${DROP_MS}ms` } as CSSProperties}
+                      >
+                        <ChipPile colors={winChips.map(colorOf)} shown={Infinity} under={drop.gone} />
+                      </span>
+                    )}
                   </span>
                   <Fade show={bet > 0} className="pile-label">
                     {bet.toLocaleString('en-US')}
@@ -411,9 +417,10 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
 
       {game.flights.map((flight) => {
         const chip = <ChipFlight key={flight.id} flight={flight} onLand={() => game.land(flight)} />
-        // a bet thrown from a seat stays under the seats, same as the pile it lands on. The rest, flicks
-        // included, go over the seats but still under every badge, so they're on the felt too
-        const layer = flight.to.startsWith('bet') && !flight.start ? underSeats : overSeats
+        // Everything flies under the seats, same as the piles it leaves and lands on, so a chip waiting its turn
+        // doesn't pop over a plate its pile was tucked under, and a payout pile built from a bet and the pot at
+        // once layers as one. Only a flick goes over them, it comes up from the dock under your plate
+        const layer = flight.start ? overSeats : underSeats
         return layer ? createPortal(chip, layer, String(flight.id)) : chip
       })}
 

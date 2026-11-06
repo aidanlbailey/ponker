@@ -12,7 +12,8 @@ import {
 } from '../../src/engine/engine'
 import { decide } from '../../src/game/bot'
 import { botById, randomBots } from '../../src/game/roster'
-import { BIG_BLIND, BUY_IN, MAX_SEATS, SMALL_BLIND } from '../../src/game/solo'
+import { breakdown } from '../../src/game/betting'
+import { BIG_BLIND, BUY_IN, chipMoves, MAX_SEATS, payouts, SMALL_BLIND } from '../../src/game/solo'
 import { EMOTES } from '../../src/room/public'
 
 export const TURN_MS = 20_000
@@ -29,6 +30,12 @@ const STREET_PAUSE_MS = 600
 const NEXT_HAND_MS = 4500
 const RUN_OUT_MS = 1100 // per card, same as the client's run out
 const READY_MS = 1500
+// the clients' chip staging, roughly, so a turn's clock doesn't start while the bets are still going in. A closing
+// call is thrown onto its bet first, then each bet's tossed into the pot a seat at a time, then the payout pile
+// banks a colour at a time. Keep in step with Pieces.tsx and useStage.ts
+const THROW_MS = 850
+const SWEEP_SEAT_MS = 650
+const BAND_MS = 450
 const CHAT_KEPT = 30
 // a flat cap per room per UTC day, so one room (or one script) can't eat the whole free allowance.
 // About 570 four handed hands. ROOMS_PER_DAY stops one address opening room after room to get round it
@@ -187,21 +194,26 @@ function startTurn(r: Room, now: number, pause: number) {
 }
 
 // After anything that moved the hand along: start the next turn, or line up the next hand.
-function moved(r: Room, now: number, boardBefore: number) {
-  const added = r.table.board.length - boardBefore
+function moved(r: Room, now: number, before: TableState) {
+  const added = r.table.board.length - before.board.length
+  const { now: thrown, sweep } = chipMoves(before, r.table)
+  const swept = sweep.length ? (thrown.length ? THROW_MS : 0) + sweep.length * SWEEP_SEAT_MS : 0
   if (r.table.street === 'complete') {
     r.turn = null
-    r.nextHand = now + NEXT_HAND_MS + (added > 1 ? added * RUN_OUT_MS : added ? STREET_PAUSE_MS : 0)
-  } else startTurn(r, now, added ? STREET_PAUSE_MS : 0)
+    // ponytail: a band per chip colour in what they won. The real pile's made of the pot's own chips, so it can
+    // have a band or two more, NEXT_HAND_MS has slack for that
+    const bands = Math.max(0, ...payouts(r.table).map((move) => new Set(breakdown(move.amount)).size))
+    r.nextHand = now + NEXT_HAND_MS + swept + bands * BAND_MS + (added > 1 ? added * RUN_OUT_MS : added ? STREET_PAUSE_MS : 0)
+  } else startTurn(r, now, added ? STREET_PAUSE_MS + swept : 0)
 }
 
 function play(r: Room, seat: number, action: Said, now: number) {
-  const boardBefore = r.table.board.length
+  const before = r.table
   r.table = applyAction(r.table, action.type === 'timeout' ? action : { ...action, seat })
   r.last = { seat, action }
   r.dealt = false
   r.stats.actions++
-  moved(r, now, boardBefore)
+  moved(r, now, before)
 }
 
 function remove(r: Room, i: number) {
@@ -356,7 +368,16 @@ export function join(r: Room, token: string, name: string, now: number) {
   if (!r.public) r.host ??= token
   const mine = seatOf(r, token)
   if (mine >= 0) {
-    r.members[mine]!.name = cleanName(name)
+    const m = r.members[mine]!
+    m.name = cleanName(name)
+    // Leave takes you to the menu straight away and the hand plays on without you, so coming back
+    // before it's swept means you changed your mind. Same as I'm back
+    if (m.leaving) {
+      m.leaving = false
+      m.outSince = null
+      if (r.table.seats[mine]!.sittingOut) r.table = applyAction(r.table, { type: 'sitIn', seat: mine })
+      if (r.turn?.seat === mine) r.turn.ends = now + TURN_MS
+    }
     return
   }
   const seat = SEAT_ORDER.find((i) => !r.members[i])

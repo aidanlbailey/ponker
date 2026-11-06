@@ -12,9 +12,14 @@ import type { Spot } from './solo'
 import type { Flight } from './useStage'
 
 const THROW_MS = 850
+const SWEEP_MS = 700 // a bet pile tossed into the pot, a little quicker since every seat takes its turn
 const LAND = 0.62 // share of the throw spent in the air, the rest is the bounce
+export const SWEEP_LAND_MS = SWEEP_MS * LAND // useStage starts the next seat's sweep when the last one touches down
 const SLIDE_MS = 420
-const HOP_MS = 560
+// a banked band's gone from under a payout pile and the rest drop onto the felt. They hit at DROP_HIT, then
+// settle with a little hop. useStage waits for the hit before the next band goes
+export const DROP_MS = 260
+export const DROP_HIT_MS = DROP_MS * 0.7 // keep in step with the 70% in win-fall in game.css
 const PILE_RISE = 4 // keep in step with .pile in game.css
 const STACK_GAP = 4 // keep in step with .pot-slot in game.css
 export const SHOWN = 12 // keep in step with MAX_LEVEL in piles.ts. Pot stacks go to MAX_STACK there
@@ -76,23 +81,37 @@ export function PlayingCard({ card, delay = 0 }: { card: Card; delay?: number })
   )
 }
 
-export function ChipPile({ amount = 0, colors = chipColors(amount), shown = SHOWN }: { amount?: number; colors?: string[]; shown?: number }) {
-  return <ChipStack colors={colors.slice(-shown)} />
+export function ChipPile({
+  amount = 0,
+  colors = chipColors(amount),
+  shown = SHOWN,
+  under = 0,
+}: {
+  amount?: number
+  colors?: string[]
+  shown?: number
+  under?: number
+}) {
+  return <ChipStack colors={colors.slice(-shown)} under={under} />
+}
+
+// A banked band leaving a winner's pile. Out of thin air with a sound for now. This is the one place to change if
+// it should go somewhere instead, it gets the seat and the chips. A big band thuds a bit louder
+export function bankOut(_seat: number, chips: number[]) {
+  sound('handle', { volume: Math.min(0.6 + chips.length * 0.05, 1) })
 }
 
 // same flight as the tracker's toss: drift, gravity and spin each on their own element so the
 // arc is a real parabola, and the spin is whole turns that settle flat, matching the pile below
-// A hop is the little flip up onto a pot stack after a slide. It only fills forwards so the
-// slide keeps hold of the chip until it starts, and does one turn with no roll so it doesn't jump.
-function throwChip(chip: HTMLElement, start: Point, end: Point, startScale: number, delay: number, hop = false) {
+function throwChip(chip: HTMLElement, start: Point, end: Point, startScale: number, delay: number, duration = THROW_MS) {
   // by name, the shadow sits ahead of them in the flight
   const height = chip.querySelector('.toss-height')!
   const spin = chip.querySelector('.toss-spin')!
   const reach = Math.hypot(end.x - start.x, end.y - start.y) * 0.3
-  const apex = hop ? Math.min(18 + reach, 56) : Math.min(30 + reach, 110)
-  const turns = (Math.random() < 0.5 ? -1 : 1) * (hop ? 1 : 2 + Math.floor(Math.random() * 2)) * 360
-  const roll = hop ? 0 : (Math.random() - 0.5) * 120
-  const timing = { duration: hop ? HOP_MS : THROW_MS, delay, fill: hop ? 'forwards' : 'both' } as const
+  const apex = Math.min(30 + reach, 110)
+  const turns = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.floor(Math.random() * 2)) * 360
+  const roll = (Math.random() - 0.5) * 120
+  const timing = { duration, delay, fill: 'both' } as const
 
   return [
     chip.animate(
@@ -120,11 +139,22 @@ function throwChip(chip: HTMLElement, start: Point, end: Point, startScale: numb
       [
         // --flip is how far it's turned end over end. game.css draws the face, side and edge from it, so it
         // opens out to a full circle as it faces you and lands as exactly the chip it becomes
-        { '--flip': `${turns}deg`, transform: `rotateZ(${roll}deg)`, easing: 'cubic-bezier(0.3, 0.5, 0.6, 1)' },
-        { '--flip': '16deg', transform: 'rotateZ(0deg)', offset: LAND },
-        { '--flip': '-9deg', transform: 'rotateZ(0deg)', offset: 0.76 },
-        { '--flip': '4deg', transform: 'rotateZ(0deg)', offset: 0.88 },
-        { '--flip': '0deg', transform: 'rotateZ(0deg)' },
+        { '--flip': `${turns}deg`, easing: 'cubic-bezier(0.3, 0.5, 0.6, 1)' },
+        { '--flip': '16deg', offset: LAND },
+        { '--flip': '-9deg', offset: 0.76 },
+        { '--flip': '4deg', offset: 0.88 },
+        { '--flip': '0deg' },
+      ],
+      timing,
+    ),
+    // The roll starts flat and comes in as it leaves the hand. A chip waiting its turn shows this first frame the
+    // whole time, and starting it rolled had every waiting chip tip over at once
+    spin.animate(
+      [
+        { transform: 'rotateZ(0deg)', easing: 'ease-out' },
+        { transform: `rotateZ(${roll}deg)`, offset: 0.12, easing: 'cubic-bezier(0.3, 0.5, 0.6, 1)' },
+        { transform: 'rotateZ(0deg)', offset: LAND },
+        { transform: 'rotateZ(0deg)' },
       ],
       timing,
     ),
@@ -145,12 +175,14 @@ function slideChip(chip: HTMLElement, path: Point[], startScale: number, delay: 
 // spots and stripes repeat every 60deg, same wrap as --turn in chips.css
 const wrap60 = (deg: number) => deg - Math.round(deg / 60) * 60
 
-// the pile's per-level stripe turn, eased from where it sat to where it lands the short way round so it
-// doesn't snap on takeoff. Ends a multiple of 60 off the landed chip at most, which draws the same
+// From the level it's leaving to the one it lands on. The pile's per-level stripe turn, eased the short way round so
+// it doesn't snap on takeoff (ends a multiple of 60 off the landed chip at most, which draws the same). And --foot,
+// the level ChipShadows puts its shadow's foot at, so a chip waiting its turn sits on its own shadow, not the one
+// it'll have once it's landed
 function turnChip(chip: HTMLElement, fromLevel: number, toLevel: number, duration: number, delay: number) {
   const from = wrap60(fromLevel * STRIPE_STAGGER)
   const to = from + wrap60(toLevel * STRIPE_STAGGER - from)
-  return chip.animate([{ '--flight-turn': `${from}deg` }, { '--flight-turn': `${to}deg` }], {
+  return chip.animate([{ '--flight-turn': `${from}deg`, '--foot': fromLevel }, { '--flight-turn': `${to}deg`, '--foot': toLevel }], {
     duration,
     delay,
     easing: 'cubic-bezier(0.45, 0, 0.2, 1)',
@@ -223,15 +255,16 @@ export function ChipShadows() {
       ctx.fill()
 
       // a flying chip's box is the chip at its slide's place and scale, before any toss lifts it, so its shadow
-      // stays on the felt under it. --n is the level it lands on, the foot it'll stand on when it gets there
+      // stays on the felt under it. --foot is the pile level under it, the one it left easing to the one it lands on
       for (const chip of felt.querySelectorAll<HTMLElement>('.flight')) {
         const r = chip.getBoundingClientRect()
         const size = parseFloat(chip.style.getPropertyValue('--chip-size'))
         if (!r.width || !size) continue
         const s = r.width / size
         const rise = PILE_RISE * (parseFloat(chip.style.getPropertyValue('--face-scale')) || 1)
-        const n = parseFloat(chip.style.getPropertyValue('--n')) || 0
-        ctx.globalAlpha = parseFloat(getComputedStyle(chip).opacity)
+        const style = getComputedStyle(chip)
+        const n = parseFloat(style.getPropertyValue('--foot')) || 0
+        ctx.globalAlpha = parseFloat(style.opacity)
         ctx.beginPath()
         ellipse(r.left, r.top + (size + n * rise) * s, r.width, rise * s)
         ctx.fill()
@@ -337,13 +370,12 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     // out thinner than the chips it lands on
     el.current!.style.setProperty('--face-size', `${size / scale}px`)
     el.current!.style.setProperty('--face-scale', `${scale}`)
-    // its side's stripes are turned for the level it lands on, the same as the chip that'll be sitting there
-    el.current!.style.setProperty('--n', `${flight.toAt?.level ?? 0}`)
 
-    // a chip's top left corner at its place in a pile, or on the avatar for a seat
+    // a chip's top left corner at its place in a pile, or on the avatar for a seat. A payout pile has no slot of
+    // its own, it builds in the bet's
     const spotOf = (spot: Spot, at: At | null): Point | null => {
       const box = document
-        .querySelector(spot.startsWith('seat') ? `[data-spot="${spot}"] .avatar` : `[data-spot="${spot}"]`)
+        .querySelector(spot.startsWith('seat') ? `[data-spot="${spot}"] .avatar` : `[data-spot="${spot.replace('win', 'bet')}"]`)
         ?.getBoundingClientRect()
       if (!box) return null
       const x = box.left + box.width / 2 - size / 2
@@ -362,7 +394,9 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const end = spotOf(flight.to, flight.toAt)
     if (!start || !end) return onLand()
 
-    const thrown = flight.to.startsWith('bet')
+    // everything's tossed onto its pile, bets, the pot and a winner's pile alike. Only chips going home slide
+    const thrown = !flight.to.startsWith('seat')
+    const throwMs = flight.to === 'pot' ? SWEEP_MS : THROW_MS
     // level 0 is the bottom of a new pile, so it hits the felt. Anything higher clinks on the chip under it
     const onChip = flight.toAt?.level ? 'stack' : 'chip'
     const chip = el.current!
@@ -380,23 +414,8 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     const fromLevel = flight.from.startsWith('seat') ? (flight.toAt?.level ?? 0) : (flight.fromAt?.level ?? 0)
     const turn = (duration: number) => turnChip(chip, fromLevel, flight.toAt?.level ?? 0, duration, flight.delay)
     if (thrown) {
-      animations = [...throwChip(chip, start, end, startScale, flight.delay), turn(THROW_MS * LAND)]
-      sound(onChip, { delay: flight.delay + THROW_MS * LAND })
-    }
-    else if (flight.to === 'pot') {
-      // slide up next to the foot of its stack, then flip up onto the top
-      const base = spotOf('pot', { ...flight.toAt!, level: 0 })!
-      const way = slide(base)
-      const from = way.at(-2)!
-      const back = Math.min((size * 0.8) / (Math.hypot(from.x - base.x, from.y - base.y) || 1), 1)
-      const near = { x: base.x + (from.x - base.x) * back, y: base.y + (from.y - base.y) * back }
-      const path = [...way.slice(0, -1), near]
-      animations = [
-        slideChip(chip, path, startScale, flight.delay, false),
-        ...throwChip(chip, near, end, 1, flight.delay + slideMs(path), true),
-        turn(slideMs(path)),
-      ]
-      sound(onChip, { delay: flight.delay + slideMs(path) + HOP_MS * LAND, volume: 0.7 })
+      animations = [...throwChip(chip, start, end, startScale, flight.delay, throwMs), turn(throwMs * LAND)]
+      sound(onChip, { delay: flight.delay + throwMs * LAND, volume: flight.to === 'pot' ? 0.7 : 1 })
     } else {
       const way = slide(end)
       animations = [slideChip(chip, way, startScale, flight.delay, true), turn(slideMs(way))]
@@ -406,9 +425,10 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
     // Chips come off the top first, so the first flight made is the top chip and DOM order would draw
     // a waiting stack upside down. Until it goes it layers by its place in the pile, then it rises
     // over everything still waiting, and the ones in the air keep DOM order so later ones land on top.
-    // Except a payout, nothing lands, and past the stagger cap a whole stack leaves at once. DOM order
-    // drew that sliding stack upside down, so those keep their pile order in the air too
-    const level = flight.fromAt?.level ?? 0
+    // Except chips going home, nothing lands, and past the stagger cap a whole stack leaves at once. DOM order
+    // drew that sliding stack upside down, so those keep their pile order in the air too. A chip from under the
+    // ones a pile draws waits behind its bottom chip, not over it
+    const level = flight.fromAt?.hidden ? -1 : (flight.fromAt?.level ?? 0)
     animations.push(
       chip.animate([{ zIndex: 35 + level }, { zIndex: flight.to.startsWith('seat') ? 100 + level : 100 }], {
         duration: 1,
@@ -416,7 +436,7 @@ export function ChipFlight({ flight, onLand }: { flight: Flight; onLand: () => v
         fill: 'both',
       }),
     )
-    const slot = thrown && flight.order === 0 ? document.querySelector(`[data-spot="${flight.to}"]`) : null
+    const slot = flight.to.startsWith('bet') && flight.order === 0 ? document.querySelector(`[data-spot="${flight.to}"]`) : null
     const thud = slot?.animate(LANDING, { duration: 300, delay: flight.delay + THROW_MS * LAND, easing: 'ease-out' })
 
     Promise.all(animations.map((animation) => animation.finished)).then(onLand, () => {})

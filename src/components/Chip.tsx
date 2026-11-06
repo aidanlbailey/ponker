@@ -61,12 +61,13 @@ export function ChipParts({ color, children }: { color: string; children?: React
 }
 
 // Only the top face shows, the rest are covered by the side of the chip above, so the stack's edge is really the
-// chips' sides. Bottom chip first
-export function ChipStack({ colors }: { colors: string[] }) {
+// chips' sides. Bottom chip first. under is how many chips used to sit below these, so a pile that's lost its
+// bottom keeps every chip's stripes turned the way they landed
+export function ChipStack({ colors, under = 0 }: { colors: string[]; under?: number }) {
   return (
     <span className="pile" style={{ '--chips': colors.length } as CSSProperties} aria-hidden="true">
       {colors.map((color, i) => (
-        <span key={i} style={{ '--n': i, ...sideStyle(color) } as CSSProperties}>
+        <span key={i} style={{ '--n': i, '--turn-n': i + under, ...sideStyle(color) } as CSSProperties}>
           <ChipParts color={color} />
         </span>
       ))}

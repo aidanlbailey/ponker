@@ -1,5 +1,5 @@
 // The table loop for a solo game. This is the caller the engine leaves things to:
-// deal, topUp and timeout start here, and leave and topUp wait here until the hand ends.
+// deal, topUp and timeout start here, and topUp waits here until the hand ends.
 
 import { applyAction, createTable, type Action, type Card, type PlayerAction, type TableState } from '../engine/engine'
 import { potSize } from './betting'
@@ -12,13 +12,14 @@ export const SMALL_BLIND = 5
 export const BIG_BLIND = 10
 export const BUY_IN = 100 * BIG_BLIND
 
-export type Solo = { table: TableState; leaving: boolean; topUp: boolean }
+export type Solo = { table: TableState; topUp: boolean }
 
 export type WorkerRequest =
   | { kind: 'decide'; view: TableState; bot: string }
   | { kind: 'equity'; cards: Card[]; board: Card[]; opponents: number }
 
-export type Spot = `seat-${number}` | `bet-${number}` | 'pot'
+// win is a winner's payout pile. It sits where their bet does, bets are all in by then
+export type Spot = `seat-${number}` | `bet-${number}` | `win-${number}` | 'pot'
 export type Move = { from: Spot; to: Spot; amount: number }
 
 // you in seat 0, then the bots clockwise from your left
@@ -27,7 +28,7 @@ export function newSolo(bots = ['bot:xi']): Solo {
   const table = ids
     .map((id, seat): Action => ({ type: 'sit', seat, id, chips: BUY_IN }))
     .reduce(applyAction, createTable(ids.length, SMALL_BLIND, BIG_BLIND))
-  return { table, leaving: false, topUp: false }
+  return { table, topUp: false }
 }
 
 export const isSolo = (data: unknown): data is Solo => {
@@ -38,7 +39,9 @@ export const isSolo = (data: unknown): data is Solo => {
     table.seats.length <= MAX_SEATS &&
     table.seats.every((seat) => Number.isFinite(seat?.chips) && Array.isArray(seat?.cards)) &&
     Array.isArray(table.board) &&
-    Array.isArray(table.deck)
+    Array.isArray(table.deck) &&
+    // left over from when leaving mid hand sat you out for the rest of it. Nothing sits you back in now
+    !table.seats[HERO]?.sittingOut
   )
 }
 
@@ -68,11 +71,6 @@ export function endOfHand(solo: Solo): Solo {
   return { ...solo, table, topUp: false }
 }
 
-// Sitting out now means the table plays the seat's turns out, then the hand end takes it off.
-export function setLeaving(solo: Solo, leaving: boolean): Solo {
-  return { ...solo, leaving, table: applyAction(solo.table, { type: leaving ? 'sitOut' : 'sitIn', seat: HERO }) }
-}
-
 const checkOrFold = (s: TableState, seat: number): PlayerAction => ({
   type: s.currentBet > s.seats[seat]!.bet ? 'fold' : 'check',
   seat,
@@ -91,32 +89,39 @@ export function botAction(s: TableState, answer: PlayerAction | null) {
   return checkOrFold(s, s.toAct)
 }
 
-// Where the chips went between two states, for the flights. The caller says when it dealt, the
-// street can't: a blind can put someone all in and finish the hand on the deal, complete to complete.
-// An open seat, or one that just changed hands, has nothing to move
+// Where the chips went between two states, for the flights. now flies straight away. sweep is the bets going
+// into the pot once the street's closed, and only starts once now has landed, so a closing call hits its bet
+// pile first like any other. It's in table order from the dealer's left, the stage takes it a seat at a time.
+// kept is the part of a bet nobody called. It stays on its pile until the payout, then goes on that seat's
+// payout pile with anything they won, so it gets banked like the rest.
+// The caller says when it dealt, the street can't: a blind can put someone all in and finish the hand on the
+// deal, complete to complete. An open seat, or one that just changed hands, has nothing to move
 export function chipMoves(prev: TableState, next: TableState, newHand = false) {
-  const moves: Move[] = []
+  const now: Move[] = []
+  const sweep: Move[] = []
+  const kept: Move[] = []
   const closed = !newHand && prev.street !== next.street
-  next.seats.forEach((seat, i) => {
+  const n = next.seats.length
+  for (let k = 1; k <= n; k++) {
+    const i = (next.button + k) % n
+    const seat = next.seats[i]
     const before = prev.seats[i]
-    if (!seat) return
+    if (!seat) continue
     if (newHand) {
-      const swept = seat.committed - seat.bet
-      if (seat.bet) moves.push({ from: `seat-${i}`, to: `bet-${i}`, amount: seat.bet })
-      if (swept > 0) moves.push({ from: `seat-${i}`, to: 'pot', amount: swept })
-      return
+      if (seat.committed) now.push({ from: `seat-${i}`, to: `bet-${i}`, amount: seat.committed })
+      if (seat.committed > seat.bet) sweep.push({ from: `bet-${i}`, to: 'pot', amount: seat.committed - seat.bet })
+      continue
     }
-    if (before?.id !== seat.id) return
+    if (before?.id !== seat.id) continue
     const added = seat.committed - before.committed
-    // nobody called the top of the bet, so that part goes home instead of into the pot
+    // nobody called the top of the bet, so that part goes back to them instead of into the pot
     const returned = Math.max(-added, 0)
-    const swept = before.bet - returned
-    // returned first, so it's the top of the pile that goes home
-    if (returned > 0) moves.push({ from: `bet-${i}`, to: `seat-${i}`, amount: returned })
-    if (closed && swept > 0) moves.push({ from: `bet-${i}`, to: 'pot', amount: swept })
-    if (added > 0) moves.push({ from: `seat-${i}`, to: closed ? 'pot' : `bet-${i}`, amount: added })
-  })
-  return moves
+    if (returned > 0) kept.push({ from: `bet-${i}`, to: `win-${i}`, amount: returned })
+    if (added > 0) now.push({ from: `seat-${i}`, to: `bet-${i}`, amount: added })
+    const swept = before.bet - returned + Math.max(added, 0)
+    if (closed && swept > 0) sweep.push({ from: `bet-${i}`, to: 'pot', amount: swept })
+  }
+  return { now, sweep, kept }
 }
 
 // the pile sitting at a spot in this state, seats don't have one
@@ -125,11 +130,12 @@ export function pileAt(s: TableState, spot: Spot) {
   return spot.startsWith('bet') ? (s.seats[Number(spot.slice(4))]?.bet ?? 0) : 0
 }
 
+// one pile per winner, a side pot and the main pot to the same seat make one pile
 export function payouts(s: TableState) {
-  return (s.result ?? []).flatMap((pot) =>
-    pot.winners.map(({ seat, amount }): Move => ({ from: 'pot', to: `seat-${seat}`, amount })),
-  )
+  const won = new Map<number, number>()
+  for (const pot of s.result ?? []) for (const { seat, amount } of pot.winners) won.set(seat, (won.get(seat) ?? 0) + amount)
+  return [...won].map(([seat, amount]): Move => ({ from: 'pot', to: `win-${seat}`, amount }))
 }
 
 export const winnings = (s: TableState, seat: number) =>
-  payouts(s).reduce((sum, move) => sum + (move.to === `seat-${seat}` ? move.amount : 0), 0)
+  payouts(s).reduce((sum, move) => sum + (move.to === `win-${seat}` ? move.amount : 0), 0)

@@ -78,7 +78,7 @@
 .chip-spots,
 .chip-side,
 .chip-band {
-  --turn: calc(var(--n, 0) * var(--stagger, 0) * 1deg - round(var(--n, 0) * var(--stagger, 0) * 1deg, 60deg));
+  --turn: calc(var(--turn-n, var(--n, 0)) * var(--stagger, 0) * 1deg - round(var(--turn-n, var(--n, 0)) * var(--stagger, 0) * 1deg, 60deg));
 }
 
 /* a flying chip turns from its old level's angle to its new one on the way, ChipFlight animates it */
@@ -90,6 +90,13 @@
   syntax: '<angle>';
   inherits: true;
   initial-value: 0deg;
+}
+
+/* the pile level under a flying chip, for its shadow. Registered so it eases instead of jumping halfway */
+@property --foot {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
 }
 
 .chip-spots {

@@ -160,9 +160,8 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
       const e = room.emotes[i]
       return e ? { text: EMOTES[e.i]!, key: e.key } : null
     },
-    leaving: false,
     topUp: cur.topUp,
-    toggleLeaving: () => {
+    leave: () => {
       room.send({ t: 'leave' })
       location.hash = '#rooms'
     },

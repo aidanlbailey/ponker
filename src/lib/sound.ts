@@ -3,8 +3,9 @@ import { load, save } from './storage'
 // Kenney's Casino Audio pack (CC0), denoised and converted to mono mp3 in public/sfx. A few takes of each so a run
 // of the same sound doesn't come out identical
 const FILES = {
-  // the pack's chip lay is on a hard table, so these are it muffled and a touch lower, like felt soaking it up
-  chip: ['chip-felt-1', 'chip-felt-2', 'chip-felt-3'],
+  // the pack's chip lay is on a hard table, so this is it muffled and a touch lower, like felt soaking it up.
+  // Just the one take, the other two were poor. The pitch and level jitter keeps a run of them from sounding identical
+  chip: ['chip-felt-3'],
   stack: ['chips-stack-1', 'chips-stack-2', 'chips-stack-4'], // on another chip
   handle: ['chips-handle-1', 'chips-handle-3'],
   collide: ['chips-collide-1', 'chips-collide-2'],
@@ -13,6 +14,11 @@ const FILES = {
   fold: ['card-place-1', 'card-place-2'],
   fan: ['card-fan-1'],
   slide: ['card-slide-1'],
+}
+
+// a take's own level and pitch, on top of whatever each call asks for. Tune a file here rather than at every call
+const TUNE: Partial<Record<keyof typeof FILES, { volume?: number; rate?: number }>> = {
+  chip: { volume: 0.8, rate: 1.06 }, // a touch quieter and about a semitone up
 }
 
 // the interface noises are just blips, so they're made here rather than shipped. at and ms are in ms
@@ -44,9 +50,12 @@ const MASTER = 0.5 // everything at once, turn this to change the whole app's vo
 const GAP_S = 0.03 // the same sound closer together than this is one sound
 
 let ctx: AudioContext | null = null
-let voices = 0
+// Everything scheduled, on the audio clock, so the caps go by what'll be sounding at the same moment rather than by
+// what's been asked for. A sweep asks for every chip's landing up front, seconds apart, and counting those as they
+// were asked for used up all eight voices on the first seats and left the last one's toss silent
+const voices: { name: SoundName; start: number; end: number }[] = []
+const VOICE_S = 0.6 // ponytail: a guess at a take's length until its file's loaded, then it's the real one
 const buffers = new Map<string, Promise<AudioBuffer | null>>()
-const last: Partial<Record<SoundName, number>> = {}
 
 export const soundOn = () => load(KEY, true)
 export const setSound = (on: boolean) => save(KEY, on)
@@ -78,31 +87,41 @@ export function unlock() {
 // delay is in ms on the audio clock, so it can be the same number an animation was given
 export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden = false } = {}) {
   if (!ctx || ctx.state !== 'running' || !soundOn() || (document.hidden && !hidden)) return
-  const at = ctx.currentTime + delay / 1000
-  if (Math.abs(at - (last[name] ?? -1)) < GAP_S || voices >= MAX_VOICES) return
-  last[name] = at
-  voices++
+  const now = ctx.currentTime
+  for (let i = voices.length - 1; i >= 0; i--) if (voices[i]!.end < now) voices.splice(i, 1)
+  const at = now + delay / 1000
+  if (voices.some((voice) => voice.name === name && Math.abs(voice.start - at) < GAP_S)) return
+  if (voices.filter((voice) => voice.start <= at && at < voice.end).length >= MAX_VOICES) return
+  const voice = { name, start: at, end: at + VOICE_S }
+  voices.push(voice)
 
   const context = ctx
   const blips = BLIPS[name]
-  if (blips) return blip(context, blips, at, volume)
+  if (blips) {
+    voice.end = at + Math.max(...blips.map(({ ms, at: offset = 0 }) => offset + ms)) / 1000
+    return blip(context, blips, at, volume)
+  }
 
   const files = FILES[name as keyof typeof FILES]
+  const tune = TUNE[name as keyof typeof FILES]
+  volume *= tune?.volume ?? 1
+  rate *= tune?.rate ?? 1
   void buffer(files[Math.floor(Math.random() * files.length)]!).then((data) => {
-    if (!data) return voices--
+    if (!data) return (voice.end = 0)
     const source = context.createBufferSource()
     const gain = context.createGain()
     source.buffer = data
     source.playbackRate.value = rate * (0.94 + Math.random() * 0.12)
     gain.gain.value = MASTER * volume * (0.85 + Math.random() * 0.15)
     source.connect(gain).connect(context.destination)
-    source.onended = () => voices--
-    source.start(Math.max(at, context.currentTime))
+    const start = Math.max(at, context.currentTime)
+    voice.end = start + data.duration / source.playbackRate.value
+    source.start(start)
   })
 }
 
 function blip(context: AudioContext, parts: Blip[], at: number, volume: number) {
-  parts.forEach(({ freq, to, ms, at: offset = 0, type = 'sine', gain: level = 0.2 }, i) => {
+  parts.forEach(({ freq, to, ms, at: offset = 0, type = 'sine', gain: level = 0.2 }) => {
     const start = at + offset / 1000
     const end = start + ms / 1000
     const osc = context.createOscillator()
@@ -114,7 +133,6 @@ function blip(context: AudioContext, parts: Blip[], at: number, volume: number) 
     gain.gain.linearRampToValueAtTime(MASTER * level * volume, start + 0.004)
     gain.gain.exponentialRampToValueAtTime(0.0001, end)
     osc.connect(gain).connect(context.destination)
-    if (i === parts.length - 1) osc.onended = () => voices--
     osc.start(start)
     osc.stop(end)
   })
