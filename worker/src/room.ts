@@ -15,6 +15,7 @@ import { botById, randomBots } from '../../src/game/roster'
 import { breakdown } from '../../src/game/betting'
 import { BIG_BLIND, BUY_IN, chipMoves, MAX_SEATS, payouts, SMALL_BLIND } from '../../src/game/solo'
 import { EMOTES } from '../../src/room/public'
+import { BLOCK_HANDS, HAND_CAP } from './rating'
 
 export const TURN_MS = 20_000
 export const BANK_MS = 30_000
@@ -37,8 +38,7 @@ const THROW_MS = 850
 const SWEEP_SEAT_MS = 650
 const BAND_MS = 450
 const CHAT_KEPT = 30
-export const BLOCK_HANDS = 100
-export const MIN_PAIR_HANDS = 20 // fewer than this is nearly all luck, so it isn't scored
+export { BLOCK_HANDS }
 // a flat cap per room per UTC day, so one room (or one script) can't eat the whole free allowance.
 // About 570 four handed hands. ROOMS_PER_DAY stops one address opening room after room to get round it
 export const DAILY_ROWS = 20_000
@@ -64,8 +64,8 @@ export type Member = {
 
 export type Match = { hands: number; net: number; vpip: number; pfr: number }
 
-// one pair's result over a block, score is a's: 1 won more chips, 0 lost, 0.5 dead level
-export type Rated = { a: string; b: string; score: number }
+// one pair over a block: hands they shared, and how many chips more a won than b over them
+export type Rated = { a: string; b: string; n: number; d: number }
 
 export type Account = { user: number; art: string | null }
 
@@ -91,7 +91,7 @@ export type Room = {
   tally?: ({ start: number; vpip: boolean; pfr: boolean } | null)[]
   // a finished hand's lines for signed-in players. The caller takes these off before saving and sends them to D1
   done?: HandStats[]
-  // rating. Each pair's shared hands and a's chips minus b's over them, keyed a|b sorted. Hands since the last block
+  // rating. Each pair's shared hands and a's chips minus b's over them (each hand capped), keyed a|b sorted. Hands since the last block
   pairs?: Record<string, { n: number; d: number }>
   block?: number
   // closed pairs, taken off before saving and rated in D1 like done
@@ -259,8 +259,8 @@ function play(r: Room, seat: number, action: Said, now: number) {
 
 function remove(r: Room, i: number) {
   const who = ratedId(r, i)
-  // gone, so their pairs are done. Too few hands together and it's just dropped
-  if (who) closePairs(r, (a, b) => a === who || b === who, true)
+  // gone, so their pairs are done, however few hands. Chips scoring makes a short one count for little
+  if (who) closePairs(r, (a, b) => a === who || b === who)
   r.table = applyAction(r.table, { type: 'leave', seat: i })
   r.members[i] = null
 }
@@ -358,12 +358,11 @@ function ratedId(r: Room, i: number) {
   return m.token ? null : (r.table.seats[i]?.id ?? null)
 }
 
-function closePairs(r: Room, which: (a: string, b: string) => boolean, dropShort: boolean) {
+function closePairs(r: Room, which: (a: string, b: string) => boolean) {
   for (const [key, p] of Object.entries(r.pairs ?? {})) {
     const [a, b] = key.split('|') as [string, string]
     if (!which(a, b)) continue
-    if (p.n >= MIN_PAIR_HANDS) (r.rated ??= []).push({ a, b, score: p.d > 0 ? 1 : p.d < 0 ? 0 : 0.5 })
-    else if (!dropShort) continue
+    if (p.n) (r.rated ??= []).push({ a, b, n: p.n, d: p.d })
     delete r.pairs![key]
   }
 }
@@ -390,13 +389,13 @@ function tallyMatch(r: Room) {
       const [a, b] = x.who < y.who ? [x, y] : [y, x]
       const p = (pairs[`${a.who}|${b.who}`] ??= { n: 0, d: 0 })
       p.n++
-      p.d += a.net - b.net
+      p.d += Math.max(-HAND_CAP, Math.min(HAND_CAP, a.net - b.net))
     }
   })
   r.block = (r.block ?? 0) + 1
   if (r.block >= BLOCK_HANDS) {
     r.block = 0
-    closePairs(r, () => true, false)
+    closePairs(r, () => true)
   }
 }
 

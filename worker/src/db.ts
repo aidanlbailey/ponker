@@ -146,7 +146,7 @@ export async function rate(db: D1Database, pairs: Rated[], now: number) {
     const a = cur.get(p.a)!
     const b = cur.get(p.b)!
     const fresh = [a, b].some((x) => !isBot(x.who) && x.updates < PROVISIONAL)
-    const delta = exchange(a.rating, b.rating, p.score, fresh, moved.get(`${p.a}|${p.b}`) ?? 0)
+    const delta = exchange(a.rating, b.rating, p.n, p.d, fresh, moved.get(`${p.a}|${p.b}`) ?? 0)
     if (!delta) continue
     writes.push(add.bind(p.a, seedOf(p.a) + delta, delta), add.bind(p.b, seedOf(p.b) - delta, -delta), swap.bind(day, p.a, p.b, Math.abs(delta)))
     a.rating += delta

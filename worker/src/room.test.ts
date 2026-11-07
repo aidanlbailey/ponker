@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
+import { HAND_CAP } from './rating'
 import { addressKey, BANK_MS, BLOCK_HANDS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextDay, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
@@ -457,24 +458,34 @@ describe('rating pairs', () => {
     const r = signedIn(1, 2)
     foldHands(r, BLOCK_HANDS)
     expect(r.rated).toHaveLength(1)
-    expect(r.rated![0]).toMatchObject({ a: 'u:1', b: 'u:2' })
+    expect(r.rated![0]).toMatchObject({ a: 'u:1', b: 'u:2', n: BLOCK_HANDS })
     expect(r.pairs).toEqual({})
     expect(r.block).toBe(0)
   })
 
-  test('leaving scores pairs with 20 hands together and drops shorter ones', () => {
-    const long = signedIn(1, 2)
-    let at = foldHands(long, 20)
-    command(long, B, { t: 'leave' }, at)
-    wake(long) // swept at the deal
-    expect(long.rated).toHaveLength(1)
+  // no free way out: however short, leaving scores what you shared
+  test('leaving scores every pair you were in, even a short one', () => {
+    const r = signedIn(1, 2)
+    const at = foldHands(r, 3)
+    const d = r.pairs!['u:1|u:2']!.d
+    command(r, B, { t: 'leave' }, at)
+    wake(r) // swept at the deal
+    expect(r.rated).toEqual([{ a: 'u:1', b: 'u:2', n: 3, d }])
+    expect(r.pairs).toEqual({})
+  })
 
-    const short = signedIn(1, 2)
-    at = foldHands(short, 19)
-    command(short, B, { t: 'leave' }, at)
-    wake(short)
-    expect(short.rated ?? []).toHaveLength(0)
-    expect(short.pairs).toEqual({})
+  test('no one hand counts for more than the cap', () => {
+    const r = signedIn(1, 2)
+    // a shove and a call, so whoever wins takes the other's whole stack (or it splits, then nothing moves)
+    const shover = r.table.toAct
+    const all = r.table.seats[shover]!.chips + r.table.seats[shover]!.bet
+    command(r, tokenOn(r, shover), { t: 'act', action: { type: 'raise', to: all } }, 0)
+    command(r, tokenOn(r, r.table.toAct), { t: 'act', action: { type: 'call' } }, 0)
+    while (r.table.street !== 'complete') wake(r)
+    if (r.table.seats[0]!.chips === r.table.seats[3]!.chips) return // a chop, nothing to cap
+    const swing = Math.abs(r.table.seats[0]!.chips - r.table.seats[3]!.chips)
+    expect(swing).toBeGreaterThan(HAND_CAP)
+    expect(Math.abs(r.pairs!['u:1|u:2']!.d)).toBe(HAND_CAP)
   })
 
   test('the view carries each seat’s match totals', () => {
