@@ -207,12 +207,15 @@ type TableProps = {
   name: string
   bar?: ReactNode // extra buttons in the top bar
   dock?: ReactNode // under the bet controls
+  // solo only, it never counts for rating and nobody else can sit in
+  canHint?: boolean
   children?: ReactNode
 }
 
-export function Table({ game, name, bar, dock, children }: TableProps) {
+export function Table({ game, name, bar, dock, canHint, children }: TableProps) {
   const { view, board, over, paid, idle } = game
-  const [hints, setHints] = useStoredState('ponker-hints', true)
+  const [hintsOn, setHints] = useStoredState('ponker-hints', true)
+  const hints = !!canHint && hintsOn
   // saved straight away rather than through useStoredState, so the toggle's own click hears the new setting
   const [audible, setAudible] = useState(soundOn)
   const [sheet, setSheet] = useState(false)
@@ -267,9 +270,11 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
         </button>
         <span className="poker-spacer" />
         {bar}
-        <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
-          Hints
-        </button>
+        {canHint && (
+          <button className={cx('poker-toggle', hints && 'on')} aria-pressed={hints} onClick={() => setHints(!hints)}>
+            Hints
+          </button>
+        )}
         {/* an icon, a room's bar ran off a phone with it spelled out */}
         <button
           className={cx('poker-toggle', 'poker-icon', audible && 'on')}
@@ -498,5 +503,5 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
 }
 
 export default function Game({ name }: { name: string }) {
-  return <Table game={useSoloTable()} name={name} />
+  return <Table game={useSoloTable()} name={name} canHint />
 }
