@@ -421,7 +421,7 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
                     <Fade show={view.button === i && view.street !== 'waiting'} className="dealer" title="Dealer button">
                       D
                     </Fade>
-                    <Fade show={hints && !!blind} className="seat-blind">
+                    <Fade show={!!blind} className="seat-blind">
                       {blind}
                     </Fade>
                     <Fade show={!!tag} className="seat-tag">
