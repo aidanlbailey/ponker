@@ -4,6 +4,8 @@ import { call, deleteAccount, session, signInUrl, signOut, type Me } from '../li
 import { blank, decode, encode, PALETTE, SIZE } from '../lib/avatar'
 import { haptic } from '../lib/haptics'
 import { Screen } from '../hub/Previews'
+import { RatingBadge } from '../components/RatingBadge'
+import { Boards } from './Boards'
 import './profile.css'
 
 export default function Profile({ name, admin }: { name: string; admin?: boolean }) {
@@ -50,6 +52,7 @@ function Account({ guestName }: { guestName: string }) {
             No email, nothing else from your account. <a href="privacy.html">What's kept</a>
           </p>
         </section>
+        <Boards />
       </Screen>
     )
   }
@@ -57,7 +60,17 @@ function Account({ guestName }: { guestName: string }) {
   return (
     <Screen title="Profile">
       <NameForm me={me} onSaved={setMe} />
+      <section className="picker-seats">
+        <h2>Rating</h2>
+        <div className="profile-rating">
+          <RatingBadge rating={me.rating ?? null} size="lg" />
+          {me.rating == null && (
+            <p className="profile-note">Play a few hands at a public table or in a room and your rating shows here.</p>
+          )}
+        </div>
+      </section>
       <StatsCard />
+      <Boards me={me.id} />
       <section className="picker-seats">
         <h2>Picture</h2>
         <Editor me={me} onSaved={setMe} />
@@ -278,7 +291,7 @@ function AccountActions({ me, onGone }: { me: Me; onGone: () => void }) {
       <div className="button-row">
         {me.admin && (
           <a className="button neutral" href="#admin">
-            Reports
+            Admin
           </a>
         )}
         <button type="button" className="button neutral" onClick={() => signOut().then(onGone)}>
@@ -321,7 +334,8 @@ function Admin() {
   }
 
   return (
-    <Screen title="Reports">
+    <Screen title="Admin">
+      <h2>Reports</h2>
       {why ? (
         <p className="preview-loading">Nothing here.</p>
       ) : !list ? (
@@ -349,6 +363,48 @@ function Admin() {
           ))}
         </ul>
       )}
+      {!why && <Pairs />}
     </Screen>
+  )
+}
+
+type PairDay = { a: string; b: string; a_name: string; b_name: string; moved: number }
+
+// who swapped the most rating today, New York time. A pair near 32 hit the cap, which is where feeding shows up
+function Pairs() {
+  const [list, setList] = useState<PairDay[] | null>(null)
+  const [done, setDone] = useState<string[]>([])
+  useEffect(() => {
+    call<PairDay[]>('/admin/pairs').then(setList, () => setList([]))
+  }, [])
+  const reset = (who: string) =>
+    call(`/admin/rating/${who.slice(2)}`, { method: 'POST' }).then(() => setDone((d) => [...d, who]), () => {})
+  const person = (who: string, name: string) => (
+    <span>
+      {name}
+      {who.startsWith('u:') && (
+        <button className="poker-toggle" disabled={done.includes(who)} onClick={() => reset(who)}>
+          {done.includes(who) ? 'Rating reset' : 'Reset rating'}
+        </button>
+      )}
+    </span>
+  )
+  return (
+    <>
+      <h2>Rating swapped today</h2>
+      {!list ? null : !list.length ? (
+        <p className="preview-loading">Nothing yet today.</p>
+      ) : (
+        <ul className="preview-list profile-pairs">
+          {list.map((p) => (
+            <li key={`${p.a}|${p.b}`}>
+              {person(p.a, p.a_name)}
+              {person(p.b, p.b_name)}
+              <b>{p.moved.toFixed(1)}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   )
 }

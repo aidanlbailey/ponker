@@ -238,6 +238,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* name with the rating under it, both against the picture */
+.hub-profile-who {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
 .hub-profile-name {
   max-width: 12rem; /* fits a 16 character name, the longest allowed */
   overflow: hidden;

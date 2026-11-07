@@ -7,7 +7,7 @@ import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
 import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom } from './sql'
 import { api, API_PATH, type AccountEnv } from './api'
-import { addStats, userBySession } from './db'
+import { addStats, rate, userBySession } from './db'
 
 interface Env extends AccountEnv {
   TABLE: DurableObjectNamespace<Table>
@@ -113,6 +113,10 @@ export class Table extends DurableObject<Env> {
     const done = room.done
     delete room.done
     if (done?.length) this.ctx.waitUntil(addStats(this.env.DB, done).catch(() => {}))
+    // same for closed rating pairs. A D1 blip loses that block's rating, nobody's worse off for it
+    const rated = room.rated
+    delete room.rated
+    if (rated?.length) this.ctx.waitUntil(rate(this.env.DB, rated, now).catch(() => {}))
     saveRoom(this.ctx.storage.sql, room)
     this.broadcast()
     if (rearm) await this.arm(at, now)

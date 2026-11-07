@@ -214,3 +214,101 @@
   padding: 0 0.9rem;
   color: rgb(223 232 226 / 0.6);
 }
+
+/* the scoreboard */
+/* six columns want more than a dialog's usual 460 */
+.dialog.room-players {
+  width: min(100% - 2rem, 34rem);
+}
+
+.room-players-scroll {
+  overflow-x: auto;
+}
+
+.room-players table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-variant-numeric: tabular-nums;
+
+  th {
+    padding: 0 0.4rem 0.1rem;
+    color: #a2a2a2;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-align: right;
+    text-transform: uppercase;
+    cursor: help;
+  }
+
+  th:first-child {
+    text-align: left;
+    cursor: default;
+  }
+
+  td {
+    padding: 0.35rem 0.4rem;
+    background: #151515;
+    font-family: var(--text-font);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  td:first-child {
+    padding-left: 0.35rem;
+    border-radius: 10px 0 0 10px;
+    text-align: left;
+  }
+
+  td:last-child {
+    padding-right: 0.6rem;
+    border-radius: 0 10px 10px 0;
+  }
+
+  tr.me td {
+    background: #34343a;
+  }
+
+  .up {
+    color: #5ee08a;
+  }
+
+  .down {
+    color: #ff7a7a;
+  }
+}
+
+.room-player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .avatar {
+    width: 32px;
+    border-radius: 8px;
+    --avatar-text: 1rem;
+  }
+}
+
+.room-player-name {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+
+  b {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.room-guest {
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: #2b2b2b;
+  color: #e6e6e6;
+  font-size: 0.58rem;
+  font-weight: 800;
+}

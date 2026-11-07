@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
-import { addressKey, BANK_MS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextDay, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
+import { addressKey, BANK_MS, BLOCK_HANDS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextDay, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'
@@ -395,5 +395,91 @@ describe('rooms an address can open', () => {
     expect(addressKey('2001:0DB8:0000:0001:bbbb:cccc:dddd:eeee')).toBe('2001:db8:0:1::/64')
     expect(addressKey('2001:db8::5')).toBe('2001:db8:0:0::/64')
     expect(addressKey('::1')).toBe('0:0:0:0::/64')
+  })
+})
+
+describe('rating pairs', () => {
+  // people fold whenever it's on them, bots play their turns off the clock. Returns the clock
+  function foldHands(r: Room, n: number, at = 0) {
+    for (let k = 0; k < n; k++) {
+      if (r.table.street === 'complete') at = wake(r)
+      while (r.table.street !== 'complete') {
+        const token = r.members[r.table.toAct]?.token
+        if (token) command(r, token, { t: 'act', action: { type: 'fold' } }, at)
+        else at = wake(r)
+      }
+    }
+    return at
+  }
+
+  function signedIn(...users: number[]) {
+    const r = newRoom()
+    const tokens = [A, B, C]
+    users.forEach((user, k) => join(r, tokens[k]!, `P${user}`, 0, { user, art: null }))
+    wake(r)
+    return r
+  }
+
+  test('a pair adds up the hands they shared and who won more', () => {
+    const r = signedIn(1, 2)
+    foldHands(r, 3)
+    const p = r.pairs!['u:1|u:2']!
+    expect(p.n).toBe(3)
+    // every hand's a fold of the small blind, so the chips are all in the stacks
+    expect(p.d).toBe(r.table.seats[0]!.chips - r.table.seats[3]!.chips)
+    expect(r.members[0]!.match).toMatchObject({ hands: 3, vpip: 0, pfr: 0 })
+    expect(r.members[0]!.match!.net + r.members[3]!.match!.net).toBe(0)
+  })
+
+  test('guests are never paired, and the scoreboard counts them anyway', () => {
+    const r = newRoom()
+    join(r, A, 'Ann', 0, { user: 1, art: null })
+    join(r, B, 'Bob', 0)
+    wake(r)
+    foldHands(r, 2)
+    expect(r.pairs).toEqual({})
+    expect(r.members[3]!.match!.hands).toBe(2)
+  })
+
+  test('two bots never rate each other', () => {
+    const r = newRoom()
+    join(r, A, 'Ann', 0, { user: 1, art: null })
+    command(r, A, { t: 'addBot' }, 0)
+    command(r, A, { t: 'addBot' }, 0)
+    wake(r)
+    foldHands(r, 1)
+    const keys = Object.keys(r.pairs!)
+    expect(keys).toHaveLength(2)
+    expect(keys.every((k) => k.includes('u:1'))).toBe(true)
+  })
+
+  test('a block closes at 100 hands and starts again', () => {
+    const r = signedIn(1, 2)
+    foldHands(r, BLOCK_HANDS)
+    expect(r.rated).toHaveLength(1)
+    expect(r.rated![0]).toMatchObject({ a: 'u:1', b: 'u:2' })
+    expect(r.pairs).toEqual({})
+    expect(r.block).toBe(0)
+  })
+
+  test('leaving scores pairs with 20 hands together and drops shorter ones', () => {
+    const long = signedIn(1, 2)
+    let at = foldHands(long, 20)
+    command(long, B, { t: 'leave' }, at)
+    wake(long) // swept at the deal
+    expect(long.rated).toHaveLength(1)
+
+    const short = signedIn(1, 2)
+    at = foldHands(short, 19)
+    command(short, B, { t: 'leave' }, at)
+    wake(short)
+    expect(short.rated ?? []).toHaveLength(0)
+    expect(short.pairs).toEqual({})
+  })
+
+  test('the view carries each seat’s match totals', () => {
+    const r = signedIn(1, 2)
+    foldHands(r, 2)
+    expect(viewOf(r, A, everyone, 0).seats[3]!.match!.hands).toBe(2)
   })
 })

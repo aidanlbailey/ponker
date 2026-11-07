@@ -37,6 +37,8 @@ const THROW_MS = 850
 const SWEEP_SEAT_MS = 650
 const BAND_MS = 450
 const CHAT_KEPT = 30
+export const BLOCK_HANDS = 100
+export const MIN_PAIR_HANDS = 20 // fewer than this is nearly all luck, so it isn't scored
 // a flat cap per room per UTC day, so one room (or one script) can't eat the whole free allowance.
 // About 570 four handed hands. ROOMS_PER_DAY stops one address opening room after room to get round it
 export const DAILY_ROWS = 20_000
@@ -57,7 +59,13 @@ export type Member = {
   outSince: number | null // sat out by the clock, the grace period runs from here
   user?: number // signed in. Their name and picture come from the account
   art?: string | null
+  match?: Match // since they sat down, for the scoreboard
 }
+
+export type Match = { hands: number; net: number; vpip: number; pfr: number }
+
+// one pair's result over a block, score is a's: 1 won more chips, 0 lost, 0.5 dead level
+export type Rated = { a: string; b: string; score: number }
 
 export type Account = { user: number; art: string | null }
 
@@ -83,6 +91,11 @@ export type Room = {
   tally?: ({ start: number; vpip: boolean; pfr: boolean } | null)[]
   // a finished hand's lines for signed-in players. The caller takes these off before saving and sends them to D1
   done?: HandStats[]
+  // rating. Each pair's shared hands and a's chips minus b's over them, keyed a|b sorted. Hands since the last block
+  pairs?: Record<string, { n: number; d: number }>
+  block?: number
+  // closed pairs, taken off before saving and rated in D1 like done
+  rated?: Rated[]
 }
 
 // one signed-in player's hand, added onto their running totals
@@ -221,6 +234,7 @@ function moved(r: Room, now: number, before: TableState) {
   if (r.table.street === 'complete') {
     r.turn = null
     r.done = handStats(r)
+    tallyMatch(r)
     // ponytail: a band per chip colour in what they won. The real pile's made of the pot's own chips, so it can
     // have a band or two more, NEXT_HAND_MS has slack for that
     const bands = Math.max(0, ...payouts(r.table).map((move) => new Set(breakdown(move.amount)).size))
@@ -244,6 +258,9 @@ function play(r: Room, seat: number, action: Said, now: number) {
 }
 
 function remove(r: Room, i: number) {
+  const who = ratedId(r, i)
+  // gone, so their pairs are done. Too few hands together and it's just dropped
+  if (who) closePairs(r, (a, b) => a === who || b === who, true)
   r.table = applyAction(r.table, { type: 'leave', seat: i })
   r.members[i] = null
 }
@@ -331,6 +348,56 @@ export function handStats(r: Room): HandStats[] {
     const reached = showdown && !seat.folded
     return [{ user: m.user, bots, net: seat.chips - r.tally![i]!.start, vpip: r.tally![i]!.vpip, pfr: r.tally![i]!.pfr, showdown: reached, won: reached && pot > 0, pot }]
   })
+}
+
+// signed in is u:<id>, a bot is its roster id. Guests aren't rated
+function ratedId(r: Room, i: number) {
+  const m = r.members[i]
+  if (!m) return null
+  if (m.user) return `u:${m.user}`
+  return m.token ? null : (r.table.seats[i]?.id ?? null)
+}
+
+function closePairs(r: Room, which: (a: string, b: string) => boolean, dropShort: boolean) {
+  for (const [key, p] of Object.entries(r.pairs ?? {})) {
+    const [a, b] = key.split('|') as [string, string]
+    if (!which(a, b)) continue
+    if (p.n >= MIN_PAIR_HANDS) (r.rated ??= []).push({ a, b, score: p.d > 0 ? 1 : p.d < 0 ? 0 : 0.5 })
+    else if (!dropShort) continue
+    delete r.pairs![key]
+  }
+}
+
+// a finished hand onto the scoreboard and the rating pairs
+function tallyMatch(r: Room) {
+  const dealt = (r.tally ?? []).flatMap((x, i) => (x && r.members[i] && r.table.seats[i] ? [i] : []))
+  const net = (i: number) => r.table.seats[i]!.chips - r.tally![i]!.start
+  for (const i of dealt) {
+    const m = r.members[i]!
+    const t = r.tally![i]!
+    const was = m.match ?? { hands: 0, net: 0, vpip: 0, pfr: 0 }
+    m.match = { hands: was.hands + 1, net: was.net + net(i), vpip: was.vpip + +t.vpip, pfr: was.pfr + +t.pfr }
+  }
+  const rated = dealt.flatMap((i) => {
+    const who = ratedId(r, i)
+    return who ? [{ who, net: net(i) }] : []
+  })
+  const pairs = (r.pairs ??= {})
+  rated.forEach((x, k) => {
+    for (const y of rated.slice(k + 1)) {
+      // two bots never rate each other, only people move bot ratings
+      if (!x.who.startsWith('u:') && !y.who.startsWith('u:')) continue
+      const [a, b] = x.who < y.who ? [x, y] : [y, x]
+      const p = (pairs[`${a.who}|${b.who}`] ??= { n: 0, d: 0 })
+      p.n++
+      p.d += a.net - b.net
+    }
+  })
+  r.block = (r.block ?? 0) + 1
+  if (r.block >= BLOCK_HANDS) {
+    r.block = 0
+    closePairs(r, () => true, false)
+  }
 }
 
 // with nothing lined up, a table that could play gets a hand coming
@@ -543,6 +610,7 @@ export function viewOf(r: Room, token: string, online: Set<string>, now: number)
           out: x.outSince !== null,
           user: x.user ?? null,
           art: x.art ?? null,
+          match: x.match ?? null,
         },
     ),
     me: seat >= 0 ? seat : null,

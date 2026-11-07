@@ -120,3 +120,114 @@
   text-underline-offset: 3px;
   cursor: help;
 }
+
+/* leaderboards */
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.board-bots {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+/* the seat list's centring reaches this too, so it's put back to full width */
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 1.8em auto 1fr auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 6px 10px 6px 6px;
+    border-radius: 10px;
+    background: #151515;
+  }
+
+  li.me {
+    background: #262626;
+  }
+}
+
+.board-rank {
+  color: #a2a2a2;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.board-thumb {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: #fff;
+  font-weight: 800;
+}
+
+/* same white tile as a bot's seat */
+.board-bot {
+  background: #fff;
+  color: #9c1020;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+  font-size: 1.1rem;
+}
+
+.board-name {
+  display: grid;
+  min-width: 0;
+
+  b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: #a2a2a2;
+    font-size: 0.75rem;
+  }
+}
+
+.board-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.profile-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* admin: each side of a pair with its reset, then how much they swapped */
+.profile-pairs li {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}

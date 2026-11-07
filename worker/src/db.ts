@@ -1,7 +1,9 @@
 // Every bit of SQL the accounts run, against D1. The tables are in migrations/.
 
 import { hashToken, newToken, SESSION_DAYS } from './accounts'
-import type { HandStats } from './room'
+import type { HandStats, Rated } from './room'
+import { exchange, isBot, nyDay, PLACEMENT_HANDS, PROVISIONAL, seedOf, START, BOT_SEEDS } from './rating'
+import { botById } from '../../src/game/roster'
 
 export type User = { id: number; name: string; avatar: string | null }
 export type Reported = User & { reports: number; last: number }
@@ -69,9 +71,14 @@ export async function setAvatar(db: D1Database, userId: number, avatar: string |
   ])
 }
 
-// sessions and reports cascade
+// sessions, reports and stats cascade. Ratings are keyed by text so they go by hand
 export async function deleteUser(db: D1Database, userId: number) {
-  await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
+  const who = `u:${userId}`
+  await db.batch([
+    db.prepare('DELETE FROM ratings WHERE who = ?').bind(who),
+    db.prepare('DELETE FROM pair_day WHERE a = ? OR b = ?').bind(who, who),
+    db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
+  ])
 }
 
 // false when there's nothing there to report
@@ -113,4 +120,115 @@ export async function addStats(db: D1Database, lines: HandStats[]) {
 export async function statsOf(db: D1Database, userId: number) {
   const { results } = await db.prepare('SELECT bots, hands, net, vpip, pfr, showdowns, showdown_wins, biggest FROM stats WHERE user_id = ?').bind(userId).all<Stats>()
   return results
+}
+
+const marks = (n: number) => Array(n).fill('?').join(', ')
+
+// Closed pairs from a table. Read the ratings once, work them through in order so someone in two pairs
+// compounds, then write. A rating is only ever added onto, never set, so another table writing the same
+// bot at the same moment can't undo this one
+export async function rate(db: D1Database, pairs: Rated[], now: number) {
+  if (!pairs.length) return
+  const day = nyDay(now)
+  const ids = [...new Set(pairs.flatMap((p) => [p.a, p.b]))]
+  const [{ results: rows }, { results: today }] = (await db.batch([
+    db.prepare(`SELECT who, rating, updates FROM ratings WHERE who IN (${marks(ids.length)})`).bind(...ids),
+    db.prepare(`SELECT a, b, moved FROM pair_day WHERE day = ? AND a IN (${marks(ids.length)})`).bind(day, ...ids),
+  ])) as [D1Result<{ who: string; rating: number; updates: number }>, D1Result<{ a: string; b: string; moved: number }>]
+  const cur = new Map(ids.map((id) => [id, rows.find((r) => r.who === id) ?? { who: id, rating: seedOf(id), updates: 0 }]))
+  const moved = new Map(today.map((t) => [`${t.a}|${t.b}`, t.moved]))
+  const add = db.prepare(
+    'INSERT INTO ratings (who, rating, updates) VALUES (?, ?, 1) ON CONFLICT (who) DO UPDATE SET rating = rating + ?, updates = updates + 1',
+  )
+  const swap = db.prepare('INSERT INTO pair_day (day, a, b, moved) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET moved = moved + excluded.moved')
+  const writes: D1PreparedStatement[] = []
+  for (const p of pairs) {
+    const a = cur.get(p.a)!
+    const b = cur.get(p.b)!
+    const fresh = [a, b].some((x) => !isBot(x.who) && x.updates < PROVISIONAL)
+    const delta = exchange(a.rating, b.rating, p.score, fresh, moved.get(`${p.a}|${p.b}`) ?? 0)
+    if (!delta) continue
+    writes.push(add.bind(p.a, seedOf(p.a) + delta, delta), add.bind(p.b, seedOf(p.b) - delta, -delta), swap.bind(day, p.a, p.b, Math.abs(delta)))
+    a.rating += delta
+    b.rating -= delta
+    a.updates++
+    b.updates++
+    moved.set(`${p.a}|${p.b}`, (moved.get(`${p.a}|${p.b}`) ?? 0) + Math.abs(delta))
+  }
+  writes.push(db.prepare('DELETE FROM pair_day WHERE day < ?').bind(nyDay(now - 7 * DAY_MS)))
+  await db.batch(writes)
+}
+
+// what to show for each. null is a person still placing. Rounded, the decimals are only there so small
+// updates don't get lost
+export async function ratingsOf(db: D1Database, ids: string[]) {
+  if (!ids.length) return {}
+  const users = ids.filter((id) => !isBot(id)).map((id) => Number(id.slice(2)))
+  const [{ results: rows }, { results: played }] = (await db.batch([
+    db.prepare(`SELECT who, rating FROM ratings WHERE who IN (${marks(ids.length)})`).bind(...ids),
+    db.prepare(`SELECT user_id, SUM(hands) AS hands FROM stats WHERE user_id IN (${marks(users.length || 1)}) GROUP BY user_id`).bind(...(users.length ? users : [0])),
+  ])) as [D1Result<{ who: string; rating: number }>, D1Result<{ user_id: number; hands: number }>]
+  return Object.fromEntries(
+    ids.map((id) => {
+      const placed = isBot(id) || (played.find((p) => `u:${p.user_id}` === id)?.hands ?? 0) >= PLACEMENT_HANDS
+      return [id, placed ? Math.round(rows.find((r) => r.who === id)?.rating ?? seedOf(id)) : null]
+    }),
+  )
+}
+
+export type RatingRow = { id: string; name: string; avatar: string | null; rating: number; bot: boolean; letter?: string }
+export type RateRow = { id: string; name: string; avatar: string | null; hands: number; net: number }
+
+// ponytail: top 50 each, no rank for anyone below. Add a count query when there are enough players to need it
+export async function boards(db: D1Database, minHands: number) {
+  const [{ results: people }, { results: bots }, { results: rates }] = (await db.batch([
+    db.prepare(
+      `SELECT u.id, u.name, u.avatar, COALESCE(r.rating, ${START}) AS rating FROM users u
+       JOIN (SELECT user_id, SUM(hands) AS h FROM stats GROUP BY user_id HAVING h >= ?) s ON s.user_id = u.id
+       LEFT JOIN ratings r ON r.who = 'u:' || u.id ORDER BY rating DESC LIMIT 50`,
+    ).bind(PLACEMENT_HANDS),
+    db.prepare("SELECT who, rating FROM ratings WHERE who LIKE 'bot:%'"),
+    db.prepare(
+      `SELECT u.id, u.name, u.avatar, s.hands, s.net FROM stats s JOIN users u ON u.id = s.user_id
+       WHERE s.bots = 0 AND s.hands >= ? ORDER BY CAST(s.net AS REAL) / s.hands DESC LIMIT 50`,
+    ).bind(minHands),
+  ])) as [
+    D1Result<{ id: number; name: string; avatar: string | null; rating: number }>,
+    D1Result<{ who: string; rating: number }>,
+    D1Result<{ id: number; name: string; avatar: string | null; hands: number; net: number }>,
+  ]
+  const rating: RatingRow[] = [
+    ...people.map((p) => ({ id: `u:${p.id}`, name: p.name, avatar: p.avatar, rating: Math.round(p.rating), bot: false })),
+    // every bot's on it, the ones nobody's played yet at their seed
+    ...Object.keys(BOT_SEEDS).map((id) => ({
+      id,
+      name: botById(id)?.name ?? id,
+      letter: botById(id)?.letter,
+      avatar: null,
+      rating: Math.round(bots.find((b) => b.who === id)?.rating ?? seedOf(id)),
+      bot: true,
+    })),
+  ].sort((x, y) => y.rating - x.rating)
+  const bb100: RateRow[] = rates.map((r) => ({ id: `u:${r.id}`, name: r.name, avatar: r.avatar, hands: r.hands, net: r.net }))
+  return { rating, bb100 }
+}
+
+// back to the start. Whoever they took it from keeps it, that's fine for a reset
+export async function resetRating(db: D1Database, userId: number) {
+  await db.prepare('DELETE FROM ratings WHERE who = ?').bind(`u:${userId}`).run()
+}
+
+export type PairDay = { a: string; b: string; a_name: string | null; b_name: string | null; moved: number }
+
+// the pairs who swapped the most today, for spotting feeding
+export async function pairsToday(db: D1Database, now: number) {
+  const { results } = await db
+    .prepare(
+      `SELECT p.a, p.b, ua.name AS a_name, ub.name AS b_name, p.moved FROM pair_day p
+       LEFT JOIN users ua ON p.a = 'u:' || ua.id LEFT JOIN users ub ON p.b = 'u:' || ub.id
+       WHERE p.day = ? ORDER BY p.moved DESC LIMIT 20`,
+    )
+    .bind(nyDay(now))
+    .all<PairDay>()
+  return results.map((p) => ({ ...p, a_name: p.a_name ?? botById(p.a)?.name ?? p.a, b_name: p.b_name ?? botById(p.b)?.name ?? p.b }))
 }

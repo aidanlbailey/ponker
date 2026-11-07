@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import '@fontsource-variable/manrope'
 import { ChipMarks } from '../components/Chip'
 import { PixelArt } from '../components/PixelArt'
+import { RatingBadge } from '../components/RatingBadge'
 import { cachedMe, call, session, type Me } from '../lib/account'
 import { Title } from '../components/Title'
 import './hub.css'
@@ -61,7 +62,12 @@ function ProfileLink() {
   }, [])
   return (
     <a className="hub-profile" href="#profile" aria-label="Profile">
-      {me && <span className="hub-profile-name">{me.name}</span>}
+      {me && (
+        <span className="hub-profile-who">
+          <span className="hub-profile-name">{me.name}</span>
+          {me.rating !== undefined && <RatingBadge rating={me.rating} />}
+        </span>
+      )}
       {me?.avatar ? (
         <PixelArt art={me.avatar} className="hub-profile-icon hub-profile-art" />
       ) : (

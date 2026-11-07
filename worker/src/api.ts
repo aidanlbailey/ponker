@@ -15,7 +15,10 @@ export interface AccountEnv {
   ADMIN_ID?: string // Aidan's user id. Unset, nobody's admin
 }
 
-export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/)/
+export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/|ratings$|boards$)/
+
+const BOARD_MIN_HANDS = 200 // bot-free hands before you show on the bb/100 board
+const RATED_ID = /^(u:\d+|bot:[a-z]+)$/
 
 const PROVIDERS = {
   google: {
@@ -109,6 +112,13 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
 
+  // anyone can look, signed in or not. A table's worth of ids at most
+  if (path === '/ratings' && request.method === 'GET') {
+    const ids = (url.searchParams.get('ids') ?? '').split(',').filter((id) => RATED_ID.test(id)).slice(0, 6)
+    return json(await db.ratingsOf(env.DB, ids))
+  }
+  if (path === '/boards' && request.method === 'GET') return json(await db.boards(env.DB, BOARD_MIN_HANDS))
+
   const token = request.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1]
   const me = token ? await db.userBySession(env.DB, token, now) : null
   if (!me) return fail('signed out', 401)
@@ -121,7 +131,8 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
     }
   }
 
-  if (path === '/me' && request.method === 'GET') return json({ ...me, admin })
+  const rating = async () => (await db.ratingsOf(env.DB, [`u:${me.id}`]))[`u:${me.id}`] ?? null
+  if (path === '/me' && request.method === 'GET') return json({ ...me, admin, rating: await rating() })
   if (path === '/me/stats' && request.method === 'GET') return json(await db.statsOf(env.DB, me.id))
   if (path === '/me' && request.method === 'PUT') {
     const changes = await body()
@@ -137,7 +148,7 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
       await db.setAvatar(env.DB, me.id, art)
       me.avatar = art
     }
-    return json({ ...me, admin })
+    return json({ ...me, admin, rating: await rating() })
   }
   if (path === '/me' && request.method === 'DELETE') {
     await db.deleteUser(env.DB, me.id)
@@ -156,6 +167,12 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
   // everyone else gets the same 404 as a page that isn't there
   if (!admin) return new Response('not found', { status: 404, headers: cors })
   if (path === '/admin/reports' && request.method === 'GET') return json(await db.reported(env.DB))
+  if (path === '/admin/pairs' && request.method === 'GET') return json(await db.pairsToday(env.DB, now))
+  const reset = path.match(/^\/admin\/rating\/(\d+)$/)
+  if (reset && request.method === 'POST') {
+    await db.resetRating(env.DB, Number(reset[1]))
+    return json({})
+  }
   const decide = path.match(/^\/admin\/reports\/(\d+)$/)
   if (decide && request.method === 'POST') {
     const user = Number(decide[1])

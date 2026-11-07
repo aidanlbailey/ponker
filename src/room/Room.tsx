@@ -9,6 +9,7 @@ import { useStage, type TableGame } from '../game/useStage'
 import { EMOTES, tableName } from './public'
 import { recorder } from '../game/handLog'
 import { useRoom, type RoomSocket, type RoomView } from './useRoom'
+import { Players } from './Players'
 import '../game/game.css'
 import '../game/menus.css'
 import '@fontsource-variable/manrope'
@@ -88,6 +89,28 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   const [panel, setPanel] = useState(false)
   const [reporting, setReporting] = useState<{ user: number; name: string } | null>(null)
   const [hidden, setHidden] = useState(hiddenArt)
+  const [players, setPlayers] = useState(false)
+  // holding Tab shows the players like a game's scoreboard, letting go puts it away
+  const [held, setHeld] = useState(false)
+  useEffect(() => {
+    const typing = (e: KeyboardEvent) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || typing(e)) return
+      e.preventDefault()
+      if (!e.repeat) setHeld(true)
+    }
+    const up = (e: KeyboardEvent) => e.key === 'Tab' && setHeld(false)
+    // alt-tabbing away never sends the keyup
+    const gone = () => setHeld(false)
+    addEventListener('keydown', down, true)
+    addEventListener('keyup', up, true)
+    addEventListener('blur', gone)
+    return () => {
+      removeEventListener('keydown', down, true)
+      removeEventListener('keyup', up, true)
+      removeEventListener('blur', gone)
+    }
+  }, [])
   const preflown = useRef<number | null>(null)
   const [log] = useState(() => recorder(path.startsWith('table/') ? tableName(path.slice(6)) : path.slice(5)))
   const applied = useRef(-1)
@@ -288,6 +311,11 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
         )}
         {!cur.public && unread > 0 && <span className="room-unread">{unread}</span>}
       </button>
+      <button className={`poker-toggle poker-icon ${players ? 'on' : ''}`} aria-label="Players" aria-pressed={players} onClick={() => setPlayers(true)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
     </>
   )
 
@@ -308,6 +336,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
         ) : (
           <Chat room={room} seated={me !== null} onClose={() => (setChatOpen(false), setSeen(room.chat.length))} />
         ))}
+      {(players || held) && <Players view={cur} artOf={(i) => game.artOf!(i) ?? null} onClose={() => setPlayers(false)} />}
       {panel && <RoomPanel path={path} view={cur} send={room.send} onClose={() => setPanel(false)} />}
       {reporting && (
         <ReportArt

@@ -9,7 +9,8 @@ const HIDDEN = 'ponker-hidden-art' // players whose picture you reported, hidden
 
 export const API = (import.meta.env.VITE_ROOMS_URL || `ws://${location.hostname}:8787`).replace(/^ws/, 'http')
 
-export type Me = { id: number; name: string; avatar: string | null; admin: boolean }
+// rating is null while still placing. Older cached ones won't have it at all
+export type Me = { id: number; name: string; avatar: string | null; admin: boolean; rating?: number | null }
 
 export const session = () => load(SESSION, '')
 
