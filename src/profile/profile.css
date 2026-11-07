@@ -213,21 +213,61 @@
   gap: 1rem;
 }
 
-/* admin: each side of a pair with its reset, then how much they swapped */
+/* admin: who and who, how much they swapped, then a reset for each person in it. The resets column is
+   sized for two so bot rows with one still line up */
 .profile-pairs li {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: minmax(0, 1fr) 3.5rem 15rem;
   align-items: center;
-  gap: 0.6rem;
-
-  span {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-  }
+  gap: 0.75rem;
+  min-height: 0;
+  padding: 0.6rem 0.8rem;
 
   b {
     font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* .preview-list li span right-aligns every span in a row, this outranks it */
+.profile-pairs li .profile-pair-names {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-pair-resets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.profile-mini {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #262626;
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+/* a phone has no room for three columns, the resets drop under */
+@media (max-width: 520px) {
+  .profile-pairs li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .profile-pair-resets {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }

@@ -379,16 +379,13 @@ function Pairs() {
   }, [])
   const reset = (who: string) =>
     call(`/admin/rating/${who.slice(2)}`, { method: 'POST' }).then(() => setDone((d) => [...d, who]), () => {})
-  const person = (who: string, name: string) => (
-    <span>
-      {name}
-      {who.startsWith('u:') && (
-        <button className="poker-toggle" disabled={done.includes(who)} onClick={() => reset(who)}>
-          {done.includes(who) ? 'Rating reset' : 'Reset rating'}
-        </button>
-      )}
-    </span>
-  )
+  // bots can't be reset, only people
+  const resetButton = (who: string, name: string) =>
+    who.startsWith('u:') && (
+      <button key={who} type="button" className="profile-mini" disabled={done.includes(who)} onClick={() => reset(who)}>
+        {done.includes(who) ? `${name} reset` : `Reset ${name}`}
+      </button>
+    )
   return (
     <>
       <h2>Rating swapped today</h2>
@@ -398,9 +395,14 @@ function Pairs() {
         <ul className="preview-list profile-pairs">
           {list.map((p) => (
             <li key={`${p.a}|${p.b}`}>
-              {person(p.a, p.a_name)}
-              {person(p.b, p.b_name)}
+              <span className="profile-pair-names">
+                {p.a_name} and {p.b_name}
+              </span>
               <b>{p.moved.toFixed(1)}</b>
+              <span className="profile-pair-resets">
+                {resetButton(p.a, p.a_name)}
+                {resetButton(p.b, p.b_name)}
+              </span>
             </li>
           ))}
         </ul>
