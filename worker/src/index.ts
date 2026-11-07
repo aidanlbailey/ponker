@@ -104,11 +104,6 @@ export class Table extends DurableObject<Env> {
   async commit() {
     const room = this.room
     const now = Date.now()
-    // nobody human left and nobody connected, so there's nothing worth keeping
-    if (!room.members.some((m) => m?.token) && !this.sockets().length) return this.clear()
-    const at = nextWake(room)
-    const rearm = at !== this.alarmAt
-    charge(room, rearm ? 2 : 1, now)
     // a finished hand's stats go to D1, not into the saved room. Lost if D1 is down, that's fine for stats
     const done = room.done
     delete room.done
@@ -117,6 +112,12 @@ export class Table extends DurableObject<Env> {
     const rated = room.rated
     delete room.rated
     if (rated?.length) this.ctx.waitUntil(rate(this.env.DB, rated, now).catch(() => {}))
+    // nobody human left and nobody connected, so there's nothing worth keeping. After the sends above, the last
+    // one out gets swept with their socket already gone and their pairs would go with the room
+    if (!room.members.some((m) => m?.token) && !this.sockets().length) return this.clear()
+    const at = nextWake(room)
+    const rearm = at !== this.alarmAt
+    charge(room, rearm ? 2 : 1, now)
     saveRoom(this.ctx.storage.sql, room)
     this.broadcast()
     if (rearm) await this.arm(at, now)
