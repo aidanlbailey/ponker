@@ -514,9 +514,15 @@
   color: #17171c;
 }
 
+/* the button's corner, the one spot on the plate that's clear of the cards, the clock and the action pills.
+   Heads-up the button is the small blind too, so it steps out past the D */
 .seat-blind {
-  right: 16px;
+  right: -6px;
   padding-inline: 0.3rem;
+
+  .dealer:not(.gone) + & {
+    right: -28px;
+  }
   background: rgb(0 0 0 / 0.75);
   color: var(--table-line);
 }
@@ -711,6 +717,7 @@
     top: calc(var(--y) + 0.6rem);
   }
 
+
   /* amounts sit off the pile's bottom chip so they never have to climb the stack. Beside it for you and the
      top seat. The corners go under, beside had the two upper corners' amounts meeting in the middle on a phone */
   /* same 0.3rem as beside, plus the 4px the hard shadow drops so the gap isn't eaten */
@@ -718,6 +725,16 @@
     top: calc(100% + 0.3rem + 4px);
     left: 50%;
     translate: -50% 0;
+  }
+}
+
+/* on a narrow felt the upper corners' amounts are in the pot amount's row, and a pot with a few colours grows
+   right into the one on the right. The shorter the felt the closer they get, faster than the amounts shrink,
+   so the lift grows as it shrinks. Fitted by measuring phones from 320x568 to 430x932, 5px or more clear,
+   nothing past a ~610px tall felt where the gap's there anyway */
+@container (max-width: 480px) {
+  .felt.ring .bet.side.high {
+    top: calc(var(--y) + 0.6rem - max(0px, 87px - 14.3cqh));
   }
 }
 
@@ -741,12 +758,6 @@
     min-height: calc(var(--card-w) * 1.4);
     margin-bottom: calc(var(--card-w) * -0.55);
     transition: translate 0.25s ease-out;
-  }
-
-  /* the cards tuck behind the top of the plate, so up there the blind and button sat on them. Straddling the
-     bottom edge hid the turn clock instead, so they hang fully under it */
-  :is(.dealer, .seat-blind) {
-    top: calc(100% + 4px);
   }
 
   /* tucked is fine face down, but a shown hand needs its suits clear of the plate. translate, not margin,

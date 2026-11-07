@@ -42,7 +42,7 @@ function betSpot(place: number, seats: number) {
   const angle = angleOf(place, seats)
   if (seats === 2 || place === 0) return { className: 'bet mine', style: around(place, seats, 0.52) }
   if (Math.abs(Math.cos(angle)) < 0.3) return { className: 'bet beside', style: around(place, seats, 1) }
-  return { className: 'bet side', style: around(place, seats, 0.62, 1) }
+  return { className: cx('bet side', Math.sin(angle) < 0 && 'high'), style: around(place, seats, 0.62, 1) }
 }
 
 // the next seats round that were dealt in, since a room can have open chairs or someone sat out
