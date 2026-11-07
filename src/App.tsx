@@ -4,7 +4,6 @@ import { CardMenu, CLUBS, DIAMONDS, HEARTS, SPADES, type MenuCard } from './comp
 import { ChipCard } from './components/ChipCard'
 import { ChipEditor } from './components/ChipEditor'
 import { ChipToss, LAND_MS, createToss, type Toss } from './components/ChipToss'
-import { NameDialog } from './components/NameDialog'
 import { Presets } from './components/Presets'
 import '@fontsource/rubik-mono-one/latin-400.css'
 import { Title } from './components/Title'
@@ -17,7 +16,7 @@ import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
 import { takeSignIn } from './lib/account'
 import { haptic } from './lib/haptics'
-import { setSound, sound, soundOn } from './lib/sound'
+import { sound } from './lib/sound'
 import { smoothly } from './lib/smoothly'
 
 // only pulled in when someone sits down, the tracker doesn't pay for the poker game
@@ -26,6 +25,7 @@ const BotPicker = lazy(() => import('./game/BotPicker'))
 const Previews = lazy(() => import('./hub/Previews'))
 const Room = lazy(() => import('./room/Room'))
 const Profile = lazy(() => import('./profile/Profile'))
+const History = lazy(() => import('./game/History'))
 
 // before anything reads the hash, or #signin/<token> reads as a broken link
 takeSignIn()
@@ -35,7 +35,7 @@ const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'ro
 // lowercased, so a code someone typed or read out in capitals still lands
 const known = (raw: string) => {
   const hash = raw.toLowerCase()
-  return ['', '#', '#chips', '#bots', '#play', '#profile', '#admin'].includes(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+  return ['', '#', '#chips', '#bots', '#play', '#profile', '#admin', '#history'].includes(hash) || /^#history\/\d+$/.test(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
 }
 const badLink = (): ToastMessage => ({ text: "That link doesn't go anywhere", type: 'error', id: Date.now() })
 // a mistyped or broken link goes home, but says so rather than just looking like the wrong page
@@ -48,9 +48,8 @@ function landOn(raw: string) {
 export function App() {
   const [chips, setChips] = useStoredState<Chips>('ponker-chips', DEFAULT_CHIPS, isChips)
   const [userName, setUserName] = useStoredState('ponker-user-name', '')
-  const [showValues, setShowValues] = useStoredState('ponker-show-values', true)
 
-  const [panel, setPanel] = useState<'menu' | 'presets' | 'name' | null>(null)
+  const [panel, setPanel] = useState<'menu' | 'presets' | null>(null)
   const [deck, setDeck] = useState<DOMRect | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [tosses, setTosses] = useState<Toss[]>([])
@@ -162,6 +161,15 @@ export function App() {
     )
   }
 
+  if (hash.startsWith('#history')) {
+    const id = hash.split('/')[1]
+    return (
+      <Suspense>
+        <History key={hash} id={id ? Number(id) : undefined} />
+      </Suspense>
+    )
+  }
+
   if (hash === '#profile' || hash === '#admin') {
     return (
       <Suspense>
@@ -182,61 +190,18 @@ export function App() {
   // the hub is home, the tracker lives behind it on #chips
   const home = hash !== '#chips'
 
-  const deckButton = (
-    <button
-      className={`deck ${panel === 'menu' ? 'dealt' : ''}`}
-      aria-label={home ? 'Settings' : 'Open menu'}
-      onClick={(e) => {
-        setDeck(e.currentTarget.getBoundingClientRect())
-        setPanel('menu')
-        haptic('light')
-      }}
-    >
-      <span className="card-back" />
-      <span className="card-back" />
-      <span className="card-back" />
-    </button>
-  )
-
-  // the hub only gets what applies to the whole app, the chip stuff stays with the tracker
-  const nameCard = { label: userName ? 'Change name' : 'Set your name', run: () => setPanel('name'), opensPanel: true }
-  // read fresh each render, the table's toggle can change it while this stays mounted
-  const soundCard = {
-    label: soundOn() ? 'Sound off' : 'Sound on',
-    run: () => {
-      setSound(!soundOn())
-      sound('toggle')
-    },
-  }
-  const about = { label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' }
-  const coffee = { label: 'Buy me a coffee', href: 'https://ko-fi.com/aidanlbailey' }
-  const cards: MenuCard[] = home
-    ? [
-        { rank: 'A', suit: SPADES, ...nameCard },
-        { rank: 'K', suit: CLUBS, ...about },
-        { rank: 'Q', suit: HEARTS, ...coffee },
-        { rank: 'J', suit: DIAMONDS, ...soundCard },
-      ]
-    : [
-        { rank: 'A', suit: SPADES, label: 'Add chip type', run: addChipType },
-        { rank: 'K', suit: DIAMONDS, label: 'Cash out', run: shareCashout },
-        { rank: 'Q', suit: HEARTS, ...nameCard },
-        { rank: 'J', suit: CLUBS, label: 'Chip presets', run: () => setPanel('presets'), opensPanel: true },
-        {
-          rank: '10',
-          suit: SPADES,
-          label: showValues ? 'Hide values' : 'Show values',
-          run: () => smoothly(() => setShowValues(!showValues)),
-        },
-        { rank: '9', suit: CLUBS, ...about },
-        { rank: '8', suit: HEARTS, ...coffee },
-        { rank: '7', suit: DIAMONDS, ...soundCard },
-      ]
+  const cards: MenuCard[] = [
+    { rank: 'A', suit: SPADES, label: 'Add chip type', run: addChipType },
+    { rank: 'K', suit: DIAMONDS, label: 'Cash out', run: shareCashout },
+    { rank: 'Q', suit: HEARTS, label: 'Chip presets', run: () => setPanel('presets'), opensPanel: true },
+    { rank: 'J', suit: CLUBS, label: 'About Ponker', href: 'https://github.com/aidanlbailey/ponker#readme' },
+    { rank: '10', suit: SPADES, label: 'Buy me a coffee', href: 'https://ko-fi.com/aidanlbailey' },
+  ]
 
   return (
     <>
       {home ? (
-        <Hub deck={deckButton} />
+        <Hub />
       ) : (
         <>
           <a className="home-link" href="#">
@@ -246,8 +211,20 @@ export function App() {
             <Title sub="CHIP TRACKER" />
 
             <div className="top-bar">
-              {deckButton}
-              {showValues && <output className="total">{total}</output>}
+              <button
+                className={`deck ${panel === 'menu' ? 'dealt' : ''}`}
+                aria-label="Open menu"
+                onClick={(e) => {
+                  setDeck(e.currentTarget.getBoundingClientRect())
+                  setPanel('menu')
+                  haptic('light')
+                }}
+              >
+                <span className="card-back" />
+                <span className="card-back" />
+                <span className="card-back" />
+              </button>
+              <output className="total">{total}</output>
             </div>
 
             <section className="chip-grid" aria-label="Chips">
@@ -256,7 +233,6 @@ export function App() {
                   key={id}
                   id={id}
                   chip={chip}
-                  showValue={showValues}
                   onAdd={(from) => addChip(id, chip, from)}
                   onRemove={(from) => removeChip(id, chip, from)}
                   onEdit={() => setEditingId(id)}
@@ -281,15 +257,6 @@ export function App() {
             smoothly(() => setChips(preset))
             haptic('success')
           }}
-        />
-      )}
-
-      {panel === 'name' && (
-        <NameDialog
-          name={userName}
-          onChange={setUserName}
-          onClose={() => setPanel(null)}
-          onRenamed={() => notify('Name changed!')}
         />
       )}
 

@@ -1,6 +1,7 @@
 // Every bit of SQL the accounts run, against D1. The tables are in migrations/.
 
 import { hashToken, newToken, SESSION_DAYS } from './accounts'
+import type { HandStats } from './room'
 
 export type User = { id: number; name: string; avatar: string | null }
 export type Reported = User & { reports: number; last: number }
@@ -93,4 +94,23 @@ export async function reported(db: D1Database) {
 
 export async function dismiss(db: D1Database, userId: number) {
   await db.prepare('DELETE FROM reports WHERE user_id = ?').bind(userId).run()
+}
+
+export type Stats = { bots: number; hands: number; net: number; vpip: number; pfr: number; showdowns: number; showdown_wins: number; biggest: number }
+
+// one row written per player per hand. Batched so a hand's players go in one call
+export async function addStats(db: D1Database, lines: HandStats[]) {
+  if (!lines.length) return
+  const add = db.prepare(
+    `INSERT INTO stats (user_id, bots, hands, net, vpip, pfr, showdowns, showdown_wins, biggest) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, bots) DO UPDATE SET hands = hands + 1, net = net + excluded.net, vpip = vpip + excluded.vpip,
+       pfr = pfr + excluded.pfr, showdowns = showdowns + excluded.showdowns, showdown_wins = showdown_wins + excluded.showdown_wins,
+       biggest = MAX(biggest, excluded.biggest)`,
+  )
+  await db.batch(lines.map((l) => add.bind(l.user, +l.bots, l.net, +l.vpip, +l.pfr, +l.showdown, +l.won, l.pot)))
+}
+
+export async function statsOf(db: D1Database, userId: number) {
+  const { results } = await db.prepare('SELECT bots, hands, net, vpip, pfr, showdowns, showdown_wins, biggest FROM stats WHERE user_id = ?').bind(userId).all<Stats>()
+  return results
 }

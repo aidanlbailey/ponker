@@ -30,7 +30,7 @@ const STYLE: Record<Style, { bio: string; settings: Partial<BotSettings> }> = {
   },
   Station: {
     bio: 'Hates folding. Calls with almost anything that might be good, but seldom raises.',
-    settings: { open: 0.54, valueBet: 0.72, valueRaise: 0.84, bluff: 0.05, read: 0.3, callSlack: 0.1, betShare: 0.5, raiseShare: 0.7 },
+    settings: { open: 0.54, valueBet: 0.72, valueRaise: 0.84, bluff: 0.05, read: 0.55, callSlack: 0.05, betShare: 0.5, raiseShare: 0.7 },
   },
   Grinder: {
     bio: 'Solid and steady. Bets its good hands, calls when the price is right, bluffs now and then.',
@@ -38,7 +38,7 @@ const STYLE: Record<Style, { bio: string; settings: Partial<BotSettings> }> = {
   },
   Gambler: {
     bio: 'Loose and loud. Plays lots of hands, bets big and will chase a draw at any price.',
-    settings: { open: 0.42, valueBet: 0.64, valueRaise: 0.7, bluff: 0.22, bluffRaise: 0.08, read: 0.7, callSlack: 0.06, betShare: 0.9, raiseShare: 1, noise: 0.1 },
+    settings: { open: 0.42, valueBet: 0.64, valueRaise: 0.7, bluff: 0.22, bluffRaise: 0.08, read: 0.7, callSlack: 0.04, betShare: 0.9, raiseShare: 1, noise: 0.1 },
   },
   Bluffer: {
     bio: 'Bets whenever you look weak and raises with nothing more than you would think.',
@@ -50,21 +50,33 @@ const STYLE: Record<Style, { bio: string; settings: Partial<BotSettings> }> = {
   },
 }
 
+// How much of a style's lean survives, against Xi. A style is a leak as much as a personality, so the
+// better bots keep the flavour and lose most of the leak. Measured in a bot-vs-bot sim: the old tweaks only
+// trimmed noise, and Regular, Sharp and Elite came out the same strength
+const lean = (s: BotSettings, keep: number) =>
+  Object.fromEntries(Object.entries(s).map(([k, v]) => [k, XI[k as keyof BotSettings] + (v - XI[k as keyof BotSettings]) * keep])) as BotSettings
+
 // Easier bots are the same brain making mistakes on purpose: shakier reads of their own hand,
 // no sense of position, ignoring what a bet means, and the odd plain blunder
 const SKILL: Record<Skill, { bio: string; tweak: (s: BotSettings) => BotSettings }> = {
   Novice: {
     bio: 'Still learning, and it shows. Misjudges hands, ignores position and makes the odd howler.',
-    tweak: (s) => ({ ...s, noise: s.noise + 0.14, read: s.read * 0.5, position: 0, blunder: 0.07 }),
+    tweak: (s) => ({ ...s, noise: s.noise + 0.14, read: s.read * 0.6, position: 0, blunder: 0.07 }),
   },
   Regular: { bio: 'Knows the game and makes few outright mistakes.', tweak: (s) => s },
   Sharp: {
     bio: 'Reads bets well and respects position.',
-    tweak: (s) => ({ ...s, noise: s.noise - 0.03, position: 0.025 }),
+    tweak: (s) => {
+      const t = lean(s, 0.65)
+      return { ...t, noise: t.noise - 0.03, read: t.read * 1.15, position: 0.025 }
+    },
   },
   Elite: {
     bio: 'The toughest of the bunch. Tight reads, careful with position, very hard to push around.',
-    tweak: (s) => ({ ...s, noise: s.noise - 0.045, read: s.read * 1.05, position: 0.03 }),
+    tweak: (s) => {
+      const t = lean(s, 0.25)
+      return { ...t, noise: t.noise - 0.05, read: t.read * 1.45, position: 0.03 }
+    },
   },
 }
 

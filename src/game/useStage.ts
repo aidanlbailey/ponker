@@ -63,8 +63,8 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   // uncalled bets sitting on their piles until the payout takes them onto their owner's payout pile
   const [kept, setKept] = useState<Move[]>([])
   // each payout pile's last banked band: n counts them, by is how many chips the rest fell, gone is every chip
-  // banked so far
-  const [drops, setDrops] = useState<Record<number, { n: number; by: number; gone: number }>>({})
+  // banked so far, band is the chips that just went so they can shrink away instead of blinking out
+  const [drops, setDrops] = useState<Record<number, { n: number; by: number; gone: number; band: number[] }>>({})
   // ponytail: never pruned, ids are unique and it's a few hundred numbers a session
   const [landed, setLanded] = useState<ReadonlySet<number>>(new Set())
   const [odds, setOdds] = useState<{ key: string; chance: number } | null>(null)
@@ -211,7 +211,7 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
       const band = chips.findIndex((value) => value !== chips[0])
       const by = band < 0 ? chips.length : band
       next[spot] = chips.slice(by)
-      fell[seat] = { n: (drops[seat]?.n ?? 0) + 1, by, gone: (drops[seat]?.gone ?? 0) + by }
+      fell[seat] = { n: (drops[seat]?.n ?? 0) + 1, by, gone: (drops[seat]?.gone ?? 0) + by, band: chips.slice(0, by) }
       bankOut(seat, chips.slice(0, by))
       if (by < chips.length) thud = true
     }
@@ -292,7 +292,7 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
       total(inbound[`win-${seat}`]) -
       total(onFelt[`win-${seat}`]),
     pile: (spot: Spot) => onFelt[spot] ?? [],
-    drop: (seat: number) => drops[seat] ?? { n: 0, by: 0, gone: 0 },
+    drop: (seat: number) => drops[seat] ?? { n: 0, by: 0, gone: 0, band: [] },
     // stacks are laid out for chips still on their way too, so the row opens up as they set off
     potStacks: potLayout([...(onFelt.pot ?? []), ...(inbound.pot ?? [])]).map(({ value, part }) => ({
       value,

@@ -15,7 +15,7 @@ export interface AccountEnv {
   ADMIN_ID?: string // Aidan's user id. Unset, nobody's admin
 }
 
-export const API_PATH = /^\/(auth\/|me$|signout$|report$|admin\/)/
+export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/)/
 
 const PROVIDERS = {
   google: {
@@ -122,6 +122,7 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
   }
 
   if (path === '/me' && request.method === 'GET') return json({ ...me, admin })
+  if (path === '/me/stats' && request.method === 'GET') return json(await db.statsOf(env.DB, me.id))
   if (path === '/me' && request.method === 'PUT') {
     const changes = await body()
     if (typeof changes.name === 'string') {

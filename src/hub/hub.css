@@ -225,11 +225,29 @@
   }
 }
 
-/* opposite the deck, its middle lined up with the deck's */
+/* opposite the deck, its middle lined up with the deck's. Signed in, your name sits to the left of the picture */
 .hub-profile {
   position: absolute;
   top: calc(max(1rem, env(safe-area-inset-top)) + (var(--deck-height) - 48px) / 2);
   right: max(1rem, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #fff;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hub-profile-name {
+  max-width: 12rem; /* fits a 16 character name, the longest allowed */
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 2px 2px 0 var(--hub-depth);
+}
+
+.hub-profile-icon {
   display: grid;
   place-items: center;
   width: 48px;
@@ -239,12 +257,11 @@
   background: #2b2b2b;
   box-shadow: 4px 4px 0 var(--hub-depth);
   color: #ffd700;
-  -webkit-tap-highlight-color: transparent;
   transition:
     translate 0.12s ease,
     box-shadow 0.12s ease;
 
-  &:active {
+  .hub-profile:active & {
     translate: 4px 4px;
     box-shadow: none;
   }
@@ -253,6 +270,12 @@
     width: 22px;
     stroke-width: 2.4;
   }
+}
+
+/* same rounding as the pictures at the table */
+.hub-profile-art {
+  border-radius: 8px;
+  image-rendering: pixelated;
 }
 
 /* desktop: the phone's column, wider, with the modes and the extras in pairs */
@@ -380,22 +403,6 @@
   &::after {
     inset: 0.18em;
     background: radial-gradient(circle, #fff27a 30%, #ffd400 75%);
-  }
-}
-
-/* out of the flow, so it never pushes the logo or the menu around */
-.hub-corner {
-  position: absolute;
-  top: max(1rem, env(safe-area-inset-top));
-  left: max(1rem, env(safe-area-inset-left));
-
-  /* the same hard shadow as the buttons. A filter so it follows the fanned stack's outline, not one box */
-  .deck {
-    filter: drop-shadow(4px 4px 0 var(--hub-depth));
-  }
-
-  .deck .card-back {
-    box-shadow: none;
   }
 }
 

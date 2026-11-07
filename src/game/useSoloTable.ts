@@ -1,10 +1,11 @@
-import { useEffect, useEffectEvent } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { applyAction, shuffledDeck, viewFor, type Action, type PlayerAction } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { botById } from './roster'
 import { botAction, endOfHand, HERO, isSolo, newSolo, startHand, STORAGE_KEY, type Solo } from './solo'
 import { ask, useStage, type TableGame } from './useStage'
-import { save } from '../lib/storage'
+import { load, save } from '../lib/storage'
+import { recorder } from './handLog'
 
 const FRESH = newSolo()
 const THINK_MS = 700
@@ -23,9 +24,11 @@ export function useSoloTable(): TableGame {
   // a reload after the payout shouldn't play it again. A held top-up means the hand
   // end never ran though, so that one does replay, it's what applies it
   const stage = useStage(table, HERO, table.street === 'complete' && !solo.topUp, () => setSolo(endOfHand))
+  const [log] = useState(() => recorder('Bots'))
 
   const run = (action: Action, seat: number, from?: DOMRect) => {
     const next = applyAction(table, action)
+    log.step(viewFor(next, HERO), action, seat)
     stage.acted(next, action, seat, from)
     setSolo((prev) => ({ ...prev, table: next }))
   }
@@ -37,6 +40,8 @@ export function useSoloTable(): TableGame {
   const deal = () => {
     if (!stage.idle) return
     const next = startHand(table, shuffledDeck())
+    const names = next.seats.map((seat, i) => (i === HERO ? load('ponker-user-name', '') || 'You' : botById(seat?.id ?? '')?.name ?? null))
+    log.dealt(viewFor(table, HERO), viewFor(next, HERO), HERO, names)
     stage.dealt(next)
     setSolo((prev) => ({ ...prev, table: next }))
   }

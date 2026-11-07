@@ -7,6 +7,7 @@ import { Table } from '../game/Game'
 import { BUY_IN } from '../game/solo'
 import { useStage, type TableGame } from '../game/useStage'
 import { EMOTES, tableName } from './public'
+import { recorder } from '../game/handLog'
 import { useRoom, type RoomSocket, type RoomView } from './useRoom'
 import '../game/game.css'
 import '../game/menus.css'
@@ -88,6 +89,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   const [reporting, setReporting] = useState<{ user: number; name: string } | null>(null)
   const [hidden, setHidden] = useState(hiddenArt)
   const preflown = useRef<number | null>(null)
+  const [log] = useState(() => recorder(path.startsWith('table/') ? tableName(path.slice(6)) : path.slice(5)))
   const applied = useRef(-1)
   const me = cur.me
   const stage = useStage(cur.table, me, cur.table.street === 'complete', () => {})
@@ -104,6 +106,12 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     q.shift()
     const view = next.view
     const step = view.acts - cur.acts
+    // the history goes by what the server says happened, not the move we flew early
+    if (view.hand !== cur.hand && view.dealt && step <= 1 && !next.fresh) {
+      log.dealt(cur.table, view.table, view.me, view.seats.map((s) => s?.name ?? null))
+    } else if (view.hand !== cur.hand) log.drop()
+    else if (step === 1 && view.last) log.step(view.table, view.last.action as Action, view.last.seat)
+    else log.jump(view.table)
     if (next.fresh || step > 1 || (view.hand !== cur.hand && !view.dealt)) {
       preflown.current = null
       stage.reset(view.table)

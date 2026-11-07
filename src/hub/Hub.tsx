@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import '@fontsource-variable/manrope'
 import { ChipMarks } from '../components/Chip'
+import { PixelArt } from '../components/PixelArt'
+import { cachedMe, call, session, type Me } from '../lib/account'
 import { Title } from '../components/Title'
 import './hub.css'
 
@@ -50,17 +52,35 @@ const Chevron = () => (
   </svg>
 )
 
+// you and your picture once signed in. Shows what was saved last time straight away, then checks with the worker
+// in case the name or picture changed on another device
+function ProfileLink() {
+  const [me, setMe] = useState(cachedMe)
+  useEffect(() => {
+    if (session()) call<Me>('/me').then(setMe, () => setMe(cachedMe()))
+  }, [])
+  return (
+    <a className="hub-profile" href="#profile" aria-label="Profile">
+      {me && <span className="hub-profile-name">{me.name}</span>}
+      {me?.avatar ? (
+        <PixelArt art={me.avatar} className="hub-profile-icon hub-profile-art" />
+      ) : (
+        <span className="hub-profile-icon">
+          <svg {...svg}>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+          </svg>
+        </span>
+      )}
+    </a>
+  )
+}
+
 // the deck comes from App, which owns the menu it deals
-export function Hub({ deck }: { deck: ReactNode }) {
+export function Hub() {
   return (
     <main className="hub">
-      <div className="hub-corner">{deck}</div>
-      <a className="hub-profile" href="#profile" aria-label="Profile">
-        <svg {...svg}>
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
-        </svg>
-      </a>
+      <ProfileLink />
       <Title tag="beta" />
       <nav className="hub-menu" aria-label="Play">
         <a className="hub-slab hub-quick" href="#quick">

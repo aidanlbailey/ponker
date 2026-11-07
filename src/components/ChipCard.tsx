@@ -14,14 +14,13 @@ const PLUCK = [{ scale: '1' }, { scale: '0.92' }, { scale: '1.03' }, { scale: '1
 type ChipCardProps = {
   id: string
   chip: ChipData
-  showValue: boolean
   onAdd: (from: DOMRect) => void
   onRemove: (from: DOMRect) => void
   onEdit: () => void
   onValueChange: (value: number) => void
 }
 
-export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
+export function ChipCard({ id, chip, onAdd, onRemove, onEdit, onValueChange }: ChipCardProps) {
   const stack = useRef<HTMLDivElement>(null)
   const chipButton = useRef<HTMLButtonElement>(null)
   const count = useRef<HTMLSpanElement>(null)
@@ -85,7 +84,7 @@ export function ChipCard({ id, chip, showValue, onAdd, onRemove, onEdit, onValue
 
   return (
     <article className="chip-card" style={{ ...TRACKER_LOOK, '--morph-name': `chip-${id}` } as CSSProperties}>
-      <p className="chip-total">{showValue && formatMoney(chip.value * chip.count)}</p>
+      <p className="chip-total">{formatMoney(chip.value * chip.count)}</p>
 
       <div
         ref={stack}

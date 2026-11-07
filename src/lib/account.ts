@@ -4,6 +4,7 @@
 import { load, save } from './storage'
 
 const SESSION = 'ponker-session'
+const ME = 'ponker-me' // the last /me, so the hub corner shows you without asking the worker first
 const HIDDEN = 'ponker-hidden-art' // players whose picture you reported, hidden for you straight away
 
 export const API = (import.meta.env.VITE_ROOMS_URL || `ws://${location.hostname}:8787`).replace(/^ws/, 'http')
@@ -11,6 +12,14 @@ export const API = (import.meta.env.VITE_ROOMS_URL || `ws://${location.hostname}
 export type Me = { id: number; name: string; avatar: string | null; admin: boolean }
 
 export const session = () => load(SESSION, '')
+
+const isMe = (d: unknown): d is Me | null => d === null || (typeof d === 'object' && 'name' in d)
+export const cachedMe = () => (session() ? load<Me | null>(ME, null, isMe) : null)
+
+function forget() {
+  save(SESSION, '')
+  save(ME, null)
+}
 
 // back from Google or Discord as #signin/<token>. Kept, and taken straight back out of the address bar so it
 // isn't sitting in the history. Runs before anything reads the hash
@@ -31,20 +40,21 @@ export async function call<T>(path: string, init: { method?: string; body?: unkn
     headers: { Authorization: `Bearer ${session()}`, ...(init.body !== undefined && { 'Content-Type': 'application/json' }) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   })
-  if (res.status === 401) save(SESSION, '')
+  if (res.status === 401) forget()
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { why?: string }).why ?? `Something went wrong (${res.status})`)
+  if (path === '/me' && init.method !== 'DELETE') save(ME, data)
   return data as T
 }
 
 export async function signOut() {
   await call('/signout', { method: 'POST' }).catch(() => {})
-  save(SESSION, '')
+  forget()
 }
 
 export async function deleteAccount() {
   await call('/me', { method: 'DELETE' })
-  save(SESSION, '')
+  forget()
 }
 
 export const hiddenArt = () => load<number[]>(HIDDEN, [], (d): d is number[] => Array.isArray(d))

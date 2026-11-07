@@ -151,6 +151,8 @@
 
 /* over the dock, so a flick flying off the dock stays on top of it. The dock only comes up while the pile's
    held, and stays up long enough for a missed flick to spring back over the felt */
+/* sits over the dock so your cards can hang into it, but its own empty box ate clicks on the top half of the
+   bet presets with hints off. Only what's actually drawn takes the pointer */
 .table-wrap {
   z-index: 1;
   grid-area: table;
@@ -158,6 +160,11 @@
   display: grid;
   place-items: center;
   min-height: 0;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
 }
 
 .felt {
@@ -433,6 +440,15 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* five letters in a space sized for one */
+  &.guest {
+    font-size: calc(var(--avatar-text) * 0.42);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+  }
+
   /* the disc crops the corners, the editor shows the same circle */
   &.art {
     overflow: hidden;
@@ -697,8 +713,9 @@
 
   /* amounts sit off the pile's bottom chip so they never have to climb the stack. Beside it for you and the
      top seat. The corners go under, beside had the two upper corners' amounts meeting in the middle on a phone */
+  /* same 0.3rem as beside, plus the 4px the hard shadow drops so the gap isn't eaten */
   &.side .pile-label {
-    top: calc(100% + 3px);
+    top: calc(100% + 0.3rem + 4px);
     left: 50%;
     translate: -50% 0;
   }
@@ -707,7 +724,7 @@
 /* on a narrow felt the lower corners bet level with you, and yours beside ran into theirs */
 @container (max-width: 480px) {
   .felt.ring .bet.mine .pile-label {
-    top: calc(100% + 3px);
+    top: calc(100% + 0.3rem + 4px);
     left: 50%;
     translate: -50% 0;
   }
@@ -799,6 +816,22 @@
    felt. Falls like gravity, hits at 70% (DROP_HIT_MS in Pieces.tsx) and settles with a little hop */
 .win-pile {
   display: contents;
+}
+
+/* drawn before the pile so the falling chips go over it. Gone by the time they hit */
+.win-band {
+  display: contents;
+
+  .pile {
+    transform-origin: 50% 100%;
+    animation: band-out var(--shrink-ms) cubic-bezier(0.5, 0, 1, 0.6) both;
+  }
+}
+
+@keyframes band-out {
+  to {
+    scale: 0;
+  }
 }
 
 .win-pile.drop .pile > span {

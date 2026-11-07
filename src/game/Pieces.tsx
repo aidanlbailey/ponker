@@ -38,7 +38,7 @@ const BOT_COLORS = Object.fromEntries(
     .sort((a, b) => a.letter.localeCompare(b.letter))
     .map((bot, i) => [bot.id, `oklch(${i % 2 ? 0.42 : 0.58} 0.17 ${25 + i * 15})`]),
 )
-const DEFAULT_AVATAR = '♠︎'
+const DEFAULT_AVATAR = 'GUEST'
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -57,7 +57,7 @@ export function Avatar({ id, art, onTap }: { id: string; art?: string | null; on
   const letter = BOT_LETTERS[id]
   return (
     <span
-      className={`avatar ${letter ? 'bot' : ''}`}
+      className={`avatar ${letter ? 'bot' : 'guest'}`}
       style={letter ? ({ '--bot-color': BOT_COLORS[id] } as CSSProperties) : undefined}
       aria-hidden="true"
     >

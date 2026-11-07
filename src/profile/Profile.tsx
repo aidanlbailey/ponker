@@ -34,6 +34,7 @@ function Account({ guestName }: { guestName: string }) {
   if (state === 'out' || !me) {
     return (
       <Screen title="Profile">
+        <HistoryLink />
         <section className="picker-seats">
           <h2>Sign in</h2>
           <p>A name nobody else can take, and a picture of your own at the table. Guests can still play everything.</p>
@@ -56,12 +57,98 @@ function Account({ guestName }: { guestName: string }) {
   return (
     <Screen title="Profile">
       <NameForm me={me} onSaved={setMe} />
+      <StatsCard />
       <section className="picker-seats">
         <h2>Picture</h2>
         <Editor me={me} onSaved={setMe} />
       </section>
+      <HistoryLink />
       <AccountActions me={me} onGone={() => (setMe(null), setState('out'))} />
     </Screen>
+  )
+}
+
+// kept in this browser, so guests get it too
+const HistoryLink = () => (
+  <a className="button neutral" href="#history">
+    Hand history
+  </a>
+)
+
+type Stats = {
+  bots: number
+  hands: number
+  net: number
+  vpip: number
+  pfr: number
+  showdowns: number
+  showdown_wins: number
+  biggest: number
+}
+
+const BIG_BLIND = 10 // every live table is 5/10
+const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '-')
+const chips = (n: number) => `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')}`
+
+// Live tables only, solo can't be trusted. Bot-free first, it's the one the boards will use
+function StatsCard() {
+  const [rows, setRows] = useState<Stats[] | null>(null)
+  useEffect(() => {
+    call<Stats[]>('/me/stats').then(setRows, () => setRows([]))
+  }, [])
+  if (!rows) return null
+  const cols = [0, 1].map((bots) => rows.find((r) => r.bots === bots))
+  const line = (label: string, tip: string, show: (s: Stats) => string) => (
+    <tr>
+      <th scope="row" title={tip}>
+        {label}
+      </th>
+      {cols.map((s, i) => (
+        <td key={i}>{s ? show(s) : '-'}</td>
+      ))}
+    </tr>
+  )
+  return (
+    <section className="picker-seats">
+      <h2>Stats</h2>
+      {!rows.length ? (
+        <p className="profile-note">Play a hand at a public table or in a room and your numbers start here.</p>
+      ) : (
+        <table className="profile-stats">
+          <thead>
+            <tr>
+              <td />
+              <th scope="col" title="Hands where everyone else at the table was a person">
+                No bots
+              </th>
+              <th scope="col" title="Hands with at least one bot at the table">
+                With bots
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {line('Hands', 'Hands you were dealt into at public tables and rooms. Solo games against bots don’t count', (s) =>
+              s.hands.toLocaleString('en-US'),
+            )}
+            {line('Net chips', 'Everything you won minus everything you put in', (s) => chips(s.net))}
+            {line('bb/100', 'Big blinds won per 100 hands. Above 0 is winning, but it takes a few thousand hands to mean much', (s) =>
+              ((s.net / BIG_BLIND / s.hands) * 100).toFixed(1),
+            )}
+            {line('Played (VPIP)', 'How often you chose to put money in before the flop. Blinds you were made to post don’t count', (s) =>
+              pct(s.vpip, s.hands),
+            )}
+            {line('Raised preflop (PFR)', 'How often you raised before the flop', (s) => pct(s.pfr, s.hands))}
+            {line('Went to showdown', 'How often you made it to the end without folding and cards were turned over', (s) =>
+              pct(s.showdowns, s.hands),
+            )}
+            {line('Won at showdown', 'Of the hands that went to showdown, how often you won some of the pot', (s) =>
+              pct(s.showdown_wins, s.showdowns),
+            )}
+            {line('Biggest pot', 'The most you won in one hand', (s) => s.biggest.toLocaleString('en-US'))}
+          </tbody>
+        </table>
+      )}
+    </section>
   )
 }
 

@@ -21,7 +21,6 @@ html {
   }
 
   .hub-play,
-  .hub-corner .deck,
   .poker * {
     filter: none !important;
   }
@@ -55,9 +54,20 @@ html {
     }
   }
 
-  /* the black Rooms chip vanished into the dark tile once its outline went */
-  .hub-chip-rooms {
+  /* the black Rooms chip vanished into the dark tile once its outline went, the rest match it */
+  .hub-chip-rooms,
+  .hub-chip-bots,
+  .hub-chip-tracker {
     outline: 1.5px solid #525252;
+  }
+
+  /* svg, so outline would be a box. Stroke painted under the fill, half of 3px pokes out. Non-scaling since
+     the triangle's width changes per breakpoint */
+  .hub-play path {
+    stroke: #525252;
+    stroke-width: 3px;
+    vector-effect: non-scaling-stroke;
+    paint-order: stroke;
   }
 
   .title > span:not(.title-chip) {
@@ -82,7 +92,7 @@ html {
   }
 
   /* hard-coded black outlines at the table, borders instead of shadows so nothing moves */
-  :is(.poker-link, .poker-toggle, .button, .picked-bot, .bot-tile, .hub-slab, .hub-profile, .hub-soon, .bet-presets button, .bet-exact input) {
+  :is(.poker-link, .poker-toggle, .button, .picked-bot, .bot-tile, .hub-slab, .hub-profile-icon, .hub-soon, .bet-presets button, .bet-exact input) {
     border-color: rgb(0 0 0 / 0.2) !important;
   }
 
@@ -141,7 +151,7 @@ html {
     box-shadow: none !important;
   }
 
-  :is(.poker-link, .poker-toggle, .home-link, .button, .picked-bot, .bot-tile, .hub-profile, .bet-presets button) {
+  :is(.poker-link, .poker-toggle, .home-link, .button, .picked-bot, .bot-tile, .hub-profile-icon, .bet-presets button) {
     border: 1px solid var(--lit-line) !important;
     box-shadow: var(--hard-shadow) !important;
   }

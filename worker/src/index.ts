@@ -7,7 +7,7 @@ import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
 import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom } from './sql'
 import { api, API_PATH, type AccountEnv } from './api'
-import { userBySession } from './db'
+import { addStats, userBySession } from './db'
 
 interface Env extends AccountEnv {
   TABLE: DurableObjectNamespace<Table>
@@ -109,6 +109,10 @@ export class Table extends DurableObject<Env> {
     const at = nextWake(room)
     const rearm = at !== this.alarmAt
     charge(room, rearm ? 2 : 1, now)
+    // a finished hand's stats go to D1, not into the saved room. Lost if D1 is down, that's fine for stats
+    const done = room.done
+    delete room.done
+    if (done?.length) this.ctx.waitUntil(addStats(this.env.DB, done).catch(() => {}))
     saveRoom(this.ctx.storage.sql, room)
     this.broadcast()
     if (rearm) await this.arm(at, now)

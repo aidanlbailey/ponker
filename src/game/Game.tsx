@@ -5,9 +5,10 @@ import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls } from './BetControls'
+import { ChipStack } from '../components/Chip'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
-import { Avatar, ChipFlight, ChipPile, ChipShadows, DROP_MS, PILE_LOOK, PlayingCard, reducedMotion, SHOWN } from './Pieces'
+import { Avatar, ChipFlight, ChipPile, ChipShadows, DROP_HIT_MS, DROP_MS, PILE_LOOK, PlayingCard, reducedMotion, SHOWN } from './Pieces'
 import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
@@ -370,6 +371,13 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                 >
                   <span className="pile-slot" data-spot={`bet-${i}`}>
                     {betChips.length > 0 && <ChipPile colors={betChips.map(colorOf)} />}
+                    {/* the band just banked, shrinking into the felt under the rest as they fall. Outside the pile's
+                        check so the last band gets its shrink too */}
+                    {drop.band.length > 0 && (
+                      <span key={`band-${drop.n}`} className="win-band" style={{ '--shrink-ms': `${DROP_HIT_MS * 0.8}ms` } as CSSProperties}>
+                        <ChipStack colors={drop.band.map(colorOf)} under={drop.gone - drop.by} />
+                      </span>
+                    )}
                     {/* a winner's pile builds where the bets were. Keyed by band so each one banked replays the fall */}
                     {winChips.length > 0 && (
                       <span

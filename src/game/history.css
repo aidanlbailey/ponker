@@ -1,0 +1,57 @@
+/* goes with History.tsx, the list sits on the hub screens' look */
+
+.history-list li {
+  gap: 0.6rem;
+  padding-left: 0.75rem;
+
+  b {
+    flex: none;
+    min-width: 4ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .won {
+    color: #7ee08a;
+  }
+
+  .lost {
+    color: #ff8a80;
+  }
+}
+
+/* .preview-list's spans are right aligned and grow, these are the exceptions */
+.preview-list .history-cards {
+  flex: none;
+  display: inline-flex;
+  gap: 0.15em;
+  font-family: var(--game-font);
+  font-weight: 700;
+  text-align: left;
+  color: #fff;
+
+  span {
+    flex: none;
+    color: inherit;
+    font-size: 1rem;
+  }
+
+  .red {
+    color: #ff6b6b;
+  }
+}
+
+.preview-list .history-where {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.4;
+
+  .history-cards span {
+    font-size: 0.875rem;
+  }
+}
+
+.history-controls .button {
+  min-width: 3.2rem;
+}

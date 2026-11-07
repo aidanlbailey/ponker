@@ -85,3 +85,38 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.profile-stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 0.35rem 0.25rem;
+    text-align: right;
+  }
+
+  th[scope='row'] {
+    text-align: left;
+    font-weight: 400;
+    color: var(--menu-soft);
+  }
+
+  thead th {
+    color: var(--menu-soft);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  tbody tr + tr {
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+  }
+}
+
+/* hover any of these for what it means */
+.profile-stats th[title] {
+  text-decoration: underline dotted rgb(255 255 255 / 0.35);
+  text-underline-offset: 3px;
+  cursor: help;
+}

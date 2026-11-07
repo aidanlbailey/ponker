@@ -79,6 +79,22 @@ export type Room = {
   budget: { day: string; rows: number } // rows written today, UTC
   public?: boolean // no host, anyone seated adds bots, and bots make way for people
   waiting?: { token: string; name: string; as?: Account | null }[] // public only, watchers a bot is standing up for
+  // this hand so far, per seat: the stack it was dealt in with, and whether it put money in or raised preflop
+  tally?: ({ start: number; vpip: boolean; pfr: boolean } | null)[]
+  // a finished hand's lines for signed-in players. The caller takes these off before saving and sends them to D1
+  done?: HandStats[]
+}
+
+// one signed-in player's hand, added onto their running totals
+export type HandStats = {
+  user: number
+  bots: boolean // a bot was dealt in, those hands are kept apart for the boards
+  net: number
+  vpip: boolean
+  pfr: boolean
+  showdown: boolean
+  won: boolean // at showdown
+  pot: number // what they won, for the biggest pot
 }
 
 export type Command =
@@ -204,6 +220,7 @@ function moved(r: Room, now: number, before: TableState) {
   const swept = sweep.length ? (thrown.length ? THROW_MS : 0) + sweep.length * SWEEP_SEAT_MS : 0
   if (r.table.street === 'complete') {
     r.turn = null
+    r.done = handStats(r)
     // ponytail: a band per chip colour in what they won. The real pile's made of the pot's own chips, so it can
     // have a band or two more, NEXT_HAND_MS has slack for that
     const bands = Math.max(0, ...payouts(r.table).map((move) => new Set(breakdown(move.amount)).size))
@@ -213,6 +230,12 @@ function moved(r: Room, now: number, before: TableState) {
 
 function play(r: Room, seat: number, action: Said, now: number) {
   const before = r.table
+  const t = r.tally?.[seat]
+  // a check or the blinds aren't choosing to play, a call or a raise before the flop is
+  if (t && before.street === 'preflop' && (action.type === 'call' || action.type === 'raise')) {
+    t.vpip = true
+    if (action.type === 'raise') t.pfr = true
+  }
   r.table = applyAction(r.table, action.type === 'timeout' ? action : { ...action, seat })
   r.last = { seat, action }
   r.dealt = false
@@ -281,6 +304,7 @@ function deal(r: Room, now: number, online: Set<string>) {
   })
   if (!canDeal(r, now)) return
   r.table = applyAction(r.table, { type: 'deal', deck: shuffledDeck() })
+  r.tally = r.table.seats.map((seat) => (seat?.cards.length ? { start: seat.chips + seat.committed, vpip: false, pfr: false } : null))
   r.hand++
   r.dealt = true
   r.last = null
@@ -290,6 +314,23 @@ function deal(r: Room, now: number, online: Set<string>) {
     if (seat?.cards.length && m.token) m.bank = Math.min(BANK_MS, m.bank + BANK_REFILL_MS)
   })
   startTurn(r, now, DEAL_PAUSE_MS)
+}
+
+// The finished hand for everyone signed in. Showdown means more than one hand was still live at the end
+export function handStats(r: Room): HandStats[] {
+  const t = r.table
+  const dealt = (r.tally ?? []).flatMap((x, i) => (x ? [i] : []))
+  const bots = dealt.some((i) => r.members[i] && !r.members[i]!.token)
+  const live = dealt.filter((i) => t.seats[i] && !t.seats[i]!.folded)
+  const showdown = live.length > 1
+  return dealt.flatMap((i) => {
+    const m = r.members[i]
+    const seat = t.seats[i]
+    if (!m?.user || !seat) return []
+    const pot = (t.result ?? []).reduce((sum, p) => sum + p.winners.filter((w) => w.seat === i).reduce((a, w) => a + w.amount, 0), 0)
+    const reached = showdown && !seat.folded
+    return [{ user: m.user, bots, net: seat.chips - r.tally![i]!.start, vpip: r.tally![i]!.vpip, pfr: r.tally![i]!.pfr, showdown: reached, won: reached && pot > 0, pot }]
+  })
 }
 
 // with nothing lined up, a table that could play gets a hand coming

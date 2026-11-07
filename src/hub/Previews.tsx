@@ -12,12 +12,12 @@ import './previews.css'
 
 export type PreviewName = 'quick' | 'rooms' | 'race'
 
-export function Screen({ title, children }: { title: string; children: ReactNode }) {
+export function Screen({ title, back = ['#', 'Home'], children }: { title: string; back?: [string, string]; children: ReactNode }) {
   return (
     <div className="poker picker preview">
       <header className="poker-bar">
-        <a href="#" className="poker-link">
-          <span aria-hidden="true">{'‹'}</span> Home
+        <a href={back[0]} className="poker-link">
+          <span aria-hidden="true">{'‹'}</span> {back[1]}
         </a>
         <span className="poker-spacer" />
         <span className="poker-stakes">{title}</span>

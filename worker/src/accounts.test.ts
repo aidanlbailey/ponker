@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { blank, decode, encode, isArt, ART_LENGTH } from '../../src/lib/avatar'
 import { checkName, hashToken, jwtSubject, newToken, readState, signState } from './accounts'
-import { join, newRoom, viewOf } from './room'
+import { command, handStats, join, newRoom, tick, viewOf } from './room'
 
 const ok = (name: string) => 'name' in checkName(name)
 
@@ -97,5 +97,55 @@ describe('avatars', () => {
     expect(view.seats[3]).toMatchObject({ name: 'Guesty', user: null, art: null })
     join(r, 'u:7', 'Aidan', 1, { user: 7, art: null })
     expect(viewOf(r, 'u:7', new Set(), 1).seats[0]?.art).toBeNull()
+  })
+})
+
+describe('stats', () => {
+  // heads-up, the signed-in player raises preflop and both check it down
+  function hand(withBot = false) {
+    const r = newRoom()
+    join(r, 'u:7', 'Aidan', 0, { user: 7, art: null })
+    if (withBot) command(r, 'u:7', { t: 'addBot' }, 0)
+    else join(r, 'token-guestguestguest', 'Guesty', 0)
+    let now = r.nextHand!
+    tick(r, now, new Set(['u:7', 'token-guestguestguest']))
+    for (let guard = 0; r.table.street !== 'complete' && guard < 40; guard++) {
+      const seat = r.table.toAct
+      const m = r.members[seat]!
+      now = Math.max(now, r.turn!.ends - 1)
+      if (!m.token) {
+        tick(r, r.turn!.ends, new Set(['u:7']))
+        continue
+      }
+      const preflopFirst = r.table.street === 'preflop' && m.user && !r.tally![seat]!.pfr
+      const owed = r.table.currentBet > r.table.seats[seat]!.bet
+      const type = preflopFirst ? 'raise' : owed ? 'call' : 'check'
+      command(r, m.token, { t: 'act', action: { type, to: type === 'raise' ? 30 : undefined } }, now)
+    }
+    return r
+  }
+
+  test('a finished hand gives one line for the signed-in player only', () => {
+    const r = hand()
+    expect(r.table.street).toBe('complete')
+    expect(r.done).toHaveLength(1)
+    const [line] = r.done!
+    const me = r.members.findIndex((m) => m?.user === 7)
+    expect(line).toMatchObject({ user: 7, bots: false, vpip: true, pfr: true })
+    expect(line!.net).toBe(r.table.seats[me]!.chips - 1000)
+    expect(line!.won).toBe(line!.showdown && line!.pot > 0)
+  })
+
+  test('a bot at the table marks the hand', () => {
+    const r = hand(true)
+    if (r.table.street !== 'complete') return // a bot folded early or raised past the script, nothing to check
+    expect(r.done?.[0]?.bots).toBe(true)
+  })
+
+  test('guests and watchers get nothing', () => {
+    const r = newRoom()
+    join(r, 'token-aaaaaaaaaaaaaaaa', 'A', 0)
+    join(r, 'token-bbbbbbbbbbbbbbbb', 'B', 0)
+    expect(handStats({ ...r, tally: [] })).toEqual([])
   })
 })
