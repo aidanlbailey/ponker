@@ -55,7 +55,10 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   const [hand, setHand] = useState(0)
   const [shown, setShown] = useState(table.board.length)
   const [paid, setPaid] = useState(startPaid)
-  const [said, setSaid] = useState<Record<number, string>>({})
+  // n so the same words twice still count as saying it again. A check on the flop and another on the turn used
+  // to look like nothing changed, so the second one played its sound with no pill
+  const [said, setSaid] = useState<Record<number, { text: string; n: number }>>({})
+  const saidN = useRef(0)
   const [flights, setFlights] = useState<Flight[]>([])
   const [piles, setPiles] = useState<Piles>({})
   // bets waiting to go into the pot once what's in the air has landed
@@ -145,7 +148,10 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
     fly(moves.now, { from })
     if (moves.sweep.length) setSweep((prev) => [...prev, ...moves.sweep])
     if (moves.kept.length) setKept((prev) => [...prev, ...moves.kept])
-    if (text) setSaid((prev) => (next.street === table.street ? { ...prev, [seat]: text } : { [seat]: text }))
+    if (text) {
+      const line = { text, n: ++saidN.current }
+      setSaid((prev) => (next.street === table.street ? { ...prev, [seat]: line } : { [seat]: line }))
+    }
   }
 
   const dealt = (next: TableState) => {

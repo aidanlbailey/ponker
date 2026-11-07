@@ -126,13 +126,10 @@ const SAID_EXITS =new Set(['said-fade', 'said-wilt'])
 
 // A seat's action pill. Its exit is timed in game.css, and a new street or hand clearing the seat's line used to
 // unmount it partway through. Now it hangs on until its own fade's done. Same words again is a new pill, so n
-function Said({ text }: { text: string }) {
-  const [pill, setPill] = useState({ text, n: 0, faded: false })
-  const [was, setWas] = useState(text)
-  if (text !== was) {
-    setWas(text)
-    if (text) setPill((p) => ({ text, n: p.n + 1, faded: false }))
-  }
+function Said({ line }: { line?: { text: string; n: number } }) {
+  const text = line?.text ?? ''
+  const [pill, setPill] = useState({ text, n: line?.n ?? 0, faded: false })
+  if (line && line.n !== pill.n) setPill({ text: line.text, n: line.n, faded: false })
   // reduced motion has no fade to wait for
   if (!pill.text || (!text && (pill.faded || reducedMotion()))) return null
   return (
@@ -235,7 +232,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
   const shownPot = total(game.pile('pot'))
   const finished = over && paid
   const canShow = finished && inHand && !me.shown
-  const newest = Object.values(game.said).at(-1)
+  const newest = Object.values(game.said).at(-1)?.text
   const quiet = game.dealing || view.toAct < 0 || view.toAct === game.me
   const showHint = hints && live && inHand
   const waitText = live && !myTurn && !quiet ? `${nameOf(view.toAct)} to act` : ''
@@ -431,7 +428,7 @@ export function Table({ game, name, bar, dock, children }: TableProps) {
                       {emote.text}
                     </span>
                   ) : (
-                    <Said text={game.said[i] ?? ''} />
+                    <Said line={game.said[i]} />
                   )}
                 </div>
               </div>
