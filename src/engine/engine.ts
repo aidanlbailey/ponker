@@ -175,6 +175,10 @@ function returnUncalled(s: TableState) {
 function finish(s: TableState) {
   const n = s.seats.length
   const fromButton = (i: number) => (i - s.button - 1 + n) % n
+  // an all-in hand gets tabled even when the others with chips behind played on to the river.
+  // has to run before the payout, after it chips === 0 no longer means all in
+  const live = s.seats.filter(inHand)
+  if (live.length > 1 && live.some((seat) => seat.chips === 0)) for (const seat of live) seat.shown = true
 
   s.result = pots(s).map((pot) => {
     const contested = pot.eligible.length > 1

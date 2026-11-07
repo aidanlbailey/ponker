@@ -394,6 +394,13 @@ describe('what players can see', () => {
     expect(viewFor(s, 0).seats[2]!.cards).toEqual([HIDDEN, HIDDEN])
   })
 
+  it('an all-in loser is shown even when others played on to the river', () => {
+    let s = rigged([50, 200, 200], ['Kc Kd', 'Ac Ad', 'Qc Qd'], '2h 7d 9h Js 3s')
+    s = run(s, raise(0, 50), call(1), call(2))
+    while (s.street !== 'complete') s = applyAction(s, check(legalActions(s)!.seat))
+    expect(viewFor(s, 2).seats[0]!.cards).toEqual(cards('Kc Kd'))
+  })
+
   it('legal actions work from the acting seat view', () => {
     const s = applyAction(table([100, 100]), { type: 'deal', deck: ordered })
     expect(legalActions(viewFor(s, 0))).toEqual(legalActions(s))
