@@ -70,7 +70,7 @@ export function Boards({ me }: { me?: number }) {
           Loading…
         </p>
       ) : tab === 'rating' ? (
-        <ol className="board">
+        <ol className="leaderboard">
           {rating.map((r, i) => (
             <li key={r.id} className={mine(r.id) ? 'me' : undefined}>
               <span className="board-rank">{i + 1}</span>
@@ -86,7 +86,7 @@ export function Boards({ me }: { me?: number }) {
       ) : !data.bb100.length ? (
         <p className="profile-note">Nobody's played enough hands without bots yet.</p>
       ) : (
-        <ol className="board">
+        <ol className="leaderboard">
           {data.bb100.map((r, i) => (
             <li key={r.id} className={mine(r.id) ? 'me' : undefined}>
               <span className="board-rank">{i + 1}</span>

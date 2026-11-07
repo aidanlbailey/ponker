@@ -138,7 +138,7 @@
 }
 
 /* the seat list's centring reaches this too, so it's put back to full width */
-.board {
+.leaderboard {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-content: stretch;
