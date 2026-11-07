@@ -60,6 +60,7 @@ export type Member = {
   user?: number // signed in. Their name and picture come from the account
   art?: string | null
   match?: Match // since they sat down, for the scoreboard
+  placed?: number // of match.hands, how many have gone to D1 toward placement
 }
 
 export type Match = { hands: number; net: number; vpip: number; pfr: number }
@@ -96,6 +97,8 @@ export type Room = {
   block?: number
   // closed pairs, taken off before saving and rated in D1 like done
   rated?: Rated[]
+  // hands each person in those pairs has played since last time, toward placement. Taken off with rated
+  played?: { who: string; hands: number }[]
 }
 
 // one signed-in player's hand, added onto their running totals
@@ -359,11 +362,21 @@ function ratedId(r: Room, i: number) {
 }
 
 function closePairs(r: Room, which: (a: string, b: string) => boolean) {
+  const people = new Set<string>()
   for (const [key, p] of Object.entries(r.pairs ?? {})) {
     const [a, b] = key.split('|') as [string, string]
     if (!which(a, b)) continue
     if (p.n) (r.rated ??= []).push({ a, b, n: p.n, d: p.d })
+    for (const who of [a, b]) if (who.startsWith('u:')) people.add(who)
     delete r.pairs![key]
+  }
+  // their hands so far toward placement, each hand once. Counted off the seat, not the pairs, or someone whose
+  // friend left early would get those hands again when their own pairs closed
+  for (const m of r.members) {
+    if (!m?.user || !people.has(`u:${m.user}`)) continue
+    const hands = (m.match?.hands ?? 0) - (m.placed ?? 0)
+    if (hands > 0) (r.played ??= []).push({ who: `u:${m.user}`, hands })
+    m.placed = m.match?.hands ?? 0
   }
 }
 

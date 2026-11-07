@@ -110,8 +110,10 @@ export class Table extends DurableObject<Env> {
     if (done?.length) this.ctx.waitUntil(addStats(this.env.DB, done).catch(() => {}))
     // same for closed rating pairs. A D1 blip loses that block's rating, nobody's worse off for it
     const rated = room.rated
+    const played = room.played
     delete room.rated
-    if (rated?.length) this.ctx.waitUntil(rate(this.env.DB, rated, now).catch(() => {}))
+    delete room.played
+    if (rated?.length) this.ctx.waitUntil(rate(this.env.DB, rated, played ?? [], now).catch(() => {}))
     // nobody human left and nobody connected, so there's nothing worth keeping. After the sends above, the last
     // one out gets swept with their socket already gone and their pairs would go with the room
     if (!room.members.some((m) => m?.token) && !this.sockets().length) return this.clear()

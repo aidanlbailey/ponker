@@ -474,6 +474,23 @@ describe('rating pairs', () => {
     expect(r.pairs).toEqual({})
   })
 
+  // placement hands go to D1 once each, however many of your pairs close along the way
+  test('a friend leaving early doesn’t count your hands twice', () => {
+    const r = signedIn(1, 2, 3)
+    let at = foldHands(r, 3)
+    command(r, C, { t: 'leave' }, at)
+    at = wake(r) // C swept, the next hand dealt
+    const first = r.played ?? []
+    expect(first).toEqual(expect.arrayContaining([{ who: 'u:3', hands: 3 }, { who: 'u:1', hands: 3 }, { who: 'u:2', hands: 3 }]))
+    delete r.played // commit takes them off
+    at = foldHands(r, 2, at)
+    command(r, B, { t: 'leave' }, at)
+    wake(r)
+    const total = (who: string) => [...first, ...(r.played ?? [])].filter((p) => p.who === who).reduce((s, p) => s + p.hands, 0)
+    expect(total('u:1')).toBe(r.members[0]!.match!.hands)
+    expect(total('u:2')).toBe(5)
+  })
+
   test('no one hand counts for more than the cap', () => {
     const r = signedIn(1, 2)
     // a shove and a call, so whoever wins takes the other's whole stack (or it splits, then nothing moves)
