@@ -794,6 +794,11 @@
   }
 }
 
+/* under an emote. visibility, not display, so its animation keeps running and doesn't replay after */
+.seat .said.muted {
+  visibility: hidden;
+}
+
 /* chips. how a chip and a stack are drawn lives in components/chips.css, shared with the tracker */
 
 /* always there and always one chip big (its squashed face), so a flight has a fixed place to land and the label

@@ -126,7 +126,7 @@ const SAID_EXITS =new Set(['said-fade', 'said-wilt'])
 
 // A seat's action pill. Its exit is timed in game.css, and a new street or hand clearing the seat's line used to
 // unmount it partway through. Now it hangs on until its own fade's done. Same words again is a new pill, so n
-function Said({ line }: { line?: { text: string; n: number } }) {
+function Said({ line, muted }: { line?: { text: string; n: number }; muted?: boolean }) {
   const text = line?.text ?? ''
   const [pill, setPill] = useState({ text, n: line?.n ?? 0, faded: false })
   if (line && line.n !== pill.n) setPill({ text: line.text, n: line.n, faded: false })
@@ -135,7 +135,7 @@ function Said({ line }: { line?: { text: string; n: number } }) {
   return (
     <span
       key={pill.n}
-      className={`said ${saidKind(pill.text)}`}
+      className={cx('said', saidKind(pill.text), !!muted && 'muted')}
       onAnimationEnd={(e) => SAID_EXITS.has(e.animationName) && setPill((p) => ({ ...p, faded: true }))}
     >
       {pill.text}
@@ -428,13 +428,13 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
                       {tag}
                     </Fade>
                   </Plate>
-                  {emote ? (
+                  {emote && (
                     <span key={`emote-${emote.key}`} className="said emote">
                       {emote.text}
                     </span>
-                  ) : (
-                    <Said line={game.said[i]} />
                   )}
+                  {/* stays mounted under an emote, swapping it out remounted it and replayed the last action once the emote went */}
+                  <Said line={game.said[i]} muted={!!emote} />
                 </div>
               </div>
             )
