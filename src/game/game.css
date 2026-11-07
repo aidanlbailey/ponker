@@ -743,11 +743,10 @@
     transition: translate 0.25s ease-out;
   }
 
-  /* the cards tuck behind the top of the plate, so up there the blind and button sat on them. Hung off the
-     bottom instead, where nothing of the seat's own is */
+  /* the cards tuck behind the top of the plate, so up there the blind and button sat on them. Straddling the
+     bottom edge hid the turn clock instead, so they hang fully under it */
   :is(.dealer, .seat-blind) {
-    top: auto;
-    bottom: -12px;
+    top: calc(100% + 4px);
   }
 
   /* tucked is fine face down, but a shown hand needs its suits clear of the plate. translate, not margin,
