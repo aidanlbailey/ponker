@@ -78,6 +78,42 @@ function LivePile({ amount, held }: { amount: number; held: boolean }) {
 
 type Drag = { id: number; x: number; y: number; samples: Sample[] }
 
+// press, drag and let go, shared by the chip pile and your cards. aim gives the thing being thrown and where it's
+// thrown at, so a flick only counts heading that way. onFlick returns true to keep holding where the hand let go
+export function useFlick(onFlick: (box: DOMRect) => boolean | void, aim: (el: HTMLElement) => [DOMRect, DOMRect]) {
+  const [held, setHeld] = useState<{ x: number; y: number } | null>(null)
+  const drag = useRef<Drag>(null)
+
+  const handlers = {
+    onPointerDown(e: PointerEvent<HTMLElement>) {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, samples: [{ time: performance.now(), x: e.clientX, y: e.clientY }] }
+      setHeld({ x: 0, y: 0 })
+    },
+    onPointerMove(e: PointerEvent<HTMLElement>) {
+      const now = drag.current
+      if (now?.id !== e.pointerId) return
+      now.samples.push({ time: performance.now(), x: e.clientX, y: e.clientY })
+      setHeld({ x: e.clientX - now.x, y: e.clientY - now.y })
+    },
+    onPointerUp(e: PointerEvent<HTMLElement>) {
+      const now = drag.current
+      if (now?.id !== e.pointerId) return
+      drag.current = null
+      const [box, target] = aim(e.currentTarget)
+      const moved = { x: e.clientX - now.x, y: e.clientY - now.y }
+      const toward = { x: target.left - box.left, y: target.top - box.top }
+      const flicked = isFlick(moved, releaseVelocity(now.samples, performance.now()), toward)
+      if (!flicked || !onFlick(box)) setHeld(null)
+    },
+    onPointerCancel() {
+      drag.current = null
+      setHeld(null)
+    },
+  }
+  return [held, handlers] as const
+}
+
 type BetControlsProps = {
   view: TableState
   legal: Legal
@@ -90,10 +126,7 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
   const seat = legal.seat
   const me = view.seats[seat]!
   const [text, setText] = useState(() => String(raiseTo(view, legal, 0.5)))
-  const [held, setHeld] = useState<{ x: number; y: number } | null>(null)
   const [sliding, setSliding] = useState(false)
-  const pile = useRef<HTMLButtonElement>(null)
-  const drag = useRef<Drag>(null)
 
   const to = Number(text)
   const clamped = Math.min(Math.max(Math.round(to) || minTo, minTo), maxTo)
@@ -105,40 +138,15 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
   const throwable = canRaise ? valid : toCall > 0
   const inThePile = canRaise ? clamped - me.bet : toCall
 
-  const start = (e: PointerEvent<HTMLButtonElement>) => {
-    if (!throwable) return
-    e.currentTarget.setPointerCapture(e.pointerId)
-    drag.current = {
-      id: e.pointerId,
-      x: e.clientX,
-      y: e.clientY,
-      samples: [{ time: performance.now(), x: e.clientX, y: e.clientY }],
-    }
-    setHeld({ x: 0, y: 0 })
-  }
-
-  const move = (e: PointerEvent) => {
-    const now = drag.current
-    if (now?.id !== e.pointerId) return
-    now.samples.push({ time: performance.now(), x: e.clientX, y: e.clientY })
-    setHeld({ x: e.clientX - now.x, y: e.clientY - now.y })
-  }
-
-  const release = (e: PointerEvent<HTMLButtonElement>) => {
-    const now = drag.current
-    if (now?.id !== e.pointerId) return
-    drag.current = null
-
-    // the chips themselves, not the button, which keeps empty room above them for a taller pile
-    const box = e.currentTarget.querySelector('.pile')!.getBoundingClientRect()
-    const target = document.querySelector(`[data-spot="bet-${seat}"]`)!.getBoundingClientRect()
-    const aim = { x: target.left - box.left, y: target.top - box.top }
-    const moved = { x: e.clientX - now.x, y: e.clientY - now.y }
-    if (isFlick(moved, releaseVelocity(now.samples, performance.now()), aim)) {
-      // the pile's flight takes over from wherever the hand let go of it
+  // the pile's flight takes over from wherever the hand let go of it, so it stays held
+  const [held, flick] = useFlick(
+    (box) => {
       onAct(thrown, reducedMotion() ? undefined : box)
-    } else setHeld(null)
-  }
+      return true
+    },
+    // the chips themselves, not the button, which keeps empty room above them for a taller pile
+    (el) => [el.querySelector('.pile')!.getBoundingClientRect(), document.querySelector(`[data-spot="bet-${seat}"]`)!.getBoundingClientRect()],
+  )
 
   return (
     <form
@@ -151,7 +159,6 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
       <div className="bet-size">
         <div className={`flick ${throwable ? '' : 'off'}`}>
           <button
-            ref={pile}
             type="button"
             className={`flick-pile ${held ? 'held' : ''}`}
             data-sound="none"
@@ -159,13 +166,7 @@ export function BetControls({ view, legal, onAct }: BetControlsProps) {
             // the labelled buttons below do the same job for keyboards and screen readers
             tabIndex={-1}
             aria-hidden="true"
-            onPointerDown={start}
-            onPointerMove={move}
-            onPointerUp={release}
-            onPointerCancel={() => {
-              drag.current = null
-              setHeld(null)
-            }}
+            {...(throwable ? flick : {})}
           >
             <LivePile amount={inThePile} held={sliding} />
           </button>

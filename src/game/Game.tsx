@@ -4,7 +4,7 @@ import { Dialog } from '../components/Dialog'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { setSound, sound, soundOn } from '../lib/sound'
-import { BetControls } from './BetControls'
+import { BetControls, useFlick } from './BetControls'
 import { ChipStack } from '../components/Chip'
 import { colorOf, potSize, saidKind } from './betting'
 import { advice, describeHand, HAND_RANKS, priceToCall } from './helpers'
@@ -15,6 +15,8 @@ import { useSoloTable } from './useSoloTable'
 import type { TableGame } from './useStage'
 import '@fontsource-variable/manrope'
 import './game.css'
+
+const MUCK_MS = 450 // the folded cards' landing, keep in step with .seat.me.folded .seat-cards in game.css
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
 const cx = (...names: (string | false)[]) => names.filter(Boolean).join(' ')
@@ -257,6 +259,24 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
   const idleKey = idle && me && (canShow || game.deal) ? `idle-${canShow}-${!!game.deal}` : ''
   const dockKey = dock ? String(isValidElement(dock) ? dock.key : 'dock') : waitText
   const clock = game.clock?.seat === game.me ? game.clock : null
+  // facing a bet your cards can be flicked at the pot to fold, same as the Fold button
+  const canMuck = !!myTurn && !myTurn.canCheck
+  // let go on a flick, the folded cards' own transition carries them on from wherever the hand left them
+  // a flick lands the cards right back under the hand, so no peeking that hand until the pointer's been off them
+  const [noPeek, setNoPeek] = useState<number | null>(null)
+  const landsAt = useRef(0)
+  const [cardsHeld, cardFlick] = useFlick(
+    () => {
+      game.act({ type: 'fold', seat: game.me! })
+      landsAt.current = performance.now() + MUCK_MS
+      setNoPeek(game.hand)
+      // landed somewhere the pointer isn't, then the next hover's fine
+      setTimeout(() => {
+        if (!document.querySelector('.seat.me .seat-cards:hover')) setNoPeek(null)
+      }, MUCK_MS)
+    },
+    (el) => [el.getBoundingClientRect(), document.querySelector('[data-spot="pot"]')!.getBoundingClientRect()],
+  )
 
   // even from a background tab, that's when it's most useful
   useEffect(() => {
@@ -409,7 +429,13 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
                   </Fade>
                 </div>
                 <div className={seatClass} style={around(place, seats, 1)} data-spot={`seat-${i}`}>
-                  <div className="seat-cards">
+                  <div
+                    className={cx('seat-cards', isMe && canMuck && 'muckable', isMe && !!cardsHeld && 'held', isMe && noPeek === game.hand && 'no-peek')}
+                    style={isMe && cardsHeld ? ({ '--x': `${cardsHeld.x}px`, '--y': `${cardsHeld.y}px` } as CSSProperties) : undefined}
+                    {...(isMe && canMuck ? cardFlick : {})}
+                    // leaving mid flight doesn't count, they're about to land back under it
+                    onPointerLeave={isMe ? () => performance.now() >= landsAt.current && setNoPeek(null) : undefined}
+                  >
                     {seat.cards.map((card, k) => (
                       <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} />
                     ))}

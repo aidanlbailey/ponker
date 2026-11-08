@@ -388,6 +388,41 @@
   }
 }
 
+/* facing a bet, your cards can be flicked at the pot to fold. Held they follow the hand, in felt pixels */
+.seat.me .seat-cards.muckable {
+  cursor: grab;
+  touch-action: none;
+  transition: translate 0.32s cubic-bezier(0.3, 1.8, 0.5, 1);
+
+  &.held {
+    cursor: grabbing;
+    translate: calc(var(--x) / var(--felt-scale)) calc(var(--y) / var(--felt-scale));
+    transition: none;
+  }
+}
+
+/* folded, your cards tip over toward you and land face down a little up the felt. Hover (or tap, on a phone)
+   to peek. Carries on from wherever a flick let go of them */
+.seat.me.folded .seat-cards {
+  opacity: 1;
+  filter: none;
+  translate: 0 calc(var(--card-w) * -0.55);
+  scale: 0.8;
+  transition:
+    translate 0.45s cubic-bezier(0.2, 0.9, 0.3, 1),
+    scale 0.45s ease-out;
+
+  .tcard-flip {
+    transform: rotateX(-180deg);
+    transition: transform 0.45s cubic-bezier(0.3, 0, 0.3, 1);
+  }
+
+  &:not(.no-peek):hover .tcard-flip {
+    transform: none;
+    transition-duration: 0.25s;
+  }
+}
+
 /* dealt in from the middle. a bot's card being turned over keeps its place and only flips */
 .seat .tcard {
   animation: card-in 0.32s ease-out var(--delay) backwards;
