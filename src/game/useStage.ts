@@ -321,7 +321,7 @@ export type TableGame = Stage & {
   nameOf: (seat: number) => string
   tagOf?: (seat: number) => string | null
   artOf?: (seat: number) => string | null // a signed-in player's pixel art
-  reportArt?: (seat: number) => void // only for other people's pictures
+  openPlayer?: (seat: number) => (() => void) | undefined // a handler for signed-in seats only, opens their profile
   emoteOf?: (seat: number) => { text: string; key: number } | null // a room's emote, shown over the seat
   // of is the whole length the bar drains from, key restarts it
   clock?: { seat: number; ms: number; of: number; banked: boolean; key: number } | null

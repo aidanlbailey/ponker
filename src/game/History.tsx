@@ -128,6 +128,7 @@ function Player({ hand, start, autoplay, jump }: PlayerProps) {
     me: hand.me,
     act: () => {},
     nameOf: (seat) => hand.names[seat] ?? 'Player',
+    artOf: (seat) => hand.arts?.[seat] ?? null,
     topUp: false,
     leave: () => (location.hash = '#history'),
   }

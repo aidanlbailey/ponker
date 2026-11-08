@@ -2,7 +2,7 @@
 
 import { hashToken, newToken, SESSION_DAYS } from './accounts'
 import type { HandStats, Rated } from './room'
-import { capBots, exchange, isBot, nyDay, PLACEMENT_HANDS, PROVISIONAL, seedOf, BOT_SEEDS } from './rating'
+import { exchange, isBot, nyDay, PLACEMENT_HANDS, PROVISIONAL, seedOf, BOT_SEEDS } from './rating'
 import { botById } from '../../src/game/roster'
 
 export type User = { id: number; name: string; avatar: string | null }
@@ -19,6 +19,10 @@ export async function userBySession(db: D1Database, token: string, now: number) 
 
 export async function userByProvider(db: D1Database, provider: string, providerId: string) {
   return db.prepare('SELECT id, name, avatar FROM users WHERE provider = ? AND provider_id = ?').bind(provider, providerId).first<User>()
+}
+
+export async function userById(db: D1Database, id: number) {
+  return db.prepare('SELECT id, name, avatar FROM users WHERE id = ?').bind(id).first<User>()
 }
 
 export async function nameTaken(db: D1Database, name: string, except = 0) {
@@ -148,7 +152,7 @@ export async function rate(db: D1Database, pairs: Rated[], played: { who: string
     const a = cur.get(p.a)!
     const b = cur.get(p.b)!
     const fresh = [a, b].some((x) => !isBot(x.who) && x.updates < PROVISIONAL)
-    const delta = capBots(exchange(a.rating, b.rating, p.n, p.d, fresh, moved.get(`${p.a}|${p.b}`) ?? 0), a, b)
+    const delta = exchange(a.rating, b.rating, p.n, p.d, fresh, moved.get(`${p.a}|${p.b}`) ?? 0)
     if (!delta) continue
     writes.push(add.bind(p.a, seedOf(p.a) + delta, delta), add.bind(p.b, seedOf(p.b) - delta, -delta), swap.bind(day, p.a, p.b, Math.abs(delta)))
     a.rating += delta

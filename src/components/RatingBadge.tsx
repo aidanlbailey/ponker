@@ -1,6 +1,6 @@
 import './rating.css'
 
-// band edges, 50 apart round the 1,000 start. Bots seed from 765 to 1,136 and stop at 1,149, so gold is people only
+// band edges, 50 apart round the 1,000 start. Bots seed from 765 to 1,136
 const EDGES = [900, 950, 1000, 1050, 1100, 1150]
 export const tierOf = (rating: number) => EDGES.filter((edge) => rating >= edge).length
 

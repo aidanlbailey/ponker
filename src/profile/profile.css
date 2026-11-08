@@ -82,6 +82,30 @@
   image-rendering: pixelated;
 }
 
+/* a row's the grid, so a person's row can be a button that opens their profile */
+.board-row {
+  display: grid;
+  grid-template-columns: 1.8em auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.board-row {
+  cursor: pointer;
+
+  &:hover {
+    background: #1f1f1f;
+  }
+}
+
 /* the name takes the room, the count sits by the buttons */
 .profile-reports li span {
   flex: none;
@@ -101,7 +125,7 @@
 
   th,
   td {
-    padding: 0.35rem 0.25rem;
+    padding: 0.4rem 0.25rem;
     text-align: right;
   }
 
@@ -156,11 +180,6 @@
   list-style: none;
 
   li {
-    display: grid;
-    grid-template-columns: 1.8em auto 1fr auto;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 6px 10px 6px 6px;
     border-radius: 10px;
     background: #151515;
   }
@@ -277,5 +296,395 @@
   .profile-pair-resets {
     grid-column: 1 / -1;
     justify-content: flex-start;
+  }
+}
+
+/* someone's profile, yours with pencils. Colours are looks.css's, not the outlined ones under it */
+.player-top {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* your own profile's edit switch. Cream when it's on, like the other toggles */
+.player-edit {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--lit-line, #303030);
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #fff;
+  cursor: pointer;
+
+  &.on {
+    background: #f3efe6;
+    color: #111;
+  }
+}
+
+.player-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.player-pic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: #2c2c2c;
+  color: #fff;
+  font: 800 3rem var(--text-font);
+
+  button& {
+    cursor: pointer;
+  }
+}
+
+.player-art {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  image-rendering: pixelated;
+}
+
+.player-pencil {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e8e8e8;
+  color: #111;
+}
+
+.poker:is(.picker, .room-gate) h2.player-name {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px dashed #5a5a5a;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      border-color: #8a8a8a;
+    }
+
+    span {
+      color: #a2a2a2;
+    }
+  }
+}
+
+.player-rename {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* the badge is the button, the rating explainer opens under it */
+.player-rating {
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.player-hands {
+  font-size: 0.875rem;
+}
+
+.rating-info {
+  padding: 1rem;
+  border: 1px solid var(--lit-line, #303030);
+  border-radius: 12px;
+  background: #151515;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  text-align: left;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  p + p {
+    margin-top: 0.6rem;
+  }
+}
+
+.rating-tiers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem 0.5rem;
+  margin-top: 0.9rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--menu-soft);
+    font-size: 0.7rem;
+    text-align: center;
+  }
+}
+
+.player-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+
+  small {
+    color: var(--menu-soft);
+    font-size: 0.75rem;
+  }
+}
+
+.player-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem;
+    border-radius: 10px;
+    background: #151515;
+    cursor: help;
+  }
+
+  b {
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  span {
+    color: var(--menu-soft);
+    font-size: 0.72rem;
+  }
+}
+
+.profile-more,
+.player-report {
+  align-self: center;
+  border: 0;
+  background: none;
+  color: var(--menu-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* someone's profile laid over the table */
+.profile-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-y: auto;
+  background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: #303030 transparent;
+}
+
+.profile-paint {
+  width: min(440px, calc(100vw - 2rem));
+}
+
+/* edit mode and the folding explainer. The layout half is here, the moving half is in the motion block below */
+.player-view {
+  display: contents;
+}
+
+.player-pic:disabled {
+  color: inherit;
+  opacity: 1;
+  cursor: default;
+}
+
+.poker:is(.picker, .room-gate) h2.player-name button {
+  gap: 0;
+
+  &:disabled {
+    border-color: transparent;
+    color: inherit;
+    opacity: 1;
+    cursor: default;
+  }
+}
+
+/* out of edit mode the pencils shrink away. The name's one gives its room back so the name stays centred */
+.player-pencil {
+  opacity: 0;
+  scale: 0.4;
+}
+
+.name-pencil {
+  display: inline-grid;
+  overflow: hidden;
+  width: 0;
+  opacity: 0;
+}
+
+.editing {
+  .player-pencil {
+    opacity: 1;
+    scale: 1;
+  }
+
+  .name-pencil {
+    width: 16px;
+    margin-left: 0.6rem;
+    opacity: 1;
+  }
+}
+
+/* grid rows 0fr to 1fr is a height transition that works on whatever height the text wraps to */
+.rating-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  align-self: stretch;
+  /* cancels the header's gap while it's shut */
+  margin-top: -0.75rem;
+  opacity: 0;
+
+  > div {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .rating-info {
+    margin-top: 0.75rem;
+  }
+
+  &.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.player-swap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+@keyframes player-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+@keyframes player-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* the page rises in a section at a time. Dialogs have their own way in, and a delay on one shows it at full
+     strength for the wait and then fades it in from nothing */
+  .player-view > :not(dialog) {
+    animation: player-in 0.35s ease-out backwards;
+  }
+
+  .player-view > :not(dialog):nth-child(2) {
+    animation-delay: 50ms;
+  }
+
+  .player-view > :not(dialog):nth-child(3) {
+    animation-delay: 100ms;
+  }
+
+  .player-view > :not(dialog):nth-child(4) {
+    animation-delay: 150ms;
+  }
+
+  .player-view > :not(dialog):nth-child(n + 5) {
+    animation-delay: 200ms;
+  }
+
+  .player-pencil,
+  .name-pencil {
+    transition:
+      opacity 0.2s ease,
+      scale 0.2s ease,
+      width 0.2s ease,
+      margin-left 0.2s ease;
+  }
+
+  .poker:is(.picker, .room-gate) h2.player-name button {
+    transition: border-color 0.2s ease;
+  }
+
+  .rating-fold {
+    transition:
+      grid-template-rows 0.3s ease,
+      opacity 0.25s ease;
+  }
+
+  /* anything that swaps in place fades in rather than popping */
+  .player-swap,
+  .player-rename,
+  .player-head .profile-note,
+  .player-head > h2.player-name {
+    animation: player-fade 0.2s ease-out;
+  }
+
+  .player-view :is(.poker-toggle, .player-edit, .board-row) {
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .profile-sheet {
+    animation: sheet-in 0.25s ease-out;
+  }
+
+  .profile-sheet.leaving {
+    animation: sheet-out 0.2s ease-in forwards;
   }
 }

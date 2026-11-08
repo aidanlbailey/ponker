@@ -12,13 +12,20 @@ import './previews.css'
 
 export type PreviewName = 'quick' | 'rooms' | 'race'
 
-export function Screen({ title, back = ['#', 'Home'], children }: { title: string; back?: [string, string]; children: ReactNode }) {
+// onBack makes the back link a button, for screens laid over something rather than gone to
+export function Screen({ title, back = ['#', 'Home'], onBack, children }: { title: string; back?: [string, string]; onBack?: () => void; children: ReactNode }) {
   return (
     <div className="poker picker preview">
       <header className="poker-bar">
-        <a href={back[0]} className="poker-link">
-          <span aria-hidden="true">{'‹'}</span> {back[1]}
-        </a>
+        {onBack ? (
+          <button type="button" className="poker-link" onClick={onBack}>
+            <span aria-hidden="true">{'‹'}</span> {back[1]}
+          </button>
+        ) : (
+          <a href={back[0]} className="poker-link">
+            <span aria-hidden="true">{'‹'}</span> {back[1]}
+          </a>
+        )}
         <span className="poker-spacer" />
         <span className="poker-stakes">{title}</span>
       </header>

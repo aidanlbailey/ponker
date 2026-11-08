@@ -67,6 +67,9 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* the browser's own bar is a big light slab on desktop. Thin and the same grey as the panel lines */
+  scrollbar-width: thin;
+  scrollbar-color: #303030 transparent;
 }
 
 body {

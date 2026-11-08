@@ -385,15 +385,18 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
             const emote = game.emoteOf?.(i)
             const seatClass = cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', spot.className === 'bet beside' && 'upper')
             const stack = out ? 'Out' : game.stack(i).toLocaleString('en-US')
+            const profile = isMe ? undefined : game.openPlayer?.(i)
             const info = (
               <>
-                <Avatar
-                  id={seat.id}
-                  art={game.artOf?.(i)}
-                  onTap={game.reportArt && !isMe ? () => game.reportArt!(i) : undefined}
-                />
+                <Avatar id={seat.id} art={game.artOf?.(i)} onTap={profile} />
                 <div className="seat-info">
-                  <span className="seat-name">{nameOf(i)}</span>
+                  {profile ? (
+                    <button type="button" className="seat-name seat-link" onClick={profile}>
+                      {nameOf(i)}
+                    </button>
+                  ) : (
+                    <span className="seat-name">{nameOf(i)}</span>
+                  )}
                   <span className="seat-stack">{stack}</span>
                 </div>
               </>

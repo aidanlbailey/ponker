@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
 import { Dialog } from '../components/Dialog'
 import { applyAction, HIDDEN, type Action, type PlayerAction, type TableState } from '../engine/engine'
-import { call, hiddenArt, hideArt, session } from '../lib/account'
+import { hiddenArt, session } from '../lib/account'
 import { haptic } from '../lib/haptics'
 import { Table } from '../game/Game'
 import { BUY_IN } from '../game/solo'
@@ -10,6 +10,7 @@ import { EMOTES, tableName } from './public'
 import { recorder } from '../game/handLog'
 import { useRoom, type RoomSocket, type RoomView } from './useRoom'
 import { Players } from './Players'
+import { PlayerSheet } from '../profile/Profile'
 import '../game/game.css'
 import '../game/menus.css'
 import '@fontsource-variable/manrope'
@@ -87,7 +88,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
   const [chatOpen, setChatOpen] = useState(false)
   const [seen, setSeen] = useState(0)
   const [panel, setPanel] = useState(false)
-  const [reporting, setReporting] = useState<{ user: number; name: string } | null>(null)
+  const [viewing, setViewing] = useState<number | null>(null)
   const [hidden, setHidden] = useState(hiddenArt)
   const [players, setPlayers] = useState(false)
   // holding Tab shows the players like a game's scoreboard, letting go puts it away
@@ -131,7 +132,13 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
     const step = view.acts - cur.acts
     // the history goes by what the server says happened, not the move we flew early
     if (view.hand !== cur.hand && view.dealt && step <= 1 && !next.fresh) {
-      log.dealt(cur.table, view.table, view.me, view.seats.map((s) => s?.name ?? null))
+      log.dealt(
+        cur.table,
+        view.table,
+        view.me,
+        view.seats.map((s) => s?.name ?? null),
+        view.seats.map((s) => (s?.art && !hidden.includes(s.user!) ? s.art : null)),
+      )
     } else if (view.hand !== cur.hand) log.drop()
     else if (step === 1 && view.last) log.step(view.table, view.last.action as Action, view.last.seat)
     else log.jump(view.table)
@@ -195,9 +202,9 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
       const s = seat(i)
       return s?.art && !hidden.includes(s.user!) ? s.art : null
     },
-    reportArt: (i) => {
-      const s = seat(i)
-      if (s?.user) setReporting({ user: s.user, name: s.name })
+    openPlayer: (i) => {
+      const user = seat(i)?.user
+      return user ? () => setViewing(user) : undefined
     },
     clock: caughtUp ? room.clock : null,
     emoteOf: (i) => {
@@ -338,16 +345,7 @@ function RoomTable({ room, first, path, name }: { room: RoomSocket; first: RoomV
         ))}
       {(players || held) && <Players view={cur} artOf={(i) => game.artOf!(i) ?? null} onClose={() => setPlayers(false)} />}
       {panel && <RoomPanel path={path} view={cur} send={room.send} onClose={() => setPanel(false)} />}
-      {reporting && (
-        <ReportArt
-          {...reporting}
-          onClose={() => setReporting(null)}
-          onReported={() => {
-            hideArt(reporting.user)
-            setHidden(hiddenArt())
-          }}
-        />
-      )}
+      {viewing !== null && <PlayerSheet id={viewing} onClose={() => setViewing(null)} onReported={() => setHidden(hiddenArt())} />}
     </Table>
   )
 }
@@ -497,35 +495,3 @@ function RoomPanel({ path, view, send, onClose }: { path: string; view: RoomView
   )
 }
 
-// Hides the picture for you straight away. Signed in, it also goes to Aidan to look at. A guest's report would be
-// one anyone could send by the thousand, so theirs only hides it
-function ReportArt({ user, name, onClose, onReported }: { user: number; name: string; onClose: () => void; onReported: () => void }) {
-  const signedIn = !!session()
-  return (
-    <Dialog title="Report picture" onClose={onClose}>
-      {(close) => (
-        <>
-          <p>
-            Hide {name}'s picture{signedIn ? ' and send it to be looked at' : ''}? You'll see the default from now on.
-          </p>
-          <div className="button-row">
-            <button type="button" className="button neutral" onClick={() => close()}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="button primary"
-              onClick={() => {
-                if (signedIn) call('/report', { method: 'POST', body: { user } }).catch(() => {})
-                close(onReported)
-                haptic('success')
-              }}
-            >
-              Report
-            </button>
-          </div>
-        </>
-      )}
-    </Dialog>
-  )
-}

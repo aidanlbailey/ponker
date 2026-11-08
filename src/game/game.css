@@ -521,6 +521,16 @@
   white-space: nowrap;
 }
 
+/* someone else's name opens their profile */
+.seat-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .seat-stack {
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;

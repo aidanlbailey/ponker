@@ -1,10 +1,17 @@
 /* the bot picker borrows the room from game.css, it just scrolls instead of holding a table.
    Its look comes from menus.css, this is only the layout */
 
+/* menus scroll as a page. The bar goes up with everything else instead of sitting there cutting the content
+   off, and the scrollbar is the window's own, at its edge */
 .poker.picker {
   grid-template:
     'bar' auto
-    'body' minmax(0, 1fr) / minmax(0, 1fr);
+    'body' auto / minmax(0, 1fr);
+  /* start, or a short screen hands its spare height to the bar's row and the bar drops down the page */
+  align-content: start;
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
 }
 
 .picker-body {
@@ -12,11 +19,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
-  width: min(100%, 720px);
+  width: min(100%, var(--column, 720px));
   margin-inline: auto;
   padding-bottom: 1rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .seat-count {

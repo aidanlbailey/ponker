@@ -36,6 +36,8 @@ export const signInUrl = (provider: 'google' | 'discord', name: string) =>
 
 // a 401 means the session's gone (signed out elsewhere, run out, account deleted), so forget it
 export async function call<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  // anything that changes something makes the shared reads stale
+  if (init.method && init.method !== 'GET') recent.clear()
   const res = await fetch(`${API}${path}`, {
     method: init.method ?? 'GET',
     headers: { Authorization: `Bearer ${session()}`, ...(init.body !== undefined && { 'Content-Type': 'application/json' }) },
@@ -46,6 +48,19 @@ export async function call<T>(path: string, init: { method?: string; body?: unkn
   if (!res.ok) throw new Error((data as { why?: string }).why ?? `Something went wrong (${res.status})`)
   if (path === '/me' && init.method !== 'DELETE') save(ME, data)
   return data as T
+}
+
+// The worker allows 20 calls a minute. A profile, its board slice, the full board and StrictMode's second run
+// would each ask again, so public reads are shared for a bit. Failures aren't kept
+const SHARE_MS = 30_000
+const recent = new Map<string, { at: number; reply: Promise<unknown> }>()
+export function shared<T>(path: string): Promise<T> {
+  const hit = recent.get(path)
+  if (hit && Date.now() - hit.at < SHARE_MS) return hit.reply as Promise<T>
+  const reply = call<T>(path)
+  reply.catch(() => recent.delete(path))
+  recent.set(path, { at: Date.now(), reply })
+  return reply
 }
 
 export async function signOut() {

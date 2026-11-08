@@ -15,7 +15,7 @@ export interface AccountEnv {
   ADMIN_ID?: string // Aidan's user id. Unset, nobody's admin
 }
 
-export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/|ratings$|boards$)/
+export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/|ratings$|boards$|players\/\d+$)/
 
 const BOARD_MIN_HANDS = 200 // bot-free hands before you show on the bb/100 board
 const RATED_ID = /^(u:\d+|bot:[a-z]+)$/
@@ -118,6 +118,15 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
     return json(await db.ratingsOf(env.DB, ids))
   }
   if (path === '/boards' && request.method === 'GET') return json(await db.boards(env.DB, BOARD_MIN_HANDS))
+  // someone's profile, what you see tapping their name at the table
+  const player = path.match(/^\/players\/(\d+)$/)
+  if (player && request.method === 'GET') {
+    const id = Number(player[1])
+    const user = await db.userById(env.DB, id)
+    if (!user) return fail('nobody by that id', 404)
+    const [ratings, stats] = await Promise.all([db.ratingsOf(env.DB, [`u:${id}`]), db.statsOf(env.DB, id)])
+    return json({ ...user, rating: ratings[`u:${id}`] ?? null, stats })
+  }
 
   const token = request.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1]
   const me = token ? await db.userBySession(env.DB, token, now) : null

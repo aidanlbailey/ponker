@@ -42,12 +42,12 @@ const DEFAULT_AVATAR = 'GUEST'
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// a signed-in player's picture. Tapping someone else's offers to report it
+// a signed-in player's picture. Tapping someone else's opens their profile
 export function Avatar({ id, art, onTap }: { id: string; art?: string | null; onTap?: () => void }) {
   if (art) {
     const picture = <PixelArt art={art} className="avatar-art" />
     return onTap ? (
-      <button type="button" className="avatar art" aria-label="Report this picture" onClick={onTap}>
+      <button type="button" className="avatar art" aria-label="See their profile" onClick={onTap}>
         {picture}
       </button>
     ) : (

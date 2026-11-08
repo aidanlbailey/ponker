@@ -1,15 +1,53 @@
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
+import { Dialog } from '../components/Dialog'
 import { paint, PixelArt } from '../components/PixelArt'
-import { call, deleteAccount, session, signInUrl, signOut, type Me } from '../lib/account'
+import { RatingBadge } from '../components/RatingBadge'
+import { cachedMe, call, shared, deleteAccount, hiddenArt, hideArt, session, signInUrl, signOut, type Me } from '../lib/account'
 import { blank, decode, encode, PALETTE, quantize, SIZE } from '../lib/avatar'
 import { haptic } from '../lib/haptics'
 import { Screen } from '../hub/Previews'
-import { RatingBadge } from '../components/RatingBadge'
-import { Boards } from './Boards'
+import { around, BoardList, boardRows, Boards, BoardTabs, perHundred, useBoards, useShowBots, type Tab } from './Boards'
 import './profile.css'
 
-export default function Profile({ name, admin }: { name: string; admin?: boolean }) {
-  return admin ? <Admin /> : <Account guestName={name} />
+// your own on #profile, someone else's on #player/<id>, the full boards on #boards
+export type ProfileView = 'me' | 'admin' | 'boards' | number
+
+const toPlayer = (id: number) => {
+  location.hash = `#player/${id}`
+}
+
+export default function Profile({ name, view }: { name: string; view: ProfileView }) {
+  if (view === 'admin') return <Admin />
+  if (view === 'boards') {
+    return (
+      <Screen title="Leaderboards" back={['#profile', 'Profile']}>
+        <Boards me={cachedMe()?.id} open={toPlayer} />
+      </Screen>
+    )
+  }
+  if (typeof view === 'number') {
+    return (
+      <Screen title="Profile" back={['#boards', 'Leaderboards']}>
+        <PlayerView id={view} open={toPlayer} wholeBoard />
+      </Screen>
+    )
+  }
+  return <Account guestName={name} />
+}
+
+// someone's profile over the table, so having a look doesn't cost you your seat
+export function PlayerSheet({ id, onClose, onReported }: { id: number; onClose: () => void; onReported: () => void }) {
+  const [who, setWho] = useState(id)
+  const [leaving, setLeaving] = useState(false)
+  // no animation to wait for with reduced motion, so straight out
+  const back = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? onClose() : setLeaving(true))
+  return (
+    <div className={`profile-sheet ${leaving ? 'leaving' : ''}`} onAnimationEnd={(e) => e.animationName === 'sheet-out' && onClose()}>
+      <Screen title="Profile" back={['', 'Table']} onBack={back}>
+        <PlayerView key={who} id={who} open={setWho} onReported={onReported} />
+      </Screen>
+    </div>
+  )
 }
 
 function Account({ guestName }: { guestName: string }) {
@@ -36,7 +74,6 @@ function Account({ guestName }: { guestName: string }) {
   if (state === 'out' || !me) {
     return (
       <Screen title="Profile">
-        <HistoryLink />
         <section className="picker-seats">
           <h2>Sign in</h2>
           <p>A name nobody else can take, and a picture of your own at the table. Guests can still play everything.</p>
@@ -52,31 +89,21 @@ function Account({ guestName }: { guestName: string }) {
             No email, nothing else from your account. <a href="privacy.html">What's kept</a>
           </p>
         </section>
-        <Boards />
+        <div className="button-row">
+          <a className="button neutral" href="#boards">
+            Leaderboards
+          </a>
+          <HistoryLink />
+        </div>
       </Screen>
     )
   }
 
   return (
     <Screen title="Profile">
-      <NameForm me={me} onSaved={setMe} />
-      <section className="picker-seats">
-        <h2>Rating</h2>
-        <div className="profile-rating">
-          <RatingBadge rating={me.rating ?? null} size="lg" />
-          {me.rating == null && (
-            <p className="profile-note">Play a few hands at a public table or in a room and your rating shows here.</p>
-          )}
-        </div>
-      </section>
-      <StatsCard />
-      <Boards me={me.id} />
-      <section className="picker-seats">
-        <h2>Picture</h2>
-        <Editor me={me} onSaved={setMe} />
-      </section>
-      <HistoryLink />
-      <AccountActions me={me} onGone={() => (setMe(null), setState('out'))} />
+      <PlayerView id={me.id} me={me} onSaved={setMe} open={toPlayer} wholeBoard>
+        <AccountActions me={me} onGone={() => (setMe(null), setState('out'))} />
+      </PlayerView>
     </Screen>
   )
 }
@@ -98,81 +125,321 @@ type Stats = {
   showdown_wins: number
   biggest: number
 }
+type Player = { id: number; name: string; avatar: string | null; rating: number | null; stats: Stats[] }
 
-const BIG_BLIND = 10 // every live table is 5/10
+type ViewProps = {
+  id: number
+  me?: Me // only when it's yours, that's what gives it the edit pencil
+  onSaved?: (me: Me) => void
+  open: (id: number) => void
+  wholeBoard?: boolean
+  onReported?: () => void
+  children?: ReactNode // your account buttons, at the bottom
+}
+
+const Pencil = ({ className }: { className?: string }) => (
+  <span className={className} aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  </span>
+)
+
+// one page for everyone. Yours has a pencil up top that opens the name and the picture for editing
+export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, children }: ViewProps) {
+  const [player, setPlayer] = useState<Player | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [naming, setNaming] = useState(false)
+  const [painting, setPainting] = useState(false)
+  const [info, setInfo] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [hidden, setHidden] = useState(() => hiddenArt().includes(id))
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    shared<Player>(`/players/${id}`).then(setPlayer, () => setFailed(true))
+  }, [id])
+
+  if (failed) return <p className="preview-loading">Couldn't load this profile. Try again in a minute.</p>
+  if (!player) {
+    return (
+      <p className="preview-loading" role="status">
+        Loading…
+      </p>
+    )
+  }
+
+  const mine = me?.id === id
+  const editing = mine && editMode
+  const art = hidden && !mine ? null : player.avatar
+  const hands = player.stats.reduce((n, s) => n + s.hands, 0)
+  const saved = (next: Me, message: string) => {
+    setPlayer({ ...player, name: next.name, avatar: next.avatar })
+    onSaved?.(next)
+    setNote(message)
+  }
+  const picture = art ? <PixelArt art={art} className="player-art" /> : <span aria-hidden="true">{player.name[0]?.toUpperCase()}</span>
+
+  return (
+    <div className={`player-view ${editing ? 'editing' : ''}`}>
+      {mine && (
+        <div className="player-top">
+          <button
+            type="button"
+            className={`player-edit ${editMode ? 'on' : ''}`}
+            aria-pressed={editMode}
+            aria-label={editMode ? 'Done editing' : 'Edit your profile'}
+            onClick={() => (setEditMode(!editMode), setNaming(false))}
+          >
+            <Pencil />
+          </button>
+        </div>
+      )}
+      <header className="player-head">
+        {/* yours stays a button either way, just disabled out of edit mode, so the pencils ease in and out
+            instead of the whole thing being swapped */}
+        {mine ? (
+          <button
+            type="button"
+            className="player-pic"
+            disabled={!editing}
+            aria-label={editing ? 'Edit your picture' : 'Your picture'}
+            onClick={() => (setPainting(true), setNote(''))}
+          >
+            {picture}
+            <Pencil className="player-pencil" />
+          </button>
+        ) : (
+          <span className="player-pic">{picture}</span>
+        )}
+        {editing && naming ? (
+          <NameForm name={player.name} onSaved={(next) => (saved(next, 'Saved'), setNaming(false))} onCancel={() => setNaming(false)} />
+        ) : mine ? (
+          <h2 className="player-name">
+            <button
+              type="button"
+              disabled={!editing}
+              aria-label={editing ? `${player.name}, change your name` : undefined}
+              onClick={() => (setNaming(true), setNote(''))}
+            >
+              {player.name}
+              <Pencil className="name-pencil" />
+            </button>
+          </h2>
+        ) : (
+          <h2 className="player-name">{player.name}</h2>
+        )}
+        <button
+          type="button"
+          className="player-rating"
+          aria-expanded={info}
+          aria-label={`Rating ${player.rating ?? 'still placing'}, how rating works`}
+          onClick={() => setInfo(!info)}
+        >
+          <RatingBadge rating={player.rating} size="lg" />
+        </button>
+        <p className="player-hands">
+          {hands.toLocaleString('en-US')} {hands === 1 ? 'hand' : 'hands'} played
+        </p>
+        {note && (
+          <p className="profile-note" role="status">
+            {note}
+          </p>
+        )}
+        {/* always there so it can fold shut as smoothly as it opens */}
+        <div className={`rating-fold ${info ? 'open' : ''}`} inert={!info}>
+          <div>
+            <RatingInfo />
+          </div>
+        </div>
+      </header>
+      <StatsCard rows={player.stats} you={mine} />
+      <BoardSlice id={id} placing={player.rating === null} open={open} wholeBoard={wholeBoard} />
+      {mine && children}
+      {!mine && art && (
+        <button type="button" className="player-report" onClick={() => setReporting(true)}>
+          Report picture
+        </button>
+      )}
+      {reporting && (
+        <ReportArt
+          user={id}
+          name={player.name}
+          onClose={() => setReporting(false)}
+          onReported={() => (hideArt(id), setHidden(true), onReported?.())}
+        />
+      )}
+      {painting && me && (
+        <Dialog title="Your picture" className="profile-paint" onClose={() => setPainting(false)}>
+          {(close) => (
+            <Editor
+              me={{ ...me, name: player.name, avatar: player.avatar }}
+              onSaved={(next) => close(() => saved(next, 'Saved. It shows from the next table you sit at'))}
+            />
+          )}
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
+const TIERS = [
+  [850, 'under 900'],
+  [900, '900+'],
+  [950, '950+'],
+  [1000, '1,000+'],
+  [1050, '1,050+'],
+  [1100, '1,100+'],
+  [1150, '1,150+'],
+] as const
+
+// the plain words version of worker/src/rating.ts. Change one, change the other
+function RatingInfo() {
+  return (
+    <div className="rating-info">
+      <h3>How rating works</h3>
+      <p>
+        Everyone starts at 1,000. Yours shows once you've played 30 hands at a public table or in a room. Solo games against bots
+        never count.
+      </p>
+      <p>
+        Whenever you share a table with someone, you trade rating based on how many chips you won off each other. Beating someone
+        rated higher earns more, and losing to them costs less.
+      </p>
+      <p>It's zero-sum: whatever you gain, they lose. The only way up is outplaying people.</p>
+      <p>
+        Luck is kept in check. No single hand counts for more than 100 big blinds, and you can only trade so much with one player in a
+        day.
+      </p>
+      <p>
+        Your first few results move faster, so a new rating settles quickly. Bots are rated the same way as people.
+      </p>
+      <div className="rating-tiers">
+        {TIERS.map(([n, label]) => (
+          <div key={n}>
+            <RatingBadge rating={n} size="md" />
+            {label}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : '-')
 const chips = (n: number) => `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')}`
 
-// Live tables only, solo can't be trusted. Bot-free first, it's the one the boards will use
-function StatsCard() {
-  const [rows, setRows] = useState<Stats[] | null>(null)
-  useEffect(() => {
-    call<Stats[]>('/me/stats').then(setRows, () => setRows([]))
-  }, [])
-  if (!rows) return null
-  const cols = [0, 1].map((bots) => rows.find((r) => r.bots === bots))
-  const line = (label: string, tip: string, show: (s: Stats) => string) => (
+// live tables only, solo can't be trusted. With bots first, it's where most hands are
+function StatsCard({ rows, you }: { rows: Stats[]; you: boolean }) {
+  const [bots, setBots] = useState(1)
+  const s = rows.find((r) => r.bots === bots)
+  const they = you ? 'you' : 'they'
+  const tab = (n: number, label: string, tip: string) => (
+    <button role="tab" aria-selected={bots === n} className={`poker-toggle ${bots === n ? 'on' : ''}`} title={tip} onClick={() => setBots(n)}>
+      {label}
+    </button>
+  )
+  const line = (label: string, tip: string, value: string) => (
     <tr>
       <th scope="row" title={tip}>
         {label}
       </th>
-      {cols.map((s, i) => (
-        <td key={i}>{s ? show(s) : '-'}</td>
-      ))}
+      <td>{value}</td>
     </tr>
   )
   return (
     <section className="picker-seats">
-      <h2>Stats</h2>
-      {!rows.length ? (
-        <p className="profile-note">Play a hand at a public table or in a room and your numbers start here.</p>
+      <div className="player-section-head">
+        <h2>Stats</h2>
+        <small>public tables and rooms</small>
+      </div>
+      <div className="board-tabs" role="tablist">
+        {tab(1, 'With bots', 'Hands with at least one bot at the table')}
+        {tab(0, 'No bots', 'Hands where everyone else at the table was a person')}
+      </div>
+      {!s ? (
+        <p key={bots} className="profile-note player-swap">
+          No hands {bots ? 'with' : 'without'} bots yet.
+        </p>
       ) : (
-        <table className="profile-stats">
-          <thead>
-            <tr>
-              <td />
-              <th scope="col" title="Hands where everyone else at the table was a person">
-                No bots
-              </th>
-              <th scope="col" title="Hands with at least one bot at the table">
-                With bots
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {line('Hands', 'Hands you were dealt into at public tables and rooms. Solo games against bots don’t count', (s) =>
-              s.hands.toLocaleString('en-US'),
-            )}
-            {line('Net chips', 'Everything you won minus everything you put in', (s) => chips(s.net))}
-            {line('bb/100', 'Big blinds won per 100 hands. Above 0 is winning, but it takes a few thousand hands to mean much', (s) =>
-              ((s.net / BIG_BLIND / s.hands) * 100).toFixed(1),
-            )}
-            {line('Played (VPIP)', 'How often you chose to put money in before the flop. Blinds you were made to post don’t count', (s) =>
-              pct(s.vpip, s.hands),
-            )}
-            {line('Raised preflop (PFR)', 'How often you raised before the flop', (s) => pct(s.pfr, s.hands))}
-            {line('Went to showdown', 'How often you made it to the end without folding and cards were turned over', (s) =>
-              pct(s.showdowns, s.hands),
-            )}
-            {line('Won at showdown', 'Of the hands that went to showdown, how often you won some of the pot', (s) =>
-              pct(s.showdown_wins, s.showdowns),
-            )}
-            {line('Biggest pot', 'The most you won in one hand', (s) => s.biggest.toLocaleString('en-US'))}
-          </tbody>
-        </table>
+        <div key={bots} className="player-swap">
+          <div className="player-tiles">
+            <div title="Hands dealt in at public tables and rooms. Solo games don't count">
+              <b>{s.hands.toLocaleString('en-US')}</b>
+              <span>Hands</span>
+            </div>
+            <div title="Big blinds won per 100 hands. Above 0 is winning, but it takes a few thousand hands to mean much">
+              <b>{perHundred(s.net, s.hands)}</b>
+              <span>bb/100</span>
+            </div>
+            <div title={`Everything ${they} won minus everything ${they} put in`}>
+              <b>{chips(s.net)}</b>
+              <span>Net chips</span>
+            </div>
+          </div>
+          <table className="profile-stats">
+            <tbody>
+              {line('Played (VPIP)', `How often ${they} chose to put money in before the flop. Forced blinds don't count`, pct(s.vpip, s.hands))}
+              {line('Raised preflop (PFR)', `How often ${they} raised before the flop`, pct(s.pfr, s.hands))}
+              {line('Went to showdown', `How often ${they} made it to the end and cards were turned over`, pct(s.showdowns, s.hands))}
+              {line('Won at showdown', 'Of the hands that went to showdown, how often some of the pot was won', pct(s.showdown_wins, s.showdowns))}
+              {line('Biggest pot', 'The most won in one hand', s.biggest.toLocaleString('en-US'))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )
 }
 
-function NameForm({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) {
-  const [text, setText] = useState(me.name)
+// where they sit on the boards, two either side
+function BoardSlice({ id, placing, open, wholeBoard }: { id: number; placing: boolean; open: (id: number) => void; wholeBoard?: boolean }) {
+  const { data, failed } = useBoards()
+  const [tab, setTab] = useState<Tab>('rating')
+  const [bots] = useShowBots()
+  const who = `u:${id}`
+  const rows = data ? boardRows(data, tab, bots) : []
+  const i = rows.findIndex((r) => r.id === who)
+  const [from, to] = around(rows.length, i)
+  const missing =
+    tab === 'bb100'
+      ? 'Not on this board yet. It takes 200 hands with no bots at the table.'
+      : placing
+        ? 'Shows after 30 hands at public tables or rooms.'
+        : 'Not in the top 50 yet.'
+  return (
+    <section className="picker-seats">
+      <h2>Leaderboards</h2>
+      <BoardTabs tab={tab} onTab={setTab} />
+      {failed ? (
+        <p className="profile-note">Couldn't load the boards. Try again in a minute.</p>
+      ) : !data ? (
+        <p className="profile-note" role="status">
+          Loading…
+        </p>
+      ) : (
+        <div key={tab} className="player-swap">
+          {i < 0 ? <p className="profile-note">{missing}</p> : <BoardList rows={rows.slice(from, to)} start={from} me={who} open={open} />}
+        </div>
+      )}
+      {wholeBoard && (
+        <a className="profile-more" href="#boards">
+          See the whole board
+        </a>
+      )}
+    </section>
+  )
+}
+
+function NameForm({ name, onSaved, onCancel }: { name: string; onSaved: (me: Me) => void; onCancel: () => void }) {
+  const [text, setText] = useState(name)
   const [why, setWhy] = useState('')
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     try {
       onSaved(await call<Me>('/me', { method: 'PUT', body: { name: text } }))
-      setWhy('Saved')
       haptic('success')
     } catch (err) {
       setWhy((err as Error).message)
@@ -180,16 +447,22 @@ function NameForm({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) {
     }
   }
   return (
-    <section className="picker-seats">
-      <h2>Name</h2>
+    <div className="player-rename">
       <form className="preview-join" onSubmit={submit}>
-        <input aria-label="Your name" maxLength={16} value={text} onChange={(e) => (setText(e.target.value), setWhy(''))} />
-        <button className="poker-toggle" disabled={!text.trim() || text.trim() === me.name}>
+        <input aria-label="Your name" maxLength={16} value={text} autoFocus onChange={(e) => (setText(e.target.value), setWhy(''))} />
+        <button className="poker-toggle" disabled={!text.trim() || text.trim() === name}>
           Save
         </button>
+        <button type="button" className="poker-toggle" onClick={onCancel}>
+          Cancel
+        </button>
       </form>
-      {why && <p className="profile-note" role="status">{why}</p>}
-    </section>
+      {why && (
+        <p className="profile-note" role="status">
+          {why}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -318,7 +591,7 @@ function AccountActions({ me, onGone }: { me: Me; onGone: () => void }) {
   const [why, setWhy] = useState('')
   return (
     <section className="picker-seats">
-      <h2>Account</h2>
+      <HistoryLink />
       <div className="button-row">
         {me.admin && (
           <a className="button neutral" href="#admin">
@@ -328,19 +601,52 @@ function AccountActions({ me, onGone }: { me: Me; onGone: () => void }) {
         <button type="button" className="button neutral" onClick={() => signOut().then(onGone)}>
           Sign out
         </button>
-        <button
-          type="button"
-          className="button danger"
-          onClick={() => {
-            if (!sure) return setSure(true)
-            deleteAccount().then(onGone, (err: Error) => setWhy(err.message))
-          }}
-        >
-          {sure ? 'Tap again to delete' : 'Delete account'}
-        </button>
       </div>
+      <button
+        type="button"
+        className="button danger"
+        onClick={() => {
+          if (!sure) return setSure(true)
+          deleteAccount().then(onGone, (err: Error) => setWhy(err.message))
+        }}
+      >
+        {sure ? 'Tap again to delete' : 'Delete account'}
+      </button>
       {why && <p className="profile-note" role="status">{why}</p>}
     </section>
+  )
+}
+
+// Hides the picture for you straight away. Signed in, it also goes to Aidan to look at. A guest's report would be
+// one anyone could send by the thousand, so theirs only hides it
+function ReportArt({ user, name, onClose, onReported }: { user: number; name: string; onClose: () => void; onReported: () => void }) {
+  const signedIn = !!session()
+  return (
+    <Dialog title="Report picture" onClose={onClose}>
+      {(close) => (
+        <>
+          <p>
+            Hide {name}'s picture{signedIn ? ' and send it to be looked at' : ''}? You'll see the default from now on.
+          </p>
+          <div className="button-row">
+            <button type="button" className="button neutral" onClick={() => close()}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => {
+                if (signedIn) call('/report', { method: 'POST', body: { user } }).catch(() => {})
+                close(onReported)
+                haptic('success')
+              }}
+            >
+              Report
+            </button>
+          </div>
+        </>
+      )}
+    </Dialog>
   )
 }
 

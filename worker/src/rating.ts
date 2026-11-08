@@ -19,13 +19,6 @@ export const BOT_SEEDS: Record<string, number> = {
   'bot:eta': 922, 'bot:sigma': 898, 'bot:nu': 840, 'bot:tau': 822, 'bot:kappa': 782, 'bot:alpha': 765,
 }
 export const isBot = (who: string) => who.startsWith('bot:')
-// gold (1,150) is for people. A bot that would climb past this just stops, and the pair's swap is trimmed on both sides
-export const BOT_MAX = 1149
-export function capBots(delta: number, a: { who: string; rating: number }, b: { who: string; rating: number }) {
-  if (isBot(a.who)) delta = Math.min(delta, Math.max(0, BOT_MAX - a.rating))
-  if (isBot(b.who)) delta = Math.max(delta, -Math.max(0, BOT_MAX - b.rating))
-  return delta
-}
 
 // u:<id> for people, the roster id for bots
 export const seedOf = (who: string) => BOT_SEEDS[who] ?? START

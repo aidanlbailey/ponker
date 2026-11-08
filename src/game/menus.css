@@ -139,9 +139,9 @@
   }
 
   .picker-body {
-    width: min(100%, 640px);
+    --column: 640px;
     gap: 1.5rem;
-    padding: 0.75rem 6px 1.5rem 0;
+    padding: 0.75rem 0 1.5rem;
 
     h2 {
       margin: 0 0 0.75rem;

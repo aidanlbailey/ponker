@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BLOCK_HANDS, BOT_MAX, capBots, exchange, K, nyDay, PAIR_CAP, SPREAD } from './rating'
+import { BLOCK_HANDS, exchange, K, nyDay, PAIR_CAP, SPREAD } from './rating'
 
 const full = BLOCK_HANDS
 
@@ -46,20 +46,6 @@ describe('exchange', () => {
     const whole = exchange(1030, 990, 100, 1800, false, 0)
     const parts = exchange(1030, 990, 37, 2600, false, 0) + exchange(1030, 990, 63, -800, false, 0)
     expect(parts).toBeCloseTo(whole)
-  })
-})
-
-describe('capBots', () => {
-  const psi = (rating: number) => ({ who: 'bot:psi', rating })
-  const me = { who: 'u:1', rating: 1000 }
-  it('stops a bot at BOT_MAX from either side and leaves losses alone', () => {
-    expect(capBots(5, psi(BOT_MAX - 2), me)).toBe(2)
-    expect(capBots(-5, me, psi(BOT_MAX - 2))).toBe(-2)
-    expect(capBots(-5, psi(BOT_MAX - 2), me)).toBe(-5)
-    // already over somehow: can still lose, can't gain
-    expect(capBots(3, psi(BOT_MAX + 4), me)).toBe(0)
-    expect(capBots(-3, psi(BOT_MAX + 4), me)).toBe(-3)
-    expect(capBots(5, me, { who: 'u:2', rating: 1200 })).toBe(5)
   })
 })
 

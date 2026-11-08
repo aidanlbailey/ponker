@@ -35,7 +35,7 @@ const PREVIEWS: Record<string, PreviewName> = { '#quick': 'quick', '#rooms': 'ro
 // lowercased, so a code someone typed or read out in capitals still lands
 const known = (raw: string) => {
   const hash = raw.toLowerCase()
-  return ['', '#', '#chips', '#bots', '#play', '#profile', '#admin', '#history'].includes(hash) || /^#history\/\d+$/.test(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
+  return ['', '#', '#chips', '#bots', '#play', '#profile', '#admin', '#history', '#boards'].includes(hash) || /^#(history|player)\/\d+$/.test(hash) || hash in PREVIEWS || ROOM_HASH.test(hash)
 }
 const badLink = (): ToastMessage => ({ text: "That link doesn't go anywhere", type: 'error', id: Date.now() })
 // a mistyped or broken link goes home, but says so rather than just looking like the wrong page
@@ -170,10 +170,11 @@ export function App() {
     )
   }
 
-  if (hash === '#profile' || hash === '#admin') {
+  if (hash === '#profile' || hash === '#admin' || hash === '#boards' || hash.startsWith('#player/')) {
+    const view = hash === '#profile' ? 'me' : hash === '#admin' ? 'admin' : hash === '#boards' ? 'boards' : Number(hash.split('/')[1])
     return (
       <Suspense>
-        <Profile key={hash} name={userName} admin={hash === '#admin'} />
+        <Profile key={hash} name={userName} view={view} />
       </Suspense>
     )
   }
