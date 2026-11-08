@@ -893,9 +893,14 @@
   transition: translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
+/* off the end of the stacks, but a huge pot on a phone has enough colours to push it off the felt. The pot's
+   in the felt's middle, so 50cqw is how far it can go: past that it backs up over the last stacks instead */
 .pot .pile-label {
   left: calc(50% + var(--of, 1) * (var(--chip-size) + 4px) / 2 + 0.3rem);
-  transition: left 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
+  translate: min(0px, 50cqw - var(--of, 1) * (var(--chip-size) + 4px) / 2 - 0.3rem - 0.75rem - 100%) -50%;
+  transition:
+    left 0.4s cubic-bezier(0.3, 0.7, 0.4, 1),
+    translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
 .pile-label {
