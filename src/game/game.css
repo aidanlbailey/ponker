@@ -903,6 +903,19 @@
     translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
+/* the upper right bet's in the way, so stop a rem short of its chips. Same clamp as .felt.ring .bet's room,
+   the 1rem covers a bet amount wider than its chips */
+.pot.crowded .pile-label {
+  --bet-left: calc(min(var(--crowd-x) * 1cqw, 100cqw - 2 * 3.3rem - var(--chip-size) / 2 - 4px) - var(--chip-size) / 2);
+
+  translate: min(
+      0px,
+      50cqw - var(--of, 1) * (var(--chip-size) + 4px) / 2 - 0.3rem - 0.75rem - 100%,
+      var(--bet-left) - 50cqw - 1rem - var(--of, 1) * (var(--chip-size) + 4px) / 2 - 0.3rem - 100%
+    )
+    -50%;
+}
+
 .pile-label {
   position: absolute;
   z-index: 4; /* over any chip, flying ones too */

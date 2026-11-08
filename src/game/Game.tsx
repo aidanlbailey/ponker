@@ -45,6 +45,18 @@ function betSpot(place: number, seats: number) {
   return { className: cx('bet side', Math.sin(angle) < 0 && 'high'), style: around(place, seats, 0.62, 1) }
 }
 
+// the upper right corner's bet sits in the pot amount's row, so a pot with a few colours runs the amount into it.
+// Hands back the bet's x so the amount can stop short of it, null when there's nothing there to hit
+function crowdingBet(view: TableState, bottom: number, hasChips: (seat: number) => boolean) {
+  const seats = view.seats.length
+  if (seats <= 2) return null
+  for (let i = 0; i < seats; i++) {
+    const angle = angleOf((i - bottom + seats) % seats, seats)
+    if (Math.sin(angle) < 0 && Math.cos(angle) >= 0.3 && hasChips(i)) return 50 + 43 * 0.62 * Math.cos(angle)
+  }
+  return null
+}
+
 // the next seats round that were dealt in, since a room can have open chairs or someone sat out
 function blindOf(view: TableState, seat: number) {
   if (view.street === 'waiting') return null
@@ -226,6 +238,7 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
   const nameOf = (seat: number) => (seat === game.me ? heroName : game.nameOf(seat))
   const seats = view.seats.length
   const bottom = game.me ?? 0
+  const crowdX = crowdingBet(view, bottom, (i) => game.pile(`bet-${i}`).length + game.pile(`win-${i}`).length > 0)
   const me = game.me === null ? null : view.seats[game.me]!
   const live = view.street !== 'waiting' && !idle
   const inHand = !!me && me.cards.length > 0 && !me.folded
@@ -305,8 +318,8 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
           <ChipShadows />
           <div className="felt-center">
             <output
-              className="pot"
-              style={{ '--of': game.potStacks.length, '--tall': Math.max(1, ...game.potStacks.map((stack) => stack.count)) } as CSSProperties}
+              className={cx('pot', crowdX !== null && 'crowded')}
+              style={{ '--of': game.potStacks.length, '--tall': Math.max(1, ...game.potStacks.map((stack) => stack.count)), '--crowd-x': crowdX ?? 0 } as CSSProperties}
             >
               <span className="pile-slot pot-slot" data-spot="pot">
                 {game.potStacks.map(({ value, part, count }, i) => (
