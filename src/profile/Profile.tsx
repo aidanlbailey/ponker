@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { paint, PixelArt } from '../components/PixelArt'
 import { call, deleteAccount, session, signInUrl, signOut, type Me } from '../lib/account'
-import { blank, decode, encode, PALETTE, SIZE } from '../lib/avatar'
+import { blank, decode, encode, PALETTE, quantize, SIZE } from '../lib/avatar'
 import { haptic } from '../lib/haptics'
 import { Screen } from '../hub/Previews'
 import { RatingBadge } from '../components/RatingBadge'
@@ -222,6 +222,25 @@ function Editor({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) {
     setNote('')
   }
 
+  // the photo never leaves the browser. Centre crop to a square, let the browser average it down, then snap to the palette
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const img = await createImageBitmap(file)
+      const side = Math.min(img.width, img.height)
+      const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
+      ctx.canvas.width = ctx.canvas.height = SIZE
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE)
+      img.close()
+      setPixels(quantize(ctx.getImageData(0, 0, SIZE, SIZE).data))
+      setNote('Touch it up if you like, then Save')
+    } catch {
+      setNote("Couldn't read that image")
+      haptic('error')
+    }
+  }
+
   const saved = me.avatar ?? null
   const current = encode(pixels)
   const save = async () => {
@@ -267,6 +286,18 @@ function Editor({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) {
         ))}
       </div>
       <div className="button-row">
+        <label className="button neutral">
+          Upload
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              upload(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+        </label>
         <button type="button" className="button neutral" onClick={() => setPixels(blank())} disabled={!current}>
           Clear
         </button>

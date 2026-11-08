@@ -25,7 +25,41 @@ export const PALETTE = [
   '#8a5a3c',
 ]
 
-export const isArt = (art: unknown): art is string => typeof art === 'string' && ART.test(art)
+// OKLab, so distance is roughly how different two colours look. Redmean weighed green 4x and sent dark hair to the felt
+const lin = (c: number) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+function oklab(r: number, g: number, b: number): [number, number, number] {
+  ;[r, g, b] = [lin(r), lin(g), lin(b)]
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+const LAB = PALETTE.map((hex) =>
+  hex.startsWith('#') ? oklab(...([1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number])) : null,
+)
+
+// mostly see-through pixels erase
+// ponytail: nearest colour only, no dithering. At 24x24 dither reads as noise, revisit if photos look too flat
+export function quantize(rgba: ArrayLike<number>): number[] {
+  return Array.from({ length: SIZE * SIZE }, (_, i) => {
+    if (rgba[i * 4 + 3]! < 128) return 0
+    const [L, A, B] = oklab(rgba[i * 4]!, rgba[i * 4 + 1]!, rgba[i * 4 + 2]!)
+    let best = 1
+    let bestD = Infinity
+    LAB.forEach((c, p) => {
+      if (!c) return
+      const d = (L - c[0]!) ** 2 + (A - c[1]!) ** 2 + (B - c[2]!) ** 2
+      if (d < bestD) [best, bestD] = [p, d]
+    })
+    return best
+  })
+}
+
+export const isArt =(art: unknown): art is string => typeof art === 'string' && ART.test(art)
 
 export const blank = () => Array<number>(SIZE * SIZE).fill(0)
 

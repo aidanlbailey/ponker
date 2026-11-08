@@ -22,6 +22,14 @@
     align-self: stretch;
     flex-wrap: wrap;
   }
+
+  /* Upload is a label round a hidden file input, it doesn't centre its text like a real button */
+  label.button {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    cursor: pointer;
+  }
 }
 
 /* checks show through where nothing's painted, same as the eraser swatch. Rounded like the table's avatars */
