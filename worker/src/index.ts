@@ -336,6 +336,8 @@ export default {
     if (API_PATH.test(path)) {
       const origin = request.headers.get('Origin')
       if (origin && !ORIGINS.test(origin)) return new Response('not from here', { status: 403 })
+      // Preflights don't touch data, and counting them makes ordinary browsing spend the limit twice.
+      if (request.method === 'OPTIONS') return api(request, env, ORIGINS)
       const { success } = await env.CONNECTS.limit({ key: `api:${request.headers.get('cf-connecting-ip') ?? 'local'}` })
       if (!success) return new Response('slow down', { status: 429, headers: origin ? { 'Access-Control-Allow-Origin': origin } : {} })
       return api(request, env, ORIGINS)

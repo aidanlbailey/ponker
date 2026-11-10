@@ -3,7 +3,49 @@ import { command, join, newRoom, nextWake, tick, BANK_MS } from './room'
 
 vi.mock('cloudflare:workers', () => ({ DurableObject: class {} }))
 
-import { Table } from './index'
+import worker, { Table } from './index'
+
+describe('API rate limiting', () => {
+  const origin = 'https://ponker.aidanbailey.com'
+  const headers = { Origin: origin, 'cf-connecting-ip': '192.0.2.1' }
+  function limited() {
+    const limit = vi.fn(async () => ({ success: false }))
+    const env = { CONNECTS: { limit } } as unknown as Parameters<typeof worker.fetch>[1]
+    return { limit, env }
+  }
+
+  test.each(['/me', '/boards', '/players/1'])('preflight for %s works even when the API limit is exhausted', async (path) => {
+    const { limit, env } = limited()
+    const response = await worker.fetch(new Request(`https://worker.test${path}`, {
+      method: 'OPTIONS',
+      headers: { ...headers, 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization' },
+    }), env)
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin)
+    expect(response.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('GET')
+    expect(response.headers.get('Access-Control-Max-Age')).toBe('600')
+    expect(limit).not.toHaveBeenCalled()
+  })
+
+  test('a real API request still gets a readable 429', async () => {
+    const { limit, env } = limited()
+    const response = await worker.fetch(new Request('https://worker.test/boards', { headers }), env)
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin)
+    expect(limit).toHaveBeenCalledWith({ key: 'api:192.0.2.1' })
+  })
+
+  test('preflights from another site are still rejected', async () => {
+    const { limit, env } = limited()
+    const response = await worker.fetch(new Request('https://worker.test/me', {
+      method: 'OPTIONS', headers: { Origin: 'https://other.test' },
+    }), env)
+    expect(response.status).toBe(403)
+    expect(response.headers.has('Access-Control-Allow-Origin')).toBe(false)
+    expect(limit).not.toHaveBeenCalled()
+  })
+})
 
 const A = 'token-aaaaaaaaaaaaaaaa'
 const B = 'token-bbbbbbbbbbbbbbbb'

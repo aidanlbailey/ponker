@@ -110,7 +110,7 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
     return home(`#signin/${await signIn(env, p, providerId, state.name, now)}`)
   }
 
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'Access-Control-Max-Age': '600' } })
 
   // anyone can look, signed in or not. A table's worth of ids at most
   if (path === '/ratings' && request.method === 'GET') {
