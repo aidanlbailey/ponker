@@ -69,7 +69,10 @@ test('legacy browser hides merge into the account and a fresh browser loads acco
     await mock(fresh, remote)
     await fresh.addInitScript(() => localStorage.setItem('ponker-session', 'test-session'))
     await fresh.goto('http://127.0.0.1:3000/#boards')
-    await expect.poll(() => fresh.evaluate(() => JSON.parse(localStorage.getItem('ponker-hidden-art') ?? '[]'))).toEqual([2, 3])
+    await expect.poll(() => fresh.evaluate(() => {
+      const key = Object.keys(localStorage).find((key) => key.startsWith('ponker-hidden-art:'))
+      return JSON.parse(key ? localStorage.getItem(key) ?? '[]' : '[]')
+    })).toEqual([2, 3])
     await expect(fresh.locator('.leaderboard canvas')).toHaveCount(0)
   } finally { await context.close() }
 })
@@ -89,7 +92,7 @@ test('replays look up current art, react to hides, and discard unidentified old 
   expect(await page.locator('.seat:not(.seat-badges) .avatar-art').evaluate((canvas) => (canvas as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, 1, 1).data[3])).toBe(0)
   await page.evaluate(() => {
     localStorage.setItem('ponker-hidden-art', '[2]')
-    dispatchEvent(new Event('hidden-art'))
+    dispatchEvent(new StorageEvent('storage', { key: 'ponker-hidden-art' }))
   })
   await expect(page.locator('.seat:not(.seat-badges) .avatar-art')).toHaveCount(0)
   await page.goto('/#history/2')

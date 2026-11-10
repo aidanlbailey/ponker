@@ -21,9 +21,11 @@ export function useHiddenArtSync() {
     const visible = () => { if (!document.hidden) sync() }
     sync()
     addEventListener('focus', sync)
+    addEventListener('storage', sync)
     addEventListener('visibilitychange', visible)
     return () => {
       removeEventListener('focus', sync)
+      removeEventListener('storage', sync)
       removeEventListener('visibilitychange', visible)
     }
   }, [])
