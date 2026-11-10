@@ -86,12 +86,43 @@ export async function deleteUser(db: D1Database, userId: number) {
 }
 
 // false when there's nothing there to report
-export async function report(db: D1Database, userId: number, reporterId: number, now: number) {
+export async function report(db: D1Database, userId: number, reporterId: number, now: number, hidden = true) {
   const res = await db
     .prepare('INSERT INTO reports (user_id, reporter_id, at) SELECT id, ?, ? FROM users WHERE id = ? AND avatar IS NOT NULL ON CONFLICT DO NOTHING')
     .bind(reporterId, now, userId)
     .run()
-  return res.meta.changes > 0 || !!(await db.prepare('SELECT 1 FROM users WHERE id = ? AND avatar IS NOT NULL').bind(userId).first())
+  const exists = res.meta.changes > 0 || !!(await db.prepare('SELECT 1 FROM users WHERE id = ? AND avatar IS NOT NULL').bind(userId).first())
+  if (exists) await mergeHiddenArt(db, reporterId, [userId], hidden)
+  return exists
+}
+
+export async function mergeHiddenArt(db: D1Database, reporter: number, ids: number[], hidden = true) {
+  if (ids.length) {
+    await db.prepare(`INSERT INTO hidden_art (reporter_id, user_id, hidden)
+      SELECT ?, id, ? FROM users WHERE id IN (${ids.map(() => '?').join(',')}) AND id != ?
+      ON CONFLICT DO NOTHING`).bind(reporter, +hidden, ...ids, reporter).run()
+  }
+}
+
+export async function hiddenArtOf(db: D1Database, reporter: number) {
+  const { results } = await db.prepare('SELECT user_id FROM hidden_art WHERE reporter_id = ? AND hidden = 1').bind(reporter).all<{ user_id: number }>()
+  return results.map((r) => r.user_id)
+}
+
+export async function pictureVisibility(db: D1Database, reporter: number, choices: { user: number; hidden: boolean }[]) {
+  if (choices.length) await db.batch(choices.map(({ user, hidden }) =>
+    db.prepare(`INSERT INTO hidden_art (reporter_id, user_id, hidden)
+      SELECT ?, id, ? FROM users WHERE id = ? AND id != ?
+      ON CONFLICT (reporter_id, user_id) DO UPDATE SET hidden = excluded.hidden`).bind(reporter, +hidden, user, reporter),
+  ))
+  const { results } = await db.prepare('SELECT user_id, hidden FROM hidden_art WHERE reporter_id = ?').bind(reporter).all<{ user_id: number; hidden: number }>()
+  return { hidden: results.filter((r) => r.hidden).map((r) => r.user_id), shown: results.filter((r) => !r.hidden).map((r) => r.user_id) }
+}
+
+export async function avatarsOf(db: D1Database, ids: number[]) {
+  if (!ids.length) return []
+  const { results } = await db.prepare(`SELECT id, avatar FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all<{ id: number; avatar: string | null }>()
+  return results
 }
 
 export async function reported(db: D1Database) {
@@ -236,4 +267,44 @@ export async function pairsToday(db: D1Database, now: number) {
     .bind(nyDay(now))
     .all<PairDay>()
   return results.map((p) => ({ ...p, a_name: p.a_name ?? botById(p.a)?.name ?? p.a, b_name: p.b_name ?? botById(p.b)?.name ?? p.b }))
+}
+
+export const MAX_FRIENDS = 200
+export const MAX_ASKING = 50 // requests out that nobody's answered yet
+
+export type Friends = { friends: User[]; incoming: User[]; outgoing: User[] }
+
+export async function friendsOf(db: D1Database, me: number): Promise<Friends> {
+  const [{ results: out }, { results: inc }] = (await db.batch([
+    db.prepare('SELECT u.id, u.name, u.avatar FROM friends f JOIN users u ON u.id = f.to_id WHERE f.from_id = ? ORDER BY u.name_lc').bind(me),
+    db.prepare('SELECT u.id, u.name, u.avatar FROM friends f JOIN users u ON u.id = f.from_id WHERE f.to_id = ? ORDER BY u.name_lc').bind(me),
+  ])) as [D1Result<User>, D1Result<User>]
+  const back = new Set(inc.map((u) => u.id))
+  const both = new Set(out.filter((u) => back.has(u.id)).map((u) => u.id))
+  return { friends: out.filter((u) => both.has(u.id)), incoming: inc.filter((u) => !both.has(u.id)), outgoing: out.filter((u) => !both.has(u.id)) }
+}
+
+export async function mutualIds(db: D1Database, me: number) {
+  const { results } = await db
+    .prepare('SELECT a.to_id AS id FROM friends a JOIN friends b ON b.from_id = a.to_id AND b.to_id = a.from_id WHERE a.from_id = ?')
+    .bind(me)
+    .all<{ id: number }>()
+  return results.map((r) => r.id)
+}
+
+// a request, or saying yes when theirs is already there. null is fine, otherwise why not
+export async function addFriend(db: D1Database, me: number, them: number, now: number) {
+  if (me === them) return "That's you"
+  if (!(await userById(db, them))) return 'Nobody by that id'
+  const mine = await friendsOf(db, me)
+  const accepting = mine.incoming.some((u) => u.id === them)
+  if (mine.friends.length >= MAX_FRIENDS) return 'You have as many friends as you can'
+  if (!accepting && mine.outgoing.length >= MAX_ASKING) return 'Too many requests waiting already'
+  await db.prepare('INSERT INTO friends (from_id, to_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').bind(me, them, now).run()
+  return null
+}
+
+// decline, take back a request, or unfriend. Either way both rows go
+export async function dropFriend(db: D1Database, me: number, them: number) {
+  await db.prepare('DELETE FROM friends WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)').bind(me, them, them, me).run()
 }

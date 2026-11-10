@@ -1,0 +1,1 @@
+ALTER TABLE hidden_art ADD COLUMN hidden INTEGER NOT NULL DEFAULT 1 CHECK (hidden IN (0, 1));

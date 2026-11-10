@@ -46,17 +46,24 @@
   color: #ffcf9a;
 }
 
-/* over the table but not modal, you can still play with it open. Up top so it covers seats and
-   never your cards or the bet controls */
+/* the chat button sits on the dock's top right corner with the panel opening up out of it. Not modal, you
+   can still play with it open, and it never covers your cards or the bet controls */
+.room-chat-button {
+  position: relative;
+}
+
+.room-chat-button .room-unread {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  margin: 0;
+}
+
 .room-chat {
-  position: fixed;
-  top: calc(max(0.4rem, env(safe-area-inset-top)) + 2.6rem);
-  left: max(12px, env(safe-area-inset-left));
-  z-index: 20;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   width: min(calc(100vw - 24px), 21rem);
-  height: min(40dvh, 24rem);
+  max-height: min(50dvh, 26rem);
   border-radius: 1rem;
   background: rgb(14 20 17 / 0.94);
   box-shadow:
@@ -71,7 +78,14 @@
     padding: 0.55rem 0.7rem 0.4rem 0.9rem;
   }
 
+  > * {
+    flex-shrink: 0;
+  }
+
   ol {
+    flex: 1 1 auto;
+    flex-shrink: 1;
+    min-height: 4rem;
     overflow-y: auto;
     margin: 0;
     padding: 0 0.9rem;
@@ -108,6 +122,34 @@
 
 .room-chat-empty {
   color: rgb(223 232 226 / 0.5);
+}
+
+.room-chat-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+
+  .avatar {
+    width: 2rem;
+    --avatar-text: 1rem;
+  }
+}
+
+.room-chat-message {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+@media (min-aspect-ratio: 5/4) {
+  .room-chat {
+    /* The dock zooms on desktop, so the fixed controls can outgrow the panel's height cap. */
+    max-height: none;
+
+    ol {
+      max-height: min(20dvh, 10rem);
+    }
+  }
 }
 
 .room-panel {
@@ -154,7 +196,7 @@
 @keyframes chat-in {
   from {
     opacity: 0;
-    translate: 0 -10px;
+    translate: 0 10px;
   }
 }
 
@@ -180,38 +222,30 @@
   }
 }
 
-.room-emotes {
-  grid-template-rows: auto auto;
-  height: auto;
-  padding-bottom: 0.7rem;
-}
-
 .room-emote-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0 0.7rem;
-}
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem 0.7rem;
 
-/* in a private room's chat it's one row that scrolls, the messages need the height */
-.room-chat:not(.room-emotes) .room-emote-list {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-top: 0.5rem;
-  scrollbar-width: none;
-
-  button {
-    flex: none;
+  /* all fifteen fit without a scroll, a row you couldn't scroll with a mouse was #4 */
+  .poker-toggle {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.8rem;
   }
 }
 
-.room-chat:not(.room-emotes) {
-  grid-template-rows: auto 1fr auto auto;
+/* who'll read it, at a public table */
+.room-chat-note {
+  margin: -0.2rem 0 0;
+  padding: 0 0.9rem 0.7rem;
+  color: rgb(223 232 226 / 0.6);
+  font-size: 0.8rem;
 }
 
 .room-emotes-note {
   margin: 0;
-  padding: 0 0.9rem;
+  padding: 0.5rem 0.9rem 0.7rem;
   color: rgb(223 232 226 / 0.6);
 }
 

@@ -33,6 +33,15 @@ function foldedHand(log = recorder('Bots')) {
 }
 
 describe('hand log', () => {
+  it('keeps account ids by seat without storing their pictures', () => {
+    const log = recorder('Venom')
+    const before = headsUp()
+    const dealt = applyAction(before, { type: 'deal', deck: shuffledDeck() })
+    log.dealt(before, dealt, 0, ['One', 'Guest'], [12, null])
+    log.jump({ ...dealt, street: 'complete' })
+    expect(loadHands()[0]!.users).toEqual([12, null])
+    expect(loadHands()[0]!.arts).toBeUndefined()
+  })
   it('keeps a finished hand with the steps as you saw them', () => {
     const { end } = foldedHand()
     const [hand] = loadHands()

@@ -16,7 +16,8 @@ export type Hand = {
   where: string // Bots, a room's code or a public table's name
   me: number
   names: (string | null)[]
-  arts?: (string | null)[] // signed-in players' pictures. Missing on hands kept before these were
+  arts?: (string | null)[] // legacy picture snapshots, no longer used for replay
+  users?: (number | null)[] // missing on old hands, whose saved art cannot be checked against reports
   before: TableState
   steps: Step[]
 }
@@ -44,7 +45,7 @@ export function recorder(where: string) {
   const keep = () => hand && finished(hand) && store(hand)
   return {
     // me is null for someone watching, who doesn't get a history
-    dealt(before: TableState, next: TableState, me: number | null, names: (string | null)[], arts?: (string | null)[]) {
+    dealt(before: TableState, next: TableState, me: number | null, names: (string | null)[], users?: (number | null)[]) {
       if (me === null) return void (hand = null)
       // before the deal is the last hand's end, result and all. Only the stacks belong to this one
       const empty: TableState = {
@@ -56,7 +57,7 @@ export function recorder(where: string) {
         result: null,
         seats: before.seats.map((seat) => seat && { ...seat, cards: [], bet: 0, committed: 0, folded: false, acted: false, shown: false }),
       }
-      hand = { id: Date.now(), where, me, names, arts, before: empty, steps: [{ table: next, action: { type: 'deal', deck: [] } }] }
+      hand = { id: Date.now(), where, me, names, users, before: empty, steps: [{ table: next, action: { type: 'deal', deck: [] } }] }
     },
     // lost the thread, like a reconnect that lands in a later hand. Whatever's kept stays kept
     drop() {

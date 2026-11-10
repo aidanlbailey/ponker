@@ -238,6 +238,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* friend requests waiting, on the picture's corner */
+.hub-profile-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #0e0e0e;
+  border-radius: 50%;
+  background: #ff8a5c;
+}
+
 /* name with the rating under it, both against the picture */
 .hub-profile-who {
   display: grid;

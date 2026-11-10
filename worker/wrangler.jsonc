@@ -2,6 +2,12 @@
   "name": "ponker-rooms",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "persist": true, "invocation_logs": false }
+  },
   "durable_objects": {
     "bindings": [
       { "name": "TABLE", "class_name": "Table" },

@@ -70,7 +70,7 @@ export type Rated = { a: string; b: string; n: number; d: number }
 
 export type Account = { user: number; art: string | null }
 
-export type ChatLine = { name: string; text: string; at: number }
+export type ChatLine = { name: string; text: string; at: number; seat?: number; user?: number; art?: string | null }
 export type Said = PlayerAction | { type: 'timeout' }
 
 export type Room = {
@@ -523,7 +523,9 @@ export function join(r: Room, token: string, name: string, now: number, as?: Acc
 
 // Everything a socket can ask for. Throws on anything not allowed. Chat and emotes don't touch the
 // table, so it says which it was.
-export function command(r: Room, token: string, cmd: Command, now: number): 'chat' | 'emote' | 'table' {
+export const chatText = (text: unknown) => String(text ?? '').trim().slice(0, CHAT_MAX)
+
+export function command(r: Room, token: string, cmd: Command, now: number): 'chat' | 'friendchat' | 'emote' | 'table' {
   const seat = seatOf(r, token)
   const m = r.members[seat]
 
@@ -534,11 +536,18 @@ export function command(r: Room, token: string, cmd: Command, now: number): 'cha
   }
 
   if (cmd.t === 'chat') {
-    const text = String(cmd.text ?? '').trim().slice(0, CHAT_MAX)
+    const text = chatText(cmd.text)
     if (!text) reject('empty')
+    // strangers at a public table never read each other, only mutual friends do. Never saved, so no rows
+    // and nobody who sits down later gets it
+    if (r.public) {
+      if (!m) reject('not seated')
+      if (!m!.user) reject('sign in to chat')
+      return 'friendchat'
+    }
     if (spent(r, now)) reject('room is resting')
     const name = m?.name ?? 'Watcher'
-    r.chat = [...r.chat, { name, text, at: now }].slice(-CHAT_KEPT)
+    r.chat = [...r.chat, { name, text, at: now, ...(m && { seat, user: m.user, art: m.art }) }].slice(-CHAT_KEPT)
     return 'chat'
   }
 

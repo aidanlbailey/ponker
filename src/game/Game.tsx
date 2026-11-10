@@ -221,12 +221,13 @@ type TableProps = {
   name: string
   bar?: ReactNode // extra buttons in the top bar
   dock?: ReactNode // under the bet controls
+  side?: ReactNode // pinned over the dock's top right corner, a room's chat. Never moves the controls
   // solo only, it never counts for rating and nobody else can sit in
   canHint?: boolean
   children?: ReactNode
 }
 
-export function Table({ game, name, bar, dock, canHint, children }: TableProps) {
+export function Table({ game, name, bar, dock, side, canHint, children }: TableProps) {
   const { view, board, over, paid, idle } = game
   const [hintsOn, setHints] = useStoredState('ponker-hints', true)
   const hints = !!canHint && hintsOn
@@ -471,8 +472,14 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
                     </Fade>
                   </Plate>
                   {emote && (
-                    <span key={`emote-${emote.key}`} className="said emote">
+                    <span
+                      key={`emote-${emote.key}`}
+                      className={cx('said emote', !!emote.draft && 'draft', !!emote.ms && 'chat')}
+                      style={emote.ms ? { animationDuration: `${emote.ms}ms` } : undefined}
+                    >
                       {emote.text}
+                      {emote.draft && <i className="said-caret" aria-hidden="true" />}
+                      {emote.note && <small className="said-note">{emote.note}</small>}
                     </span>
                   )}
                   {/* stays mounted under an emote, swapping it out remounted it and replayed the last action once the emote went */}
@@ -487,6 +494,7 @@ export function Table({ game, name, bar, dock, canHint, children }: TableProps) 
       </main>
 
       <aside className={cx('dock', hints && 'hinted')}>
+        {side && <div className="dock-side">{side}</div>}
         <Fade show={showHint} className="hint">
           {showHint && (
             <>

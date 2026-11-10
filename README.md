@@ -61,6 +61,36 @@ cd worker && npx wrangler dev   # rooms on ws://localhost:8787, which the dev si
 
 A production build talks to the rooms worker at `VITE_ROOMS_URL` (a `wss://` address).
 
+### Browser testing
+
+Local browser checks use [Playwright](https://playwright.dev/docs/test-configuration) and Chromium:
+
+```bash
+npm run browser:install       # once after installing or updating Playwright
+npm run test:browser          # desktop, phone emulation and two guest players
+npm run test:browser:headed   # watch the checks in Chromium
+npm run test:browser:ui       # interactive test runner
+npm run browser:open          # open localhost for manual exploration
+npm run browser:report        # inspect the latest report
+```
+
+On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
+The tests reuse Vite on 3000 and Wrangler on 8787. If either is stopped, Playwright
+starts it locally for the test run and stops that process afterward. Start both
+separately with the development commands above to keep them running for manual testing.
+Wrangler needs `--ip 0.0.0.0` for a second player on the LAN origin.
+
+The two-player check uses the local fourth public table, two fresh browser contexts,
+and separate origins. It releases its seats when finished. The second origin is
+detected from a 10.x or 192.168.x LAN address, with localhost as a fallback. Set
+`PONKER_LAN_URL` to a local HTTP origin on port 3000 to choose another address.
+The phone checks emulate Chromium, they do not test Safari or a physical phone.
+
+Tests live in `e2e/*.browser.ts`, separate from Vitest's unit tests. Screenshots are
+attached to the HTML report, and failures retain a trace of the primary browser
+context. Reports and traces stay in ignored `playwright-report/` and `test-results/`
+directories. The PONKER title gestures and final animation feel are checked by hand.
+
 Sounds are from [Kenney](https://kenney.nl)'s Casino Audio pack (CC0).
 
 Built by Aidan Bailey. [Buy me a coffee](https://ko-fi.com/aidanlbailey) if it saved you at the table.

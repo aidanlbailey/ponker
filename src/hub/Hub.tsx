@@ -61,7 +61,8 @@ function ProfileLink() {
     if (session()) call<Me>('/me').then(setMe, () => setMe(cachedMe()))
   }, [])
   return (
-    <a className="hub-profile" href="#profile" aria-label="Profile">
+    <a className="hub-profile" href="#profile" aria-label={me?.requests ? 'Profile, friend requests waiting' : 'Profile'}>
+      {!!me?.requests && <span className="hub-profile-dot" aria-hidden="true" />}
       {me && (
         <span className="hub-profile-who">
           <span className="hub-profile-name">{me.name}</span>

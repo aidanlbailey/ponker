@@ -1050,6 +1050,7 @@
 
 /* fixed height, the table gets whatever's left so a dock that resized between turns would bounce the whole board */
 .dock {
+  position: relative;
   grid-area: dock;
   transition: z-index 0s 0.35s;
   display: flex;
@@ -1099,6 +1100,73 @@
     flex-basis: 100%;
     color: var(--text);
     font-style: normal;
+  }
+}
+
+/* hangs off the dock's top right, so whatever's in it never pushes the controls about. Opens upward */
+.dock-side {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* with room either side, beside the controls instead, so the panel's off your seat */
+@media (min-aspect-ratio: 5/4) {
+  .dock-side {
+    right: auto;
+    bottom: 0;
+    left: calc(100% + 12px);
+    align-items: flex-start;
+  }
+}
+
+/* a chat line has more to say than an emote, so it wraps instead of running off across the felt */
+.said.emote.chat,
+.said.emote.draft {
+  width: max-content;
+  max-width: 14rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* stays up while you type, no fade */
+.said.emote.draft {
+  animation: said-pop 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --amp: 0.6;
+}
+
+.said-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .said-caret {
+    animation: caret 1s steps(1) infinite;
+  }
+}
+
+.said-note {
+  display: block;
+  margin-top: 0.15rem;
+  opacity: 0.65;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
   }
 }
 

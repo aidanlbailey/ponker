@@ -417,6 +417,27 @@ button.board-row {
   font-size: 0.875rem;
 }
 
+.player-friend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+
+  .profile-note {
+    flex-basis: 100%;
+  }
+}
+
+/* no rank column on friends */
+.board-row.friend-row {
+  grid-template-columns: auto 1fr auto;
+}
+
+.friend-answer {
+  display: flex;
+  gap: 6px;
+}
+
 .rating-info {
   padding: 1rem;
   border: 1px solid var(--lit-line, #303030);
@@ -488,6 +509,20 @@ button.board-row {
   span {
     color: var(--menu-soft);
     font-size: 0.72rem;
+  }
+}
+
+.picture-hide-choice {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+
+  input {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
   }
 }
 

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type Re
 import { Dialog } from '../components/Dialog'
 import { paint, PixelArt } from '../components/PixelArt'
 import { RatingBadge } from '../components/RatingBadge'
-import { cachedMe, call, shared, deleteAccount, hiddenArt, hideArt, session, signInUrl, signOut, type Me } from '../lib/account'
+import { addFriend, cachedMe, call, dropFriend, friends, shared, deleteAccount, setArtHidden, session, signInUrl, signOut, type Friend, type Friends, type Me } from '../lib/account'
 import { blank, decode, encode, PALETTE, quantize, SIZE } from '../lib/avatar'
+import { useHiddenArt } from '../hooks/useHiddenArt'
 import { haptic } from '../lib/haptics'
 import { Screen } from '../hub/Previews'
-import { around, BoardList, boardRows, Boards, BoardTabs, perHundred, useBoards, useShowBots, type Tab } from './Boards'
+import { around, BoardList, Face, boardRows, Boards, BoardTabs, perHundred, useBoards, useShowBots, type Tab } from './Boards'
 import './profile.css'
 
 // your own on #profile, someone else's on #player/<id>, the full boards on #boards
@@ -36,7 +37,7 @@ export default function Profile({ name, view }: { name: string; view: ProfileVie
 }
 
 // someone's profile over the table, so having a look doesn't cost you your seat
-export function PlayerSheet({ id, onClose, onReported }: { id: number; onClose: () => void; onReported: () => void }) {
+export function PlayerSheet({ id, onClose, onReported }: { id: number; onClose: () => void; onReported?: () => void }) {
   const [who, setWho] = useState(id)
   const [leaving, setLeaving] = useState(false)
   // no animation to wait for with reduced motion, so straight out
@@ -155,7 +156,7 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
   const [painting, setPainting] = useState(false)
   const [info, setInfo] = useState(false)
   const [reporting, setReporting] = useState(false)
-  const [hidden, setHidden] = useState(() => hiddenArt().includes(id))
+  const hidden = useHiddenArt().includes(id)
   const [note, setNote] = useState('')
 
   useEffect(() => {
@@ -243,6 +244,7 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
         <p className="player-hands">
           {hands.toLocaleString('en-US')} {hands === 1 ? 'hand' : 'hands'} played
         </p>
+        {!mine && <FriendButton id={id} />}
         {note && (
           <p className="profile-note" role="status">
             {note}
@@ -257,10 +259,16 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
       </header>
       <StatsCard rows={player.stats} you={mine} />
       <BoardSlice id={id} placing={player.rating === null} open={open} wholeBoard={wholeBoard} />
+      {mine && <FriendsCard open={open} />}
       {mine && children}
       {!mine && art && (
         <button type="button" className="player-report" onClick={() => setReporting(true)}>
           Report picture
+        </button>
+      )}
+      {!mine && hidden && (
+        <button type="button" className="player-report" onClick={() => setArtHidden(id, false)}>
+          Show picture
         </button>
       )}
       {reporting && (
@@ -268,7 +276,7 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
           user={id}
           name={player.name}
           onClose={() => setReporting(false)}
-          onReported={() => (hideArt(id), setHidden(true), onReported?.())}
+          onReported={(hide) => (setArtHidden(id, hide), onReported?.())}
         />
       )}
       {painting && me && (
@@ -282,6 +290,130 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
         </Dialog>
       )}
     </div>
+  )
+}
+
+// signed in and not yourself. Friends are who reads your chat at public tables
+function FriendButton({ id }: { id: number }) {
+  // a tab that's never been to the hub hasn't cached you yet
+  const [viewer, setViewer] = useState(cachedMe)
+  const [lists, setLists] = useState<Friends | null>(null)
+  useEffect(() => {
+    if (session() && !viewer) call<Me>('/me').then(setViewer, () => {})
+  }, [viewer])
+  const [sure, setSure] = useState(false)
+  const [why, setWhy] = useState('')
+  const other = !!viewer && viewer.id !== id
+  useEffect(() => {
+    if (other) friends().then(setLists, () => {})
+  }, [id, other])
+  if (!other || !lists) return null
+  const has = (l: Friend[]) => l.some((u) => u.id === id)
+  const act = (f: (id: number) => Promise<Friends>) => {
+    setWhy('')
+    f(id).then(
+      (l) => (setLists(l), setSure(false)),
+      (e: Error) => setWhy(e.message),
+    )
+  }
+  const button = (label: string, f: typeof addFriend, primary = false) => (
+    <button type="button" className={`button ${primary ? 'primary' : 'neutral'}`} onClick={() => act(f)}>
+      {label}
+    </button>
+  )
+  return (
+    <div className="player-friend">
+      {has(lists.friends) ? (
+        sure ? (
+          <>
+            {button('Unfriend', dropFriend)}
+            <button type="button" className="button neutral" onClick={() => setSure(false)}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <button type="button" className="button neutral" aria-label="Friends, tap to unfriend" onClick={() => setSure(true)}>
+            Friends
+          </button>
+        )
+      ) : has(lists.incoming) ? (
+        <>
+          {button('Accept friend request', addFriend, true)}
+          {button('Decline', dropFriend)}
+        </>
+      ) : has(lists.outgoing) ? (
+        <button type="button" className="button neutral" aria-label="Request sent, tap to take it back" onClick={() => act(dropFriend)}>
+          Requested
+        </button>
+      ) : (
+        button('Add friend', addFriend, true)
+      )}
+      {why && (
+        <p className="profile-note" role="status">
+          {why}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function FriendsCard({ open }: { open: (id: number) => void }) {
+  const [lists, setLists] = useState<Friends | null>(null)
+  const hidden = useHiddenArt()
+  useEffect(() => {
+    friends().then(setLists, () => {})
+  }, [])
+  if (!lists) return null
+  const answer = (f: typeof addFriend, id: number) => f(id).then(setLists, () => {})
+  const face = (u: Friend) => <Face avatar={hidden.includes(u.id) ? null : u.avatar} name={u.name} />
+  const known = [...lists.friends.map((u) => ({ ...u, sub: '' })), ...lists.outgoing.map((u) => ({ ...u, sub: 'Request sent' }))]
+  return (
+    <section className="picker-seats">
+      <div className="player-section-head">
+        <h2>Friends</h2>
+        <small>only they read your chat at public tables</small>
+      </div>
+      {lists.incoming.length > 0 && (
+        <ol className="leaderboard">
+          {lists.incoming.map((u) => (
+            <li key={u.id}>
+              <div className="board-row friend-row">
+                {face(u)}
+                <span className="board-name">
+                  <b>{u.name}</b>
+                  <small>wants to be friends</small>
+                </span>
+                <span className="friend-answer">
+                  <button type="button" className="poker-toggle" onClick={() => answer(addFriend, u.id)}>
+                    Accept
+                  </button>
+                  <button type="button" className="poker-toggle" onClick={() => answer(dropFriend, u.id)}>
+                    Decline
+                  </button>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {known.length ? (
+        <ol className="leaderboard">
+          {known.map((u) => (
+            <li key={u.id}>
+              <button type="button" className="board-row friend-row" onClick={() => open(u.id)}>
+                {face(u)}
+                <span className="board-name">
+                  <b>{u.name}</b>
+                  {u.sub && <small>{u.sub}</small>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        !lists.incoming.length && <p className="profile-note">No friends yet. Tap someone's name at a table to add them.</p>
+      )}
+    </section>
   )
 }
 
@@ -619,15 +751,21 @@ function AccountActions({ me, onGone }: { me: Me; onGone: () => void }) {
 
 // Hides the picture for you straight away. Signed in, it also goes to Aidan to look at. A guest's report would be
 // one anyone could send by the thousand, so theirs only hides it
-function ReportArt({ user, name, onClose, onReported }: { user: number; name: string; onClose: () => void; onReported: () => void }) {
+function ReportArt({ user, name, onClose, onReported }: { user: number; name: string; onClose: () => void; onReported: (hidden: boolean) => void }) {
   const signedIn = !!session()
+  const [hide, setHide] = useState(true)
   return (
     <Dialog title="Report picture" onClose={onClose}>
       {(close) => (
         <>
           <p>
-            Hide {name}'s picture{signedIn ? ' and send it to be looked at' : ''}? You'll see the default from now on.
+            Report {name}'s picture{signedIn ? ' and send it to be looked at' : ''}?
           </p>
+          <label className="picture-hide-choice">
+            <input type="checkbox" checked={hide} onChange={(e) => setHide(e.target.checked)} />
+            Hide their picture for me
+          </label>
+          <p className="profile-note">{hide ? "You'll see the default until you choose Show picture on their profile." : "You'll keep seeing their picture."}</p>
           <div className="button-row">
             <button type="button" className="button neutral" onClick={() => close()}>
               Cancel
@@ -636,8 +774,8 @@ function ReportArt({ user, name, onClose, onReported }: { user: number; name: st
               type="button"
               className="button primary"
               onClick={() => {
-                if (signedIn) call('/report', { method: 'POST', body: { user } }).catch(() => {})
-                close(onReported)
+                if (signedIn) call('/report', { method: 'POST', body: { user, hidden: hide } }).catch(() => {})
+                close(() => onReported(hide))
                 haptic('success')
               }}
             >

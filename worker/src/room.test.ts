@@ -195,6 +195,24 @@ describe('room', () => {
     expect(r.chat.at(-1)!.text).toHaveLength(200)
   })
 
+  test('chat keeps the sender picture and identity when their seat changes', () => {
+    const r = newRoom()
+    join(r, 'u:5', 'Bo', 0, { user: 5, art: 'old-picture' })
+    command(r, 'u:5', { t: 'chat', text: 'hello' }, 1)
+    join(r, 'u:5', 'New name', 2, { user: 5, art: 'new-picture' })
+    expect(r.chat[0]).toMatchObject({ name: 'Bo', user: 5, art: 'old-picture', text: 'hello' })
+  })
+
+  test('public chat only goes out for a seated account, and never into the log', () => {
+    const r = newRoom(true)
+    join(r, A, 'Ann', 0)
+    join(r, 'u:5', 'Bo', 0, { user: 5, art: null })
+    expect(() => command(r, A, { t: 'chat', text: 'hi' }, 0)).toThrow('sign in to chat')
+    expect(() => command(r, C, { t: 'chat', text: 'hi' }, 0)).toThrow('not seated')
+    expect(command(r, 'u:5', { t: 'chat', text: 'hi' }, 0)).toBe('friendchat')
+    expect(r.chat).toHaveLength(0)
+  })
+
   // a grace that ran out mid-hand used to keep the wake in the past, so the alarm fired back to back
   test('the next wake is never in the past, even with a grace run out mid-hand', () => {
     const r = newRoom()

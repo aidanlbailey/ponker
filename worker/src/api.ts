@@ -15,7 +15,7 @@ export interface AccountEnv {
   ADMIN_ID?: string // Aidan's user id. Unset, nobody's admin
 }
 
-export const API_PATH = /^\/(auth\/|me$|me\/stats$|signout$|report$|admin\/|ratings$|boards$|players\/\d+$)/
+export const API_PATH = /^\/(auth\/|me$|me\/stats$|me\/friends$|me\/hidden-art$|friends\/\d+$|signout$|report$|admin\/|ratings$|avatars$|boards$|players\/\d+$)/
 
 const BOARD_MIN_HANDS = 200 // bot-free hands before you show on the bb/100 board
 const RATED_ID = /^(u:\d+|bot:[a-z]+)$/
@@ -118,6 +118,10 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
     return json(await db.ratingsOf(env.DB, ids))
   }
   if (path === '/boards' && request.method === 'GET') return json(await db.boards(env.DB, BOARD_MIN_HANDS))
+  if (path === '/avatars' && request.method === 'GET') {
+    const ids = [...new Set((url.searchParams.get('ids') ?? '').split(',').map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))].slice(0, 6)
+    return json(await db.avatarsOf(env.DB, ids))
+  }
   // someone's profile, what you see tapping their name at the table
   const player = path.match(/^\/players\/(\d+)$/)
   if (player && request.method === 'GET') {
@@ -141,7 +145,28 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
   }
 
   const rating = async () => (await db.ratingsOf(env.DB, [`u:${me.id}`]))[`u:${me.id}`] ?? null
-  if (path === '/me' && request.method === 'GET') return json({ ...me, admin, rating: await rating() })
+  if (path === '/me/hidden-art' && request.method === 'POST') {
+    const changes = await body()
+    const ids = changes.ids
+    const choices = changes.choices ?? []
+    if (!Array.isArray(ids) || ids.length > 90 || !ids.every((id) => Number.isSafeInteger(id) && id > 0)) return fail('bad players')
+    if (!Array.isArray(choices) || choices.length > 90 || !choices.every((c) => c && Number.isSafeInteger(c.user) && c.user > 0 && typeof c.hidden === 'boolean')) return fail('bad pictures')
+    await db.mergeHiddenArt(env.DB, me.id, [...new Set(ids)])
+    return json(await db.pictureVisibility(env.DB, me.id, choices))
+  }
+  // requests waiting on them, for the dot on their name
+  if (path === '/me' && request.method === 'GET')
+    return json({ ...me, admin, rating: await rating(), requests: (await db.friendsOf(env.DB, me.id)).incoming.length })
+  if (path === '/me/friends' && request.method === 'GET') return json(await db.friendsOf(env.DB, me.id))
+  const friend = path.match(/^\/friends\/(\d+)$/)
+  if (friend && request.method === 'POST') {
+    const why = await db.addFriend(env.DB, me.id, Number(friend[1]), now)
+    return why ? fail(why) : json(await db.friendsOf(env.DB, me.id))
+  }
+  if (friend && request.method === 'DELETE') {
+    await db.dropFriend(env.DB, me.id, Number(friend[1]))
+    return json(await db.friendsOf(env.DB, me.id))
+  }
   if (path === '/me/stats' && request.method === 'GET') return json(await db.statsOf(env.DB, me.id))
   if (path === '/me' && request.method === 'PUT') {
     const changes = await body()
@@ -168,9 +193,11 @@ export async function api(request: Request, env: AccountEnv, origins: RegExp): P
     return json({})
   }
   if (path === '/report' && request.method === 'POST') {
-    const user = Number((await body()).user)
+    const changes = await body()
+    const user = Number(changes.user)
     if (!Number.isInteger(user) || user === me.id) return fail('bad report')
-    return (await db.report(env.DB, user, me.id, now)) ? json({}) : fail('nothing to report', 404)
+    if (changes.hidden !== undefined && typeof changes.hidden !== 'boolean') return fail('bad picture choice')
+    return (await db.report(env.DB, user, me.id, now, changes.hidden !== false)) ? json({}) : fail('nothing to report', 404)
   }
 
   // everyone else gets the same 404 as a page that isn't there

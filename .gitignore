@@ -29,3 +29,8 @@ dist-ssr
 
 # typecheck cache from tsc -b
 *.tsbuildinfo
+
+# Local browser testing artifacts
+playwright-report/
+test-results/
+.npm-cache/

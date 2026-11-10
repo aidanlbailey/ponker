@@ -5,8 +5,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { session } from '../lib/account'
 import { load, save } from '../lib/storage'
+import { sound } from '../lib/sound'
 import type { ChatLine, Command, RoomView } from '../../worker/src/room'
-import type { TableInfo } from './public'
+import { EMOTES, type TableInfo } from './public'
 
 export type { ChatLine, RoomView }
 
@@ -20,6 +21,8 @@ const MAX_RETRY_MS = 30_000
 const TURN_MS = 20_000 // keep in step with worker/src/room.ts
 const CHAT_KEPT = 30
 const EMOTE_MS = 2600 // the bubble's animation
+// a line gets a bit longer to read the more there is of it
+export const sayMs = (text: string) => Math.min(6000, EMOTE_MS + 40 * text.length)
 
 export const ROOM_ID = /^[a-z0-9]{4,16}$/
 
@@ -51,7 +54,7 @@ export async function listTables(): Promise<TableInfo[]> {
   return res.json()
 }
 
-export type Incoming = { view: RoomView; fresh: boolean }
+export type Incoming = { view: RoomView; fresh: boolean; receivedAt: number }
 export type Clock = { seat: number; ms: number; of: number; banked: boolean; key: number }
 
 // path is room/<code> or table/<name>
@@ -62,7 +65,8 @@ export function useRoom(path: string, name: string) {
   const [latest, setLatest] = useState<RoomView | null>(null)
   const [clock, setClock] = useState<Clock | null>(null)
   const [chat, setChat] = useState<ChatLine[]>([])
-  const [emotes, setEmotes] = useState<Record<number, { i: number; key: number }>>({})
+  const [chatReceived, setChatReceived] = useState(0)
+  const [said, setSaid] = useState<Record<number, { text: string; key: number; ms?: number }>>({})
   const [version, setVersion] = useState(0)
   const queue = useRef<Incoming[]>([])
   const socket = useRef<WebSocket | null>(null)
@@ -75,9 +79,19 @@ export function useRoom(path: string, name: string) {
     let heard = 0
     let fresh = true // the next state is a full resync, not a step
     let freshChat = true
+    let mySeat: number | null = null
     let stopped = false
     let parked = false // this tab got replaced by another, it waits to be asked back
     const fading = new Set<number>()
+    const say = (seat: number, text: string, ms: number) => {
+      const key = performance.now()
+      setSaid((prev) => ({ ...prev, [seat]: { text, key, ...(ms !== EMOTE_MS && { ms }) } }))
+      const timer = window.setTimeout(() => {
+        fading.delete(timer)
+        setSaid((prev) => (prev[seat]?.key === key ? { ...prev, [seat]: undefined! } : prev))
+      }, ms)
+      fading.add(timer)
+    }
 
     const drop = () => {
       if (!ws) return
@@ -108,7 +122,8 @@ export function useRoom(path: string, name: string) {
         const msg = JSON.parse(data as string)
         if (msg.t === 'state') {
           const view = msg as RoomView
-          queue.current.push({ view, fresh })
+          mySeat = view.me
+          queue.current.push({ view, fresh, receivedAt: performance.now() })
           fresh = false
           setFirst((prev) => prev ?? view)
           setLatest(view)
@@ -125,16 +140,21 @@ export function useRoom(path: string, name: string) {
         } else if (msg.t === 'chat') {
           const lines = msg.lines as ChatLine[]
           setChat((prev) => (freshChat ? lines : [...prev, ...lines].slice(-CHAT_KEPT)))
+          // the backlog on connect is old news, only new lines go up over a seat
+          if (!freshChat) for (const l of lines) if (l.seat !== undefined) say(l.seat, l.text, sayMs(l.text))
+          if (!freshChat) {
+            const received = lines.filter((line) => line.seat === undefined || line.seat !== mySeat).length
+            if (received) {
+              // History rolls over at 30 lines. The unread count must keep moving after that.
+              setChatReceived((count) => count + received)
+              sound('chatReceive')
+            }
+          }
           freshChat = false
         } else if (msg.t === 'emote') {
           const { seat, i } = msg as { seat: number; i: number }
-          const key = performance.now()
-          setEmotes((prev) => ({ ...prev, [seat]: { i, key } }))
-          const timer = window.setTimeout(() => {
-            fading.delete(timer)
-            setEmotes((prev) => (prev[seat]?.key === key ? { ...prev, [seat]: undefined! } : prev))
-          }, EMOTE_MS)
-          fading.add(timer)
+          sound('chatOpen', { volume: 0.6 })
+          say(seat, EMOTES[i] ?? '', EMOTE_MS)
         } else if (msg.t === 'nope') {
           // we were a step behind, the state that follows puts us right
           fresh = true
@@ -196,10 +216,13 @@ export function useRoom(path: string, name: string) {
   }, [path, name])
 
   const send = (cmd: Command) => {
-    if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(cmd))
+    if (socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(JSON.stringify(cmd))
+      if (cmd.t === 'chat') sound('chatSend')
+    }
   }
 
-  return { status, tries, first, latest, clock, chat, emotes, version, queue, send, reconnect: () => reconnect.current() }
+  return { status, tries, first, latest, clock, chat, chatReceived, said, version, queue, send, reconnect: () => reconnect.current() }
 }
 
 export type RoomSocket = ReturnType<typeof useRoom>

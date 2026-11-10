@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { PixelArt } from '../components/PixelArt'
 import { RatingBadge } from '../components/RatingBadge'
 import { shared } from '../lib/account'
+import { useHiddenArt } from '../hooks/useHiddenArt'
 import { load, save } from '../lib/storage'
 
 type RatingRow = { id: string; name: string; avatar: string | null; rating: number; bot: boolean; letter?: string }
@@ -39,7 +40,7 @@ export const boardRows = (data: BoardData, tab: Tab, bots: boolean): Row[] =>
         value: <span className="board-value">{perHundred(r.net, r.hands)}</span>,
       }))
 
-const Face = ({ avatar, letter, name }: { avatar: string | null; letter?: string; name: string }) =>
+export const Face = ({ avatar, letter, name }: { avatar: string | null; letter?: string; name: string }) =>
   avatar ? (
     <PixelArt art={avatar} className="profile-thumb board-thumb" />
   ) : (
@@ -70,13 +71,14 @@ export function BoardTabs({ tab, onTab, children }: { tab: Tab; onTab: (tab: Tab
 
 // people's rows open their profile, bots and your own row don't go anywhere
 export function BoardList({ rows, start = 0, me, open }: { rows: Row[]; start?: number; me?: string; open: (id: number) => void }) {
+  const hidden = useHiddenArt()
   return (
     <ol className="leaderboard">
       {rows.map((r, i) => {
         const inside = (
           <>
             <span className="board-rank">{start + i + 1}</span>
-            <Face avatar={r.avatar} letter={r.letter} name={r.name} />
+            <Face avatar={r.id.startsWith('u:') && hidden.includes(Number(r.id.slice(2))) ? null : r.avatar} letter={r.letter} name={r.name} />
             <span className="board-name">
               <b>{r.name}</b>
               {r.sub && <small>{r.sub}</small>}

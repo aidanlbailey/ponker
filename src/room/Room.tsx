@@ -13,9 +13,12 @@ import {
   type PlayerAction,
   type TableState,
 } from "../engine/engine";
-import { hiddenArt, session } from "../lib/account";
+import { friends, session } from "../lib/account";
+import { useHiddenArt } from "../hooks/useHiddenArt";
 import { haptic } from "../lib/haptics";
+import { sound } from "../lib/sound";
 import { Table } from "../game/Game";
+import { Avatar } from "../game/Pieces";
 import { BUY_IN, winnings } from "../game/solo";
 import { useStage, type TableGame } from "../game/useStage";
 import { EMOTES, tableName } from "./public";
@@ -118,10 +121,14 @@ function RoomTable({
   const [seen, setSeen] = useState(0);
   const [panel, setPanel] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
-  const [hidden, setHidden] = useState(hiddenArt);
+  const hidden = useHiddenArt();
   const [players, setPlayers] = useState(false);
   // holding Tab shows the players like a game's scoreboard, letting go puts it away
   const [held, setHeld] = useState(false);
+  // what you're typing at the table, shown over your seat. null is not typing
+  const [draft, setDraft] = useState<string | null>(null);
+  const typer = useRef<HTMLInputElement>(null);
+  const [friendIds, setFriendIds] = useState<number[]>([]);
   useEffect(() => {
     const typing = (e: KeyboardEvent) =>
       e.target instanceof HTMLInputElement ||
@@ -144,6 +151,26 @@ function RoomTable({
       removeEventListener("blur", gone);
     };
   }, []);
+  // desktop only: any letter with nothing else focused starts a message. A phone's keyboard never pops up on
+  // its own, that's the chat button
+  const canType = cur.me !== null && viewing === null && !panel && !players;
+  useEffect(() => {
+    if (!canType) return;
+    const start = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+      const at = e.target as HTMLElement | null;
+      if (at?.closest?.("input, textarea, select, [contenteditable], button, a[href], [role=button]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      if (!matchMedia("(pointer: fine)").matches) return;
+      e.preventDefault();
+      sound("chatOpen");
+      sound("chatKey");
+      setDraft(e.key);
+      typer.current?.focus();
+    };
+    addEventListener("keydown", start);
+    return () => removeEventListener("keydown", start);
+  }, [canType]);
   const preflown = useRef<number | null>(null);
   const [log] = useState(() =>
     recorder(
@@ -167,6 +194,18 @@ function RoomTable({
     while (q[0] && q[0].view.seq <= applied.current && !q[0].fresh) q.shift();
     const next = q[0];
     if (!next || stage.busy) return;
+    const queuedMs = performance.now() - next.receivedAt;
+    if (!next.fresh && queuedMs > 3000) {
+      console.warn("Table animation queue delayed", {
+        queuedMs: Math.round(queuedMs),
+        queuedStates: q.length,
+        hand: cur.hand,
+        street: cur.table.street,
+        acts: cur.acts,
+        nextActs: next.view.acts,
+        bot: !!cur.seats[cur.table.toAct]?.bot,
+      });
+    }
     // marked before anything runs, strict mode runs this twice
     applied.current = next.view.seq;
     q.shift();
@@ -179,9 +218,7 @@ function RoomTable({
         view.table,
         view.me,
         view.seats.map((s) => s?.name ?? null),
-        view.seats.map((s) =>
-          s?.art && !hidden.includes(s.user!) ? s.art : null,
-        ),
+        view.seats.map((s) => s?.user ?? null),
       );
     } else if (view.hand !== cur.hand) log.drop();
     else if (step === 1 && view.last)
@@ -227,6 +264,16 @@ function RoomTable({
           board: cur.table.board,
           toAct: -1,
           result: null,
+          // a move that ends the hand ran the payout against hidden cards, so it can pay the wrong seat.
+          // Nobody's paid until the server says who won
+          seats: predicted.seats.map(
+            (s, i) =>
+              s && {
+                ...s,
+                chips: s.chips - winnings(predicted, i),
+                shown: cur.table.seats[i]?.shown ?? false,
+              },
+          ),
         };
     setCur({ ...cur, table: shown });
     room.send({
@@ -242,11 +289,34 @@ function RoomTable({
     room.queue.current.length === 0 && cur.seq === room.latest?.seq;
   const seat = (i: number) => cur.seats[i];
   const mine = me === null ? null : cur.table.seats[me];
-  const unread = chatOpen ? 0 : room.chat.length - seen;
+  const unread = chatOpen ? 0 : room.chatReceived - seen;
   const seated = cur.seats.filter(Boolean).length;
   const ready = cur.table.seats.filter(
     (s, i) => s && !s.sittingOut && (s.chips > 0 || cur.seats[i]?.bot),
   ).length;
+
+  // at a public table only mutual friends read you, and you're told who that is while you type
+  const signedIn = me !== null && !!cur.seats[me]?.user;
+  useEffect(() => {
+    // again when a profile closes, you might have just added someone
+    if (cur.public && signedIn && viewing === null)
+      friends().then((l) => setFriendIds(l.friends.map((f) => f.id)), () => {});
+  }, [cur.public, signedIn, viewing]);
+  const friendsHere = cur.seats.some(
+    (s) => !!s?.user && friendIds.includes(s.user),
+  );
+  const chatNote = !cur.public
+    ? undefined
+    : !signedIn
+      ? "Sign in to chat with friends"
+      : friendsHere
+        ? "Only your friends here see this"
+        : "No friends here, nobody will see this";
+  const canChat = !cur.public || (signedIn && me !== null);
+  const say = (text: string) => {
+    if (!canChat || !text.trim()) return;
+    room.send({ t: "chat", text });
+  };
 
   const game: TableGame = {
     ...stage,
@@ -277,10 +347,10 @@ function RoomTable({
       return user ? () => setViewing(user) : undefined;
     },
     clock: caughtUp ? room.clock : null,
-    emoteOf: (i) => {
-      const e = room.emotes[i];
-      return e ? { text: EMOTES[e.i]!, key: e.key } : null;
-    },
+    emoteOf: (i) =>
+      i === me && draft !== null
+        ? { text: draft, key: "draft", draft: true, note: chatNote }
+        : (room.said[i] ?? null),
     topUp: cur.topUp,
     leave: () => {
       room.send({ t: "leave" });
@@ -412,31 +482,6 @@ function RoomTable({
       >
         {label}
       </button>
-      {/* an icon, spelled out the bar ran off a phone */}
-      <button
-        className={`poker-toggle poker-icon ${chatOpen ? "on" : ""}`}
-        aria-label={cur.public ? "Emotes" : "Chat"}
-        aria-pressed={chatOpen}
-        onClick={() => {
-          setChatOpen(!chatOpen);
-          setSeen(room.chat.length);
-        }}
-      >
-        {cur.public ? (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" />
-            <path d="M9 9.5v.5M15 9.5v.5" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 5h16v11H9l-5 4z" />
-          </svg>
-        )}
-        {!cur.public && unread > 0 && (
-          <span className="room-unread">{unread}</span>
-        )}
-      </button>
       <button
         className={`poker-toggle poker-icon ${players ? "on" : ""}`}
         aria-label="Players"
@@ -450,6 +495,39 @@ function RoomTable({
     </>
   );
 
+  const side = (
+    <>
+      <button
+        className={`poker-toggle poker-icon room-chat-button ${chatOpen ? "on" : ""}`}
+        aria-label={canChat ? "Chat and emotes" : "Emotes"}
+        aria-pressed={chatOpen}
+        data-sound="none"
+        onClick={() => {
+          if (!chatOpen) sound("chatOpen");
+          setChatOpen(!chatOpen);
+          setSeen(room.chatReceived);
+        }}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16v11H9l-5 4z" />
+        </svg>
+        {unread > 0 && <span className="room-unread">{unread}</span>}
+      </button>
+      {chatOpen && (
+        <Chat
+          room={room}
+          seated={me !== null}
+          canChat={canChat}
+          note={chatNote}
+          hidden={hidden}
+          onSay={say}
+          onClose={() => (setChatOpen(false), setSeen(room.chatReceived))}
+          onEmote={() => cur.public && setChatOpen(false)}
+        />
+      )}
+    </>
+  );
+
   return (
     // signed in, the server's name is the account's and the local one is only the guest fallback
     <Table
@@ -457,33 +535,36 @@ function RoomTable({
       name={(me !== null && cur.seats[me]?.name) || name}
       bar={bar}
       dock={dock}
+      side={side}
     >
-      {chatOpen &&
-        (cur.public ? (
-          <section className="room-chat room-emotes" aria-label="Emotes">
-            <header>
-              <b>Emotes</b>
-              <button
-                className="poker-toggle"
-                onClick={() => setChatOpen(false)}
-                aria-label="Close emotes"
-              >
-                ×
-              </button>
-            </header>
-            <Emotes
-              room={room}
-              seated={me !== null}
-              onSent={() => setChatOpen(false)}
-            />
-          </section>
-        ) : (
-          <Chat
-            room={room}
-            seated={me !== null}
-            onClose={() => (setChatOpen(false), setSeen(room.chat.length))}
-          />
-        ))}
+      {/* where typing at the table goes. Off screen, the bubble over your seat is what you see */}
+      {me !== null && (
+        <input
+          ref={typer}
+          className="sr-only"
+          aria-label="Message"
+          tabIndex={-1}
+          maxLength={200}
+          value={draft ?? ""}
+          onChange={(e) => {
+            sound("chatKey");
+            if (e.target.value) setDraft(e.target.value);
+            else {
+              setDraft(null);
+              e.target.blur();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") say(draft ?? "");
+            if (e.key === "Enter" || e.key === "Escape") {
+              e.preventDefault();
+              setDraft(null);
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={() => setDraft(null)}
+        />
+      )}
       {(players || held) && (
         <Players
           view={cur}
@@ -507,7 +588,6 @@ function RoomTable({
         <PlayerSheet
           id={viewing}
           onClose={() => setViewing(null)}
-          onReported={() => setHidden(hiddenArt())}
         />
       )}
     </Table>
@@ -552,14 +632,25 @@ function Emotes({
   );
 }
 
+// the log, every emote, and a box to type in. Sits over the bottom right by its button, never on your cards
 function Chat({
   room,
   seated,
+  canChat,
+  note,
+  hidden,
+  onSay,
   onClose,
+  onEmote,
 }: {
   room: RoomSocket;
   seated: boolean;
+  canChat: boolean;
+  note?: string;
+  hidden: number[];
+  onSay: (text: string) => void;
   onClose: () => void;
+  onEmote: () => void;
 }) {
   const [text, setText] = useState("");
   const list = useRef<HTMLOListElement>(null);
@@ -568,17 +659,20 @@ function Chat({
     list.current?.lastElementChild?.scrollIntoView({ block: "end" });
   }, [room.chat]);
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!text.trim()) return;
-    room.send({ t: "chat", text });
+    onSay(text);
     setText("");
+    // a phone's keyboard goes away once it's sent, so the table's all there again
+    if (matchMedia("(pointer: coarse)").matches)
+      (document.activeElement as HTMLElement | null)?.blur();
   };
 
   return (
     <section className="room-chat" aria-label="Chat">
       <header>
-        <b>Chat</b>
+        <b>{canChat ? "Chat" : "Emotes"}</b>
         <button
           className="poker-toggle"
           onClick={onClose}
@@ -587,32 +681,48 @@ function Chat({
           ×
         </button>
       </header>
-      <ol ref={list}>
-        {room.chat.map((line) => (
-          <li key={`${line.at}-${line.name}-${line.text}`}>
-            <b>{line.name}</b> {line.text}
-          </li>
-        ))}
-        {!room.chat.length && (
-          <li className="room-chat-empty">Nothing said yet</li>
-        )}
-      </ol>
-      {seated && <Emotes room={room} seated />}
-      <form onSubmit={submit}>
-        <input
-          aria-label="Message"
-          value={text}
-          maxLength={200}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Say something"
-        />
-        <button
-          className="poker-toggle"
-          disabled={!text.trim() || room.status !== "open"}
-        >
-          Send
-        </button>
-      </form>
+      {canChat && (
+        <ol ref={list}>
+          {room.chat.map((line) => (
+            <li className="room-chat-line" key={`${line.at}-${line.name}-${line.text}`}>
+              <Avatar
+                id={line.user ? `u:${line.user}` : "guest"}
+                art={line.user && hidden.includes(line.user) ? null : line.art}
+              />
+              <div className="room-chat-message">
+                <b>{line.name}</b>
+                <span>{line.text}</span>
+              </div>
+            </li>
+          ))}
+          {!room.chat.length && (
+            <li className="room-chat-empty">Nothing said yet</li>
+          )}
+        </ol>
+      )}
+      <Emotes room={room} seated={seated} onSent={onEmote} />
+      {canChat ? (
+        <form onSubmit={submit}>
+          <input
+            aria-label="Message"
+            value={text}
+            maxLength={200}
+            onChange={(e) => {
+              sound("chatKey");
+              setText(e.target.value);
+            }}
+            placeholder="Say something"
+          />
+          <button
+            className="poker-toggle"
+            data-sound="none"
+            disabled={!text.trim() || room.status !== "open"}
+          >
+            Send
+          </button>
+        </form>
+      ) : null}
+      {note && seated && <p className="room-chat-note">{note}</p>}
     </section>
   );
 }

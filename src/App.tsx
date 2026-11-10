@@ -15,6 +15,7 @@ import { useStoredState } from './hooks/useStoredState'
 import { cashoutText } from './lib/cashout'
 import { DEFAULT_CHIPS, NEW_CHIP, formatMoney, isChips, totalValue, type Chip, type Chips } from './lib/chips'
 import { takeSignIn } from './lib/account'
+import { useHiddenArtSync } from './hooks/useHiddenArt'
 import { haptic } from './lib/haptics'
 import { sound } from './lib/sound'
 import { smoothly } from './lib/smoothly'
@@ -46,6 +47,7 @@ function landOn(raw: string) {
 }
 
 export function App() {
+  useHiddenArtSync()
   const [chips, setChips] = useStoredState<Chips>('ponker-chips', DEFAULT_CHIPS, isChips)
   const [userName, setUserName] = useStoredState('ponker-user-name', '')
 

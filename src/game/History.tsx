@@ -5,6 +5,8 @@ import { Table } from './Game'
 import { finished, loadHands, netOf, type Hand } from './handLog'
 import { useStage, type TableGame } from './useStage'
 import type { Card } from '../engine/engine'
+import { call } from '../lib/account'
+import { useHiddenArt } from '../hooks/useHiddenArt'
 import './history.css'
 
 const PLAY_MS = 700 // a pause between steps once the last one's done moving
@@ -75,10 +77,30 @@ function List({ hands }: { hands: Hand[] }) {
 // left the later steps' Call and Bet labels sitting on the seats
 function Replay({ hand }: { hand: Hand }) {
   const [start, setStart] = useState({ at: -1, epoch: 0, playing: true })
+  const hidden = useHiddenArt()
+  const [pictures, setPictures] = useState<Record<number, string | null>>({})
+  useEffect(() => {
+    const ids = [...new Set(hand.users?.filter((id): id is number => id !== null) ?? [])]
+    if (!ids.length) return
+    let active = true
+    const refresh = () => {
+      void call<{ id: number; avatar: string | null }[]>(`/avatars?ids=${ids.join(',')}`).then((rows) => {
+        if (active) setPictures(Object.fromEntries(rows.map((r) => [r.id, r.avatar])))
+      }, () => { if (active) setPictures({}) })
+    }
+    refresh()
+    addEventListener('focus', refresh)
+    return () => { active = false; removeEventListener('focus', refresh) }
+  }, [hand])
+  const arts = hand.names.map((_, seat) => {
+    const user = hand.users?.[seat]
+    return user && !hidden.includes(user) ? pictures[user] ?? null : null
+  })
   return (
     <Player
       key={start.epoch}
       hand={hand}
+      arts={arts}
       start={start.at}
       autoplay={start.playing}
       jump={(at, playing) => setStart((prev) => ({ at, epoch: prev.epoch + 1, playing }))}
@@ -86,10 +108,10 @@ function Replay({ hand }: { hand: Hand }) {
   )
 }
 
-type PlayerProps = { hand: Hand; start: number; autoplay: boolean; jump: (at: number, playing: boolean) => void }
+type PlayerProps = { hand: Hand; arts: (string | null)[]; start: number; autoplay: boolean; jump: (at: number, playing: boolean) => void }
 
 // The real table, stepped through the recorded states with the same staging a live hand uses
-function Player({ hand, start, autoplay, jump }: PlayerProps) {
+function Player({ hand, arts, start, autoplay, jump }: PlayerProps) {
   const [at, setAt] = useState(start) // -1 is the table before the deal
   const [playing, setPlaying] = useState(autoplay)
   const table = at < 0 ? hand.before : hand.steps[at]!.table
@@ -128,7 +150,7 @@ function Player({ hand, start, autoplay, jump }: PlayerProps) {
     me: hand.me,
     act: () => {},
     nameOf: (seat) => hand.names[seat] ?? 'Player',
-    artOf: (seat) => hand.arts?.[seat] ?? null,
+    artOf: (seat) => arts[seat] ?? null,
     topUp: false,
     leave: () => (location.hash = '#history'),
   }

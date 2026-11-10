@@ -4,10 +4,10 @@
 
 import { DurableObject } from 'cloudflare:workers'
 import { PUBLIC_TABLES, type TableInfo } from '../../src/room/public'
-import { addressKey, charge, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
+import { addressKey, charge, chatText, command, join, newRoom, nextDay, nextWake, openRoom, seatOf, spent, stalled, tick, viewOf, type Command, type Opened as Log, type Room } from './room'
 import { loadRoom, saveRoom } from './sql'
 import { api, API_PATH, type AccountEnv } from './api'
-import { addStats, rate, userBySession } from './db'
+import { addStats, mutualIds, rate, userBySession } from './db'
 
 interface Env extends AccountEnv {
   TABLE: DurableObjectNamespace<Table>
@@ -238,6 +238,18 @@ export class Table extends DurableObject<Env> {
       for (const other of this.sockets()) send(other, { t: 'emote', seat, i: (cmd as { i: number }).i })
       return
     }
+    // only the sender and their mutual friends here. One D1 read a line, and chat's already held to one a second
+    if (kind === 'friendchat') {
+      const seat = seatOf(this.room, token)
+      const m = this.room.members[seat]!
+      const line = { name: m.name, text: chatText((cmd as { text: string }).text), at: now, seat, user: m.user, art: m.art }
+      const friends = new Set((await mutualIds(this.env.DB, m.user!)).map((id) => `u:${id}`))
+      for (const other of this.sockets()) {
+        const to = (other.deserializeAttachment() as Attachment).token
+        if (to === token || friends.has(to)) send(other, { t: 'chat', lines: [line] })
+      }
+      return
+    }
     if (kind === 'chat') {
       charge(this.room, 1, now)
       saveRoom(this.ctx.storage.sql, this.room)
@@ -250,15 +262,37 @@ export class Table extends DurableObject<Env> {
     await this.commit()
   }
 
-  async alarm() {
+  async alarm(info?: AlarmInvocationInfo) {
     this.alarmAt = null
     const now = Date.now()
+    const due = nextWake(this.room)
+    if ((due !== null && now - due > 1000) || info?.isRetry) {
+      console.warn('Table alarm delayed', {
+        table: this.ctx.id.name ?? this.ctx.id.toString(),
+        lateMs: due === null ? null : Math.round(now - due),
+        scheduledLateMs: info ? now - info.scheduledTime : null,
+        retryCount: info?.retryCount ?? 0,
+        hand: this.room.hand,
+        street: this.room.table.street,
+        acts: this.room.stats.actions,
+        bot: !!this.room.turn?.bot,
+      })
+    }
     const changed = await this.change(() => tick(this.room, now, this.online()))
     if (changed) return
     // woke early or for nothing, still keep the next one set. One that's already due after a wake
     // that did nothing is a bug, and spinning on it is what burns the day's allowance, so back off
-    const due = nextWake(this.room)
-    const at = due !== null && due <= now ? now + STUCK_MS : due
+    const next = nextWake(this.room)
+    const stuck = next !== null && next <= now
+    if (stuck) console.warn('Table alarm made no progress', {
+      table: this.ctx.id.name ?? this.ctx.id.toString(),
+      lateMs: Math.round(now - next),
+      hand: this.room.hand,
+      street: this.room.table.street,
+      acts: this.room.stats.actions,
+      bot: !!this.room.turn?.bot,
+    })
+    const at = stuck ? now + STUCK_MS : next
     if (at !== null) charge(this.room, 1, now)
     await this.arm(at, now)
   }

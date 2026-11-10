@@ -322,7 +322,8 @@ export type TableGame = Stage & {
   tagOf?: (seat: number) => string | null
   artOf?: (seat: number) => string | null // a signed-in player's pixel art
   openPlayer?: (seat: number) => (() => void) | undefined // a handler for signed-in seats only, opens their profile
-  emoteOf?: (seat: number) => { text: string; key: number } | null // a room's emote, shown over the seat
+  // a room's emote or chat line over the seat. ms is how long it stays, a draft stays put with a note under it
+  emoteOf?: (seat: number) => { text: string; key: number | string; ms?: number; draft?: boolean; note?: string } | null
   // of is the whole length the bar drains from, key restarts it
   clock?: { seat: number; ms: number; of: number; banked: boolean; key: number } | null
   deal?: () => void

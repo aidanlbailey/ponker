@@ -23,7 +23,20 @@ const TUNE: Partial<Record<keyof typeof FILES, { volume?: number; rate?: number 
 
 // the interface noises are just blips, so they're made here rather than shipped. at and ms are in ms
 type Blip = { freq: number; to?: number; ms: number; at?: number; type?: OscillatorType; gain?: number }
-const BLIPS: Record<string, Blip[]> = {
+const BLIPS = {
+  chatKey: [
+    { freq: 720, to: 240, ms: 24, type: 'triangle', gain: 0.09 },
+    { freq: 180, to: 80, ms: 32, type: 'sine', gain: 0.15 },
+  ],
+  chatOpen: [{ freq: 380, to: 760, ms: 65, type: 'sine', gain: 0.14 }],
+  chatSend: [
+    { freq: 540, to: 920, ms: 70, type: 'sine', gain: 0.18 },
+    { freq: 1080, to: 1400, ms: 85, at: 45, type: 'sine', gain: 0.12 },
+  ],
+  chatReceive: [
+    { freq: 1040, to: 880, ms: 85, type: 'sine', gain: 0.17 },
+    { freq: 660, ms: 110, at: 65, type: 'sine', gain: 0.12 },
+  ],
   click: [{ freq: 1800, to: 900, ms: 35, type: 'triangle', gain: 0.18 }],
   toggle: [
     { freq: 1100, ms: 30, type: 'triangle', gain: 0.15 },
@@ -39,9 +52,9 @@ const BLIPS: Record<string, Blip[]> = {
     { freq: 180, to: 60, ms: 90, type: 'sine', gain: 0.7 },
     { freq: 170, to: 60, ms: 90, at: 120, type: 'sine', gain: 0.6 },
   ],
-}
+} satisfies Record<string, Blip[]>
 
-export type SoundName = keyof typeof FILES | 'click' | 'toggle' | 'turn' | 'tick' | 'check'
+export type SoundName = keyof typeof FILES | keyof typeof BLIPS
 
 const KEY = 'ponker-sound'
 // ponytail: fixed caps. A payout is dozens of chips at once and past a few voices it's just noise
@@ -96,7 +109,7 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
   voices.push(voice)
 
   const context = ctx
-  const blips = BLIPS[name]
+  const blips: Blip[] | undefined = BLIPS[name as keyof typeof BLIPS]
   if (blips) {
     voice.end = at + Math.max(...blips.map(({ ms, at: offset = 0 }) => offset + ms)) / 1000
     return blip(context, blips, at, volume)
