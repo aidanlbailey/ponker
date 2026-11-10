@@ -498,7 +498,9 @@
     image-rendering: pixelated;
   }
 
-  button&.art {
+  button& {
+    padding: 0;
+    border: 0;
     cursor: pointer;
   }
 }

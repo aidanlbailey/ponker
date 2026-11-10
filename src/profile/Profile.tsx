@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
 import { Dialog } from '../components/Dialog'
 import { paint, PixelArt } from '../components/PixelArt'
 import { RatingBadge } from '../components/RatingBadge'
+import { Avatar } from '../game/Pieces'
+import type { Bot } from '../game/roster'
 import { addFriend, cachedMe, call, dropFriend, friends, shared, deleteAccount, setArtHidden, session, signInUrl, signOut, type Friend, type Friends, type Me } from '../lib/account'
 import { blank, decode, encode, PALETTE, quantize, SIZE } from '../lib/avatar'
 import { useHiddenArt } from '../hooks/useHiddenArt'
@@ -37,17 +39,96 @@ export default function Profile({ name, view }: { name: string; view: ProfileVie
 }
 
 // someone's profile over the table, so having a look doesn't cost you your seat
-export function PlayerSheet({ id, onClose, onReported }: { id: number; onClose: () => void; onReported?: () => void }) {
+export function PlayerSheet({ id, self, onClose, onReported }: { id: number; self?: boolean; onClose: () => void; onReported?: () => void }) {
   const [who, setWho] = useState(id)
+  const [me, setMe] = useState<Me | null>(cachedMe)
+  useEffect(() => {
+    if (session()) call<Me>('/me').then(setMe, () => {})
+  }, [])
+  return (
+    <ProfileSheet onClose={onClose}>
+      {(expanded) => <PlayerView key={who} id={who} own={self && who === id} me={me?.id === who ? me : undefined} onSaved={setMe} open={setWho} onReported={onReported} compact={!expanded} />}
+    </ProfileSheet>
+  )
+}
+
+function ProfileSheet({ onClose, children }: { onClose: () => void; children: ReactNode | ((expanded: boolean) => ReactNode) }) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [expanded, setExpanded] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  useLayoutEffect(() => {
+    if (!dialog.current?.open) dialog.current?.showModal()
+  }, [])
   // no animation to wait for with reduced motion, so straight out
   const back = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? onClose() : setLeaving(true))
   return (
-    <div className={`profile-sheet ${leaving ? 'leaving' : ''}`} onAnimationEnd={(e) => e.animationName === 'sheet-out' && onClose()}>
-      <Screen title="Profile" back={['', 'Table']} onBack={back}>
-        <PlayerView key={who} id={who} open={setWho} onReported={onReported} />
-      </Screen>
-    </div>
+    <dialog
+      ref={dialog}
+      aria-label="Profile"
+      className={`profile-sheet ${expanded ? 'expanded' : 'profile-popout'} ${leaving ? 'leaving' : ''}`}
+      onCancel={(e) => { e.preventDefault(); back() }}
+      onClick={(e) => e.target === dialog.current && back()}
+      onAnimationEnd={(e) => e.target === dialog.current && e.animationName === 'sheet-out' && onClose()}
+    >
+      <div className="poker picker preview">
+        <header className="poker-bar">
+          <button type="button" className="poker-link" onClick={back}>
+            {expanded ? '‹ Table' : 'Close'}
+          </button>
+          <span className="poker-spacer" />
+          <span className="poker-stakes">Profile</span>
+        </header>
+        <main className="picker-body">
+          {typeof children === 'function' ? children(expanded) : children}
+          {!expanded && <button type="button" className="button neutral" onClick={() => setExpanded(true)}>View full profile</button>}
+        </main>
+      </div>
+    </dialog>
+  )
+}
+
+export function BotSheet({ bot, onClose }: { bot: Bot; onClose: () => void }) {
+  const [rating, setRating] = useState<number | null | undefined>(undefined)
+  const [failed, setFailed] = useState(false)
+  const [info, setInfo] = useState(false)
+  useEffect(() => {
+    let gone = false
+    shared<Record<string, number | null>>(`/ratings?ids=${encodeURIComponent(bot.id)}`).then(
+      (ratings) => { if (!gone) setRating(ratings[bot.id] ?? null) },
+      () => { if (!gone) setFailed(true) },
+    )
+    return () => { gone = true }
+  }, [bot.id])
+  return (
+    <ProfileSheet onClose={onClose}>
+      <div className="player-view">
+        <header className="player-head">
+          <span className="player-pic bot-pic"><Avatar id={bot.id} /></span>
+          <h2 className="player-name">{bot.name}</h2>
+          {rating !== undefined ? (
+            <button
+              type="button"
+              className="player-rating"
+              aria-expanded={info}
+              aria-label={`Rating ${rating ?? 'still placing'}, how rating works`}
+              onClick={() => setInfo(!info)}
+            >
+              <RatingBadge rating={rating} size="lg" />
+            </button>
+          ) : (
+            <p className="profile-note" role="status">{failed ? 'Rating unavailable' : 'Loading rating...'}</p>
+          )}
+          <p className="player-hands">{bot.skill} {bot.style}</p>
+          <div className={`rating-fold ${info ? 'open' : ''}`} inert={!info}>
+            <div><RatingInfo /></div>
+          </div>
+        </header>
+        <section className="picker-seats">
+          <h2>Personality</h2>
+          <p>{bot.bio}</p>
+        </section>
+      </div>
+    </ProfileSheet>
   )
 }
 
@@ -134,6 +215,8 @@ type ViewProps = {
   onSaved?: (me: Me) => void
   open: (id: number) => void
   wholeBoard?: boolean
+  compact?: boolean
+  own?: boolean
   onReported?: () => void
   children?: ReactNode // your account buttons, at the bottom
 }
@@ -148,7 +231,7 @@ const Pencil = ({ className }: { className?: string }) => (
 )
 
 // one page for everyone. Yours has a pencil up top that opens the name and the picture for editing
-export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, children }: ViewProps) {
+export function PlayerView({ id, me, onSaved, open, wholeBoard, compact, own, onReported, children }: ViewProps) {
   const [player, setPlayer] = useState<Player | null>(null)
   const [failed, setFailed] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -172,7 +255,7 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
     )
   }
 
-  const mine = me?.id === id
+  const mine = own || me?.id === id
   const editing = mine && editMode
   const art = hidden && !mine ? null : player.avatar
   const hands = player.stats.reduce((n, s) => n + s.hands, 0)
@@ -185,7 +268,7 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
 
   return (
     <div className={`player-view ${editing ? 'editing' : ''}`}>
-      {mine && (
+      {mine && !compact && (
         <div className="player-top">
           <button
             type="button"
@@ -257,9 +340,9 @@ export function PlayerView({ id, me, onSaved, open, wholeBoard, onReported, chil
           </div>
         </div>
       </header>
-      <StatsCard rows={player.stats} you={mine} />
-      <BoardSlice id={id} placing={player.rating === null} open={open} wholeBoard={wholeBoard} />
-      {mine && <FriendsCard open={open} />}
+      {!compact && <StatsCard rows={player.stats} you={mine} />}
+      {!compact && <BoardSlice id={id} placing={player.rating === null} open={open} wholeBoard={wholeBoard} />}
+      {mine && !compact && <FriendsCard open={open} />}
       {mine && children}
       {!mine && art && (
         <button type="button" className="player-report" onClick={() => setReporting(true)}>

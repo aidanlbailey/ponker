@@ -357,6 +357,16 @@ button.board-row {
   image-rendering: pixelated;
 }
 
+.bot-pic {
+  background: none;
+}
+
+.bot-pic .avatar {
+  width: 100%;
+  height: 100%;
+  font-size: 3rem;
+}
+
 .player-pencil {
   position: absolute;
   right: -8px;
@@ -544,10 +554,60 @@ button.board-row {
   position: fixed;
   inset: 0;
   z-index: 50;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  color: inherit;
   overflow-y: auto;
   background: var(--bg);
   scrollbar-width: thin;
   scrollbar-color: #303030 transparent;
+}
+
+.profile-sheet::backdrop {
+  background: rgb(0 0 0 / .35);
+}
+
+.profile-sheet.profile-popout {
+  width: min(440px, calc(100% - 2rem));
+  height: fit-content;
+  max-height: calc(100dvh - 4rem);
+  border: 1px solid #303030;
+  border-radius: 16px;
+  background: #1a1a1a;
+  box-shadow: 3px 4px 0 rgb(0 0 0 / .28);
+
+  .poker.picker {
+    min-height: 0;
+    background: transparent;
+  }
+
+  .picker-body {
+    width: 100%;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .player-head {
+    gap: .5rem;
+  }
+
+  .player-pic {
+    width: 64px;
+    height: 64px;
+  }
+
+  .bot-pic .avatar {
+    font-size: 2rem;
+  }
+
+  .picker-seats {
+    padding: .85rem;
+  }
 }
 
 .profile-paint {

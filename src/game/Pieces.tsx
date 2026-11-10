@@ -43,11 +43,11 @@ const DEFAULT_AVATAR = 'GUEST'
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // a signed-in player's picture. Tapping someone else's opens their profile
-export function Avatar({ id, art, onTap }: { id: string; art?: string | null; onTap?: () => void }) {
+export function Avatar({ id, art, onTap, label = 'See their profile' }: { id: string; art?: string | null; onTap?: () => void; label?: string }) {
   if (art) {
     const picture = <PixelArt art={art} className="avatar-art" />
     return onTap ? (
-      <button type="button" className="avatar art" aria-label="See their profile" onClick={onTap}>
+      <button type="button" className="avatar art" aria-label={label} onClick={onTap}>
         {picture}
       </button>
     ) : (
@@ -55,10 +55,19 @@ export function Avatar({ id, art, onTap }: { id: string; art?: string | null; on
     )
   }
   const letter = BOT_LETTERS[id]
+  const className = `avatar ${letter ? 'bot' : 'guest'}`
+  const style = letter ? ({ '--bot-color': BOT_COLORS[id] } as CSSProperties) : undefined
+  if (onTap) {
+    return (
+      <button type="button" className={className} style={style} aria-label={label} onClick={onTap}>
+        {letter ?? DEFAULT_AVATAR}
+      </button>
+    )
+  }
   return (
     <span
-      className={`avatar ${letter ? 'bot' : 'guest'}`}
-      style={letter ? ({ '--bot-color': BOT_COLORS[id] } as CSSProperties) : undefined}
+      className={className}
+      style={style}
       aria-hidden="true"
     >
       {letter ?? DEFAULT_AVATAR}

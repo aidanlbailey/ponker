@@ -1,6 +1,9 @@
 import { isValidElement, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from '../components/Dialog'
+import { BotSheet, PlayerSheet } from '../profile/Profile'
+import { cachedMe, call, session, type Me } from '../lib/account'
+import { botById, type Bot } from './roster'
 import { legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { setSound, sound, soundOn } from '../lib/sound'
@@ -234,6 +237,7 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
   // saved straight away rather than through useStoredState, so the toggle's own click hears the new setting
   const [audible, setAudible] = useState(soundOn)
   const [sheet, setSheet] = useState(false)
+  const [bot, setBot] = useState<Bot | null>(null)
   const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
   const [overSeats, setOverSeats] = useState<HTMLDivElement | null>(null)
 
@@ -386,10 +390,11 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
             const emote = game.emoteOf?.(i)
             const seatClass = cx('seat', isMe && 'me', turn && 'turn', seat.folded && 'folded', won && 'winner', out && 'out', game.arrivals.includes(i) && 'arrive', spot.className === 'bet beside' && 'upper')
             const stack = out ? 'Out' : game.stack(i).toLocaleString('en-US')
-            const profile = isMe ? undefined : game.openPlayer?.(i)
+            const seatBot = botById(seat.id)
+            const profile = seatBot ? () => setBot(seatBot) : game.openPlayer?.(i)
             const info = (
               <>
-                <Avatar id={seat.id} art={game.artOf?.(i)} onTap={profile} />
+                <Avatar id={seat.id} art={game.artOf?.(i)} onTap={profile} label={isMe ? 'See your profile' : undefined} />
                 <div className="seat-info">
                   {profile ? (
                     <button type="button" className="seat-name seat-link" onClick={profile}>
@@ -547,11 +552,22 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
       </p>
 
       {sheet && <CheatSheet onClose={() => setSheet(false)} />}
+      {bot && <BotSheet key={bot.id} bot={bot} onClose={() => setBot(null)} />}
       {children}
     </div>
   )
 }
 
 export default function Game({ name }: { name: string }) {
-  return <Table game={useSoloTable()} name={name} canHint />
+  const game = useSoloTable()
+  const [me, setMe] = useState<Me | null>(cachedMe)
+  const [viewing, setViewing] = useState(false)
+  useEffect(() => {
+    if (session()) call<Me>('/me').then(setMe, () => {})
+  }, [])
+  return (
+    <Table game={{ ...game, openPlayer: (seat) => seat === game.me && me ? () => setViewing(true) : undefined }} name={name} canHint>
+      {viewing && me && <PlayerSheet id={me.id} self onClose={() => setViewing(false)} />}
+    </Table>
+  )
 }

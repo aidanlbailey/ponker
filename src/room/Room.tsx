@@ -160,7 +160,7 @@ function RoomTable({
       if (e.defaultPrevented || e.isComposing || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
       const at = e.target as HTMLElement | null;
       if (at?.closest?.("input, textarea, select, [contenteditable], button, a[href], [role=button]")) return;
-      if (document.querySelector("dialog[open]")) return;
+      if (document.querySelector("dialog[open], .profile-sheet")) return;
       if (!matchMedia("(pointer: fine)").matches) return;
       e.preventDefault();
       sound("chatOpen");
@@ -587,6 +587,7 @@ function RoomTable({
       {viewing !== null && (
         <PlayerSheet
           id={viewing}
+          self={me !== null && viewing === seat(me)?.user}
           onClose={() => setViewing(null)}
         />
       )}
