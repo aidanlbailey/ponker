@@ -1,0 +1,88 @@
+.sound-home {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1.25rem, env(safe-area-inset-left));
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #303030;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #fff;
+  box-shadow: 3px 4px 0 rgb(0 0 0 / .28) !important;
+  cursor: pointer;
+}
+
+.sound-home svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.sound-options {
+  display: grid;
+  gap: .75rem;
+}
+
+.sound-option {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  min-height: 48px;
+  padding: .75rem 1rem;
+  border: 1px solid #303030;
+  border-radius: 12px;
+  background: #1a1a1a;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sound-option > :last-child {
+  min-width: 3rem;
+  padding: .25rem .5rem;
+  border-radius: 999px;
+  background: #151515;
+  color: #aaa;
+}
+
+.sound-option[aria-pressed='true'] > :last-child {
+  background: #eee;
+  color: #151515;
+}
+
+.sound-credit {
+  margin: 1rem 0 0;
+  color: #aaa;
+  font-size: .8rem;
+  line-height: 1.6;
+}
+
+.sound-credit a {
+  color: inherit;
+}
+
+.sound-volume {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: .25rem .75rem;
+  padding: .5rem 1rem 0;
+  color: #aaa;
+  font-size: .8rem;
+}
+
+.sound-volume input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 32px;
+  margin: 0;
+  accent-color: #eee;
+  cursor: pointer;
+}

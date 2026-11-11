@@ -74,7 +74,9 @@ for (const street of ['turn', 'river'] as const) {
     await expect(page.locator('.felt')).toBeVisible()
     const toggle = page.getByRole('button', { name: 'Sound', exact: true })
     await toggle.click()
-    await toggle.click()
+    const soundDialog = page.getByRole('dialog', { name: 'Sound', exact: true })
+    await soundDialog.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(soundDialog).not.toBeVisible()
     const raiser = room.table.seats[room.table.toAct]!
     command(room, shover, { t: 'act', action: { type: 'raise', to: raiser.chips + raiser.bet } }, 3500)
     room.seq++

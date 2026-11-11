@@ -5,6 +5,7 @@ import { PixelArt } from '../components/PixelArt'
 import { RatingBadge } from '../components/RatingBadge'
 import { cachedMe, call, session, type Me } from '../lib/account'
 import { Title } from '../components/Title'
+import { SoundSettings } from '../components/SoundSettings'
 import './hub.css'
 
 const svg = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const
@@ -87,6 +88,7 @@ function ProfileLink() {
 export function Hub() {
   return (
     <main className="hub">
+      <SoundSettings home />
       <ProfileLink />
       <Title tag="beta" />
       <nav className="hub-menu" aria-label="Play">

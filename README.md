@@ -93,4 +93,6 @@ directories. The PONKER title gestures and final animation feel are checked by h
 
 Table foley is from [Kenney](https://kenney.nl)'s Casino Audio pack (CC0). The rising all-in cues and runout ending are short excerpts from [Combo Sound Effect](https://www.youtube.com/watch?v=pwba_5aPbE4).
 
+Optional background music is Scott Joplin's public-domain composition *Solace*, performed by [Constantin Stephan](https://commons.wikimedia.org/wiki/File:Joplin-Solace-Stephan.ogg). The recording is streamed from Wikimedia Commons, unedited, under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Music starts off; music and sound effects have separate saved switches and volume sliders in the Sound panel on the home screen and at the table. Initial volume is 30% for music and 50% for effects.
+
 Built by Aidan Bailey. [Buy me a coffee](https://ko-fi.com/aidanlbailey) if it saved you at the table.

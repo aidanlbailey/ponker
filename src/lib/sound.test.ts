@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const started: number[] = []
 const stopped: number[] = []
 const generated: Float32Array[] = []
+const gains: { value: number }[] = []
 const files = new Map<ArrayBuffer, string>()
 const played: { file: string; rate: number; at: number }[] = []
 class FakeContext {
@@ -13,10 +14,11 @@ class FakeContext {
   destination = {}
   resume() {}
   decodeAudioData = async (data: ArrayBuffer) => ({ duration: 0.3, file: files.get(data) })
-  createGain = () => ({
-    gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
-    connect: (to: unknown) => to,
-  })
+  createGain = () => {
+    const gain = { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }
+    gains.push(gain)
+    return { gain, connect: (to: unknown) => to }
+  }
   createOscillator = () => ({
     type: 'sine',
     frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
@@ -62,6 +64,7 @@ beforeEach(() => {
   started.length = 0
   stopped.length = 0
   generated.length = 0
+  gains.length = 0
   played.length = 0
   files.clear()
   const settings = new Map<string, string>()
@@ -69,6 +72,30 @@ beforeEach(() => {
     getItem: (key: string) => settings.get(key) ?? null,
     setItem: (key: string, value: string) => settings.set(key, value),
   })
+})
+
+it('applies the saved effects volume through a shared gain, including active and scheduled sounds', async () => {
+  localStorage.setItem('ponker-sfx-volume', '0.25')
+  const { unlock, sound, soundVolume, setSoundVolume, soundOn } = await import('./sound')
+  expect(soundVolume()).toBe(0.25)
+  unlock()
+  expect(gains[0]!.value).toBe(0.25)
+  sound('drumroll', { delay: 2000 })
+  setSoundVolume(0.8)
+  expect(gains[0]!.value).toBe(0.8)
+  expect(localStorage.getItem('ponker-sfx-volume')).toBe('0.8')
+  setSoundVolume(0)
+  expect(gains[0]!.value).toBe(0)
+  expect(soundOn()).toBe(true)
+})
+
+it('silences chip landings already scheduled on the audio clock when effects are switched off', async () => {
+  const { sound, unlock, setSound } = await import('./sound')
+  unlock()
+  sound('chip', { delay: 2000 })
+  await vi.waitFor(() => expect(played).toHaveLength(1))
+  setSound(false)
+  expect(stopped).toHaveLength(1)
 })
 
 it('keeps the drumroll to the river wait, cancels on exit and silences an active roll on mute', async () => {

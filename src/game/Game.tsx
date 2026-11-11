@@ -6,7 +6,8 @@ import { cachedMe, call, session, type Me } from '../lib/account'
 import { botById, type Bot } from './roster'
 import { HIDDEN, legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
-import { setSound, sound, soundOn } from '../lib/sound'
+import { sound } from '../lib/sound'
+import { SoundSettings } from '../components/SoundSettings'
 import { BetControls, useFlick } from './BetControls'
 import { ChipStack } from '../components/Chip'
 import { colorOf, potSize, saidKind } from './betting'
@@ -237,8 +238,6 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
   useBoardCamera(felt, game.runout && !game.reveal)
   const [hintsOn, setHints] = useStoredState('ponker-hints', true)
   const hints = !!canHint && hintsOn
-  // saved straight away rather than through useStoredState, so the toggle's own click hears the new setting
-  const [audible, setAudible] = useState(soundOn)
   const [sheet, setSheet] = useState(false)
   const [bot, setBot] = useState<Bot | null>(null)
   const [underSeats, setUnderSeats] = useState<HTMLDivElement | null>(null)
@@ -317,20 +316,7 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
           </button>
         )}
         {/* an icon, a room's bar ran off a phone with it spelled out */}
-        <button
-          className={cx('poker-toggle', 'poker-icon', audible && 'on')}
-          aria-label="Sound"
-          aria-pressed={audible}
-          onClick={() => {
-            setSound(!audible)
-            setAudible(!audible)
-          }}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor" />
-            <path d={audible ? 'M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12' : 'M16 9l6 6M22 9l-6 6'} />
-          </svg>
-        </button>
+        <SoundSettings />
         <button className="poker-toggle" aria-label="Hand rankings" onClick={() => setSheet(true)}>
           ?
         </button>

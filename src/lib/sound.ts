@@ -62,10 +62,12 @@ export type SoundName = keyof typeof FILES | keyof typeof BLIPS | 'drumroll'
 const KEY = 'ponker-sound'
 // ponytail: fixed caps. A payout is dozens of chips at once and past a few voices it's just noise
 const MAX_VOICES = 8
-const MASTER = 0.5 // everything at once, turn this to change the whole app's volume
+const VOLUME_KEY = 'ponker-sfx-volume'
+let level = load(VOLUME_KEY, 0.5, (value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1)
 const GAP_S = 0.03 // the same sound closer together than this is one sound
 
 let ctx: AudioContext | null = null
+let output: GainNode | null = null
 // Everything scheduled, on the audio clock, so the caps go by what'll be sounding at the same moment rather than by
 // what's been asked for. A sweep asks for every chip's landing up front, seconds apart, and counting those as they
 // were asked for used up all eight voices on the first seats and left the last one's toss silent
@@ -74,6 +76,14 @@ const VOICE_S = 0.6 // ponytail: a guess at a take's length until its file's loa
 const buffers = new Map<string, Promise<AudioBuffer | null>>()
 
 export const soundOn = () => load(KEY, true)
+export const soundVolume = () => level
+export function setSoundVolume(volume: number) {
+  if (!Number.isFinite(volume)) return
+  level = Math.max(0, Math.min(1, volume))
+  save(VOLUME_KEY, level)
+  // The shared gain also adjusts effects already playing or scheduled for a later landing.
+  if (output) output.gain.value = level
+}
 const stoppable = new Set<() => void>()
 export const setSound = (on: boolean) => {
   save(KEY, on)
@@ -99,6 +109,11 @@ export function unlock() {
   const session = (navigator as { audioSession?: { type: string } }).audioSession
   if (session) session.type = 'playback'
   ctx ??= new AudioContext()
+  if (!output) {
+    output = ctx.createGain()
+    output.gain.value = level
+    output.connect(ctx.destination)
+  }
   // iOS also has 'interrupted', after a call or another app grabbing the audio
   if (ctx.state !== 'running') void ctx.resume()
   Object.values(FILES).flat().forEach(buffer)
@@ -137,9 +152,9 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
     filter.frequency.value = 1100
     filter.Q.value = 0.65
     const gain = context.createGain()
-    gain.gain.value = MASTER * volume
+    gain.gain.value = volume
     source.buffer = data
-    source.connect(filter).connect(gain).connect(context.destination)
+    source.connect(filter).connect(gain).connect(output!)
     const stop = () => {
       source.stop()
       voice.end = 0
@@ -170,7 +185,7 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
     voice.end = 0
     stoppable.delete(stop)
   }
-  if (sequence) stoppable.add(stop)
+  stoppable.add(stop)
   void buffer(files[take]!).then((data) => {
     if (!data || cancelled || !soundOn() || (document.hidden && !hidden)) {
       voice.end = 0
@@ -182,9 +197,9 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
     source.buffer = data
     // The combo clips already climb in pitch. Jitter could make a later shove sound lower than the last.
     source.playbackRate.value = rate * (sequence ? 1 : 0.94 + Math.random() * 0.12)
-    gain.gain.value = MASTER * volume * (sequence ? 1 : 0.85 + Math.random() * 0.15)
+    gain.gain.value = volume * (sequence ? 1 : 0.85 + Math.random() * 0.15)
     source.onended = () => stoppable.delete(stop)
-    source.connect(gain).connect(context.destination)
+    source.connect(gain).connect(output!)
     const start = Math.max(at, context.currentTime)
     voice.end = start + data.duration / source.playbackRate.value
     source.start(start)
@@ -202,9 +217,15 @@ function blip(context: AudioContext, parts: Blip[], at: number, volume: number) 
     osc.frequency.setValueAtTime(freq, start)
     if (to) osc.frequency.exponentialRampToValueAtTime(to, end)
     gain.gain.setValueAtTime(0, start)
-    gain.gain.linearRampToValueAtTime(MASTER * level * volume, start + 0.004)
+    gain.gain.linearRampToValueAtTime(level * volume, start + 0.004)
     gain.gain.exponentialRampToValueAtTime(0.0001, end)
-    osc.connect(gain).connect(context.destination)
+    osc.connect(gain).connect(output!)
+    const stop = () => {
+      osc.stop()
+      stoppable.delete(stop)
+    }
+    osc.onended = () => stoppable.delete(stop)
+    stoppable.add(stop)
     osc.start(start)
     osc.stop(end)
   })

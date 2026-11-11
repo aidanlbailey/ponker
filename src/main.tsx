@@ -9,12 +9,15 @@ import '@fontsource/adwaita-mono/latin-400.css'
 import '@fontsource/adwaita-mono/latin-700.css'
 import { App } from './App'
 import { sound, unlock, type SoundName } from './lib/sound'
+import { musicVisibility, unlockMusic } from './lib/music'
 import './styles.css'
 import './looks.css'
 
 // a touch's pointerdown doesn't count as a gesture, so iOS only lets audio start on the finger coming up.
 // pointerdown stays for mice, so the files start loading a beat sooner
 for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, unlock)
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, unlockMusic)
+document.addEventListener('visibilitychange', musicVisibility)
 
 // every button clicks, unless it says otherwise with data-sound. Things that make their own noise
 // (chips, the menu's cards, bet actions) set data-sound="none"
