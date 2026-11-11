@@ -442,16 +442,16 @@ function RoomTable({
   } else if (stage.idle && ready < 2 && cur.public && seated < 6) {
     // alone at a public table: wait, invite, or play bots who make way when people come
     dock = (
-      <div key="alone" className="bet-actions">
+      <div key="alone" className="bet-actions table-wait-actions">
         <p className="dock-wait">Waiting for players</p>
         <button className="button neutral" onClick={() => setPanel(true)}>
-          Invite
+          <span>Invite</span>
         </button>
         <button
           className="button primary"
           onClick={() => room.send({ t: "addBot" })}
         >
-          Play bots
+          <span>Play bots</span>
         </button>
       </div>
     );
