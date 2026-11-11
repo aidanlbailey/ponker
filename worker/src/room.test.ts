@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { HIDDEN } from '../../src/engine/engine'
 import { pickTable } from '../../src/room/public'
 import { HAND_CAP } from './rating'
+import { DRUMROLL_MS, REVEAL_MS, RUN_OUT_MS } from '../../src/game/runout'
 import { addressKey, BANK_MS, BLOCK_HANDS, charge, command, DAILY_ROWS, GRACE_MS, join, newRoom, nextDay, nextWake, openRoom, PUBLIC_DAILY_ROWS, PUBLIC_GRACE_MS, ROOMS_PER_DAY, spent, stalled, tick, TURN_MS, viewOf, type Room } from './room'
 
 const A = 'token-aaaaaaaaaaaaaaaa'
@@ -32,6 +33,44 @@ const reject = (): never => {
 const tokenOn =(r: Room, seat: number) => r.members[seat]!.token!
 
 describe('room', () => {
+  test('a late voluntary show leaves time for its close-up without extending again for the same cards', () => {
+    const r = twoPlayers()
+    command(r, tokenOn(r, r.table.toAct), { t: 'act', action: { type: 'fold' } }, 2000)
+    const winner = r.table.seats.findIndex((seat) => seat && !seat.folded)
+    const old = r.nextHand!
+    command(r, tokenOn(r, winner), { t: 'act', action: { type: 'show' } }, old - 100)
+    const deadline = r.nextHand!
+    expect(deadline).toBeGreaterThanOrEqual(old - 100 + REVEAL_MS)
+    command(r, tokenOn(r, winner), { t: 'act', action: { type: 'show' } }, old)
+    expect(r.nextHand).toBe(deadline)
+    tick(r, old, everyone)
+    expect(r.hand).toBe(1)
+    tick(r, deadline, everyone)
+    expect(r.hand).toBe(2)
+  })
+
+  test.each(['preflop', 'flop', 'turn', 'river'] as const)('leaves time for the shared river wait after an all-in on the %s', (street) => {
+    const r = twoPlayers()
+    command(r, A, { t: 'topUp' }, 2000)
+    command(r, B, { t: 'topUp' }, 2000)
+    while (r.table.street !== street) {
+      const seat = r.table.seats[r.table.toAct]!
+      command(r, tokenOn(r, r.table.toAct), { t: 'act', action: { type: r.table.currentBet > seat.bet ? 'call' : 'check' } }, 2000)
+    }
+    const shover = r.table.seats[r.table.toAct]!
+    command(r, tokenOn(r, r.table.toAct), { t: 'act', action: { type: 'raise', to: shover.chips + shover.bet } }, 3000)
+    const shown = r.table.board.length
+    command(r, tokenOn(r, r.table.toAct), { t: 'act', action: { type: 'call' } }, 4000)
+    const boardWait = shown === 5 ? 0 : (shown === 0 ? 3 : 5 - shown) * RUN_OUT_MS + DRUMROLL_MS
+    expect(r.nextHand! - 4000).toBeGreaterThanOrEqual(boardWait + REVEAL_MS + 4500)
+    const deadline = r.nextHand!
+    tick(r, deadline - 1, everyone)
+    expect(r.hand).toBe(1)
+    for (const token of [A, B, C]) expect(viewOf(r, token, everyone, 4000).table.board).toEqual(r.table.board)
+    tick(r, deadline, everyone)
+    expect(r.hand).toBe(2)
+  })
+
   test('host sits at the bottom, the next player across, and a hand gets dealt', () => {
     const r = newRoom()
     join(r, A, '  Ann\u0007 ', 0)

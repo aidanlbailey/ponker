@@ -16,6 +16,7 @@ import { breakdown } from '../../src/game/betting'
 import { BIG_BLIND, BUY_IN, chipMoves, MAX_SEATS, payouts, SMALL_BLIND } from '../../src/game/solo'
 import { EMOTES } from '../../src/room/public'
 import { BLOCK_HANDS, HAND_CAP } from './rating'
+import { DRUMROLL_MS, isRunout, revealedSeats, REVEAL_MS, RUN_OUT_MS } from '../../src/game/runout'
 
 export const TURN_MS = 20_000
 export const BANK_MS = 30_000
@@ -29,7 +30,6 @@ const OUT_MS = 500 // a seat that's sat out still gets its turns played, just qu
 const DEAL_PAUSE_MS = 1000
 const STREET_PAUSE_MS = 600
 const NEXT_HAND_MS = 4500
-const RUN_OUT_MS = 1100 // per card, same as the client's run out
 const READY_MS = 1500
 // the clients' chip staging, roughly, so a turn's clock doesn't start while the bets are still going in. A closing
 // call is thrown onto its bet first, then each bet's tossed into the pot a seat at a time, then the payout pile
@@ -241,7 +241,9 @@ function moved(r: Room, now: number, before: TableState) {
     // ponytail: a band per chip colour in what they won. The real pile's made of the pot's own chips, so it can
     // have a band or two more, NEXT_HAND_MS has slack for that
     const bands = Math.max(0, ...payouts(r.table).map((move) => new Set(breakdown(move.amount)).size))
-    r.nextHand = now + NEXT_HAND_MS + swept + bands * BAND_MS + (added > 1 ? added * RUN_OUT_MS : added ? STREET_PAUSE_MS : 0)
+    const runout = isRunout(r.table, before.board.length)
+    const boardPause = runout ? added * RUN_OUT_MS + DRUMROLL_MS : added ? STREET_PAUSE_MS : 0
+    r.nextHand = now + NEXT_HAND_MS + swept + bands * BAND_MS + boardPause + (revealedSeats(before, r.table).length ? REVEAL_MS : 0)
   } else startTurn(r, now, added ? STREET_PAUSE_MS + swept : 0)
 }
 
@@ -574,7 +576,11 @@ export function command(r: Room, token: string, cmd: Command, now: number): 'cha
     if (cmd.t === 'act') {
       const type = cmd.action?.type
       // showing is after the hand, the engine checks it
-      if (type === 'show') r.table = applyAction(r.table, { type, seat })
+      if (type === 'show') {
+        const before = r.table
+        r.table = applyAction(r.table, { type, seat })
+        if (revealedSeats(before, r.table).length && r.nextHand) r.nextHand = Math.max(r.nextHand, now + REVEAL_MS + STREET_PAUSE_MS)
+      }
       else {
         if (r.turn?.seat !== seat || r.table.toAct !== seat) reject('not your turn')
         if (type !== 'fold' && type !== 'check' && type !== 'call' && type !== 'raise') reject('bad action')

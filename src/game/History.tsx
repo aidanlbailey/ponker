@@ -115,7 +115,7 @@ function Player({ hand, arts, start, autoplay, jump }: PlayerProps) {
   const [at, setAt] = useState(start) // -1 is the table before the deal
   const [playing, setPlaying] = useState(autoplay)
   const table = at < 0 ? hand.before : hand.steps[at]!.table
-  const stage = useStage(table, hand.me, false, () => {})
+  const stage = useStage(table, hand.me, false, () => {}, false)
   const last = hand.steps.length - 1
 
   const forward = () => {

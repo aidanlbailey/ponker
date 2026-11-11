@@ -154,6 +154,7 @@
 /* sits over the dock so your cards can hang into it, but its own empty box ate clicks on the top half of the
    bet presets with hints off. Only what's actually drawn takes the pointer */
 .table-wrap {
+  position: relative;
   z-index: 1;
   grid-area: table;
   container-type: size;
@@ -212,6 +213,192 @@
   gap: 0.35rem;
   height: fit-content;
   margin-block: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .felt {
+    transform: translate(var(--camera-x, 0px), var(--camera-y, 0px)) scale(var(--camera-zoom, 1));
+    transform-origin: 50% 50%;
+    transition: transform 650ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+}
+
+.table-wrap.focusing {
+  overflow: clip;
+}
+
+.hand-reveal {
+  container-type: size;
+  position: absolute;
+  grid-area: 2 / 1 / -1 / -1;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0e0e0e;
+  pointer-events: auto;
+}
+
+.reveal-panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
+  gap: 2px;
+}
+
+.reveal-panes[data-hands='1'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reveal-panes:is([data-hands='3'], [data-hands='6']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reveal-panes[data-hands='5'] {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+
+  > .reveal-pane { grid-column: span 2; }
+  > .reveal-pane:nth-child(n + 4) { grid-column: span 3; }
+}
+
+.reveal-context {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 8px 12px;
+  border-top: 1px solid #303030;
+  background: #151515;
+  color: #fff;
+}
+
+.reveal-pot {
+  flex: none;
+  font-size: clamp(0.75rem, 3cqw, 1rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.reveal-board {
+  --card-w: clamp(20px, 6cqw, 40px);
+  display: flex;
+  gap: 4px;
+}
+
+.hand-reveal .reveal-board .tcard.up .tcard-flip {
+  animation: none;
+}
+
+.poker.revealing .dock {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-height: 480px) {
+  .hand-reveal {
+    top: 32px;
+  }
+}
+
+.reveal-pane {
+  container-type: size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: min(1.5cqh, 12px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #20744f, #10472f);
+}
+
+.reveal-cards {
+  --card-w: min(32cqw, 38cqh, 200px);
+  display: flex;
+  gap: min(3cqw, 16px);
+}
+
+.reveal-player {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 90%;
+  color: #fff;
+  font-size: min(1.25rem, 9cqh, 6cqw);
+  font-weight: 700;
+}
+
+.reveal-player > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reveal-player .avatar {
+  flex: none;
+  width: min(32px, 16cqh);
+  height: min(32px, 16cqh);
+  font-size: 1rem;
+}
+
+@container (max-aspect-ratio: 1/1) {
+  .reveal-panes[data-hands='2'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reveal-panes:is([data-hands='3'], [data-hands='5'], [data-hands='6']) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > .reveal-pane:nth-child(n) { grid-column: auto; }
+  }
+
+  .reveal-panes:is([data-hands='3'], [data-hands='5']) > .reveal-pane:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hand-reveal {
+    animation: reveal-out 350ms ease-in calc(var(--reveal-ms) - 350ms) forwards;
+  }
+
+  .reveal-pane {
+    animation: reveal-open var(--reveal-flip) cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  .reveal-pane:nth-child(even) {
+    animation-name: reveal-open-reverse;
+  }
+
+  .reveal-cards {
+    animation: reveal-closer var(--reveal-ms) ease-out both;
+  }
+}
+
+@keyframes reveal-open {
+  from { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); translate: -8% 0; }
+  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); translate: 0 0; }
+}
+
+@keyframes reveal-open-reverse {
+  from { clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%); translate: 8% 0; }
+  to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); translate: 0 0; }
+}
+
+@keyframes reveal-closer {
+  from { transform: scale(0.92); }
+  to { transform: scale(1); }
+}
+
+@keyframes reveal-out {
+  to { opacity: 0; transform: scale(1.025); }
 }
 
 .pot {
@@ -279,7 +466,7 @@
 }
 
 .tcard.up .tcard-flip {
-  animation: flip-up 0.45s cubic-bezier(0.3, 0, 0.3, 1) var(--delay) backwards;
+  animation: flip-up var(--flip-ms, 450ms) cubic-bezier(0.3, 0, 0.3, 1) var(--delay) backwards;
 }
 
 .tcard-face {
@@ -948,6 +1135,13 @@
   transition:
     left 0.4s cubic-bezier(0.3, 0.7, 0.4, 1),
     translate 0.4s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.pot .pile-label.pot-fit {
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+  transition: none;
 }
 
 /* the upper right bet's in the way, so stop a rem short of its chips. Same clamp as .felt.ring .bet's room,

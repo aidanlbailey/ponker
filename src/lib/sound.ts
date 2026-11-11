@@ -1,6 +1,7 @@
 import { load, save } from './storage'
+import { DRUMROLL_MS } from '../game/runout'
 
-// Kenney's Casino Audio pack (CC0), denoised and converted to mono mp3 in public/sfx. A few takes of each so a run
+// Kenney's Casino Audio pack (CC0), denoised and converted to mono in public/sfx. A few takes of each so a run
 // of the same sound doesn't come out identical
 const FILES = {
   // the pack's chip lay is on a hard table, so this is it muffled and a touch lower, like felt soaking it up.
@@ -14,6 +15,8 @@ const FILES = {
   fold: ['card-place-1', 'card-place-2'],
   fan: ['card-fan-1'],
   slide: ['card-slide-1'],
+  allin: ['all-in-1.wav', 'all-in-2.wav', 'all-in-3.wav', 'all-in-4.wav', 'all-in-5.wav', 'all-in-6.wav'],
+  runoutEnd: ['runout-end.wav'],
 }
 
 // a take's own level and pitch, on top of whatever each call asks for. Tune a file here rather than at every call
@@ -54,7 +57,7 @@ const BLIPS = {
   ],
 } satisfies Record<string, Blip[]>
 
-export type SoundName = keyof typeof FILES | keyof typeof BLIPS
+export type SoundName = keyof typeof FILES | keyof typeof BLIPS | 'drumroll'
 
 const KEY = 'ponker-sound'
 // ponytail: fixed caps. A payout is dozens of chips at once and past a few voices it's just noise
@@ -71,12 +74,16 @@ const VOICE_S = 0.6 // ponytail: a guess at a take's length until its file's loa
 const buffers = new Map<string, Promise<AudioBuffer | null>>()
 
 export const soundOn = () => load(KEY, true)
-export const setSound = (on: boolean) => save(KEY, on)
+const stoppable = new Set<() => void>()
+export const setSound = (on: boolean) => {
+  save(KEY, on)
+  if (!on) for (const stop of stoppable) stop()
+}
 
 const buffer = (file: string) => {
   let pending = buffers.get(file)
   if (!pending) {
-    pending = fetch(`${import.meta.env.BASE_URL}sfx/${file}.mp3`)
+    pending = fetch(`${import.meta.env.BASE_URL}sfx/${file.endsWith('.wav') ? file : `${file}.mp3`}`)
       .then((res) => res.arrayBuffer())
       .then((data) => ctx!.decodeAudioData(data))
       .catch(() => null) // a missing file is just a quiet one
@@ -98,7 +105,8 @@ export function unlock() {
 }
 
 // delay is in ms on the audio clock, so it can be the same number an animation was given
-export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden = false } = {}) {
+type SoundOptions = { delay?: number; volume?: number; rate?: number; hidden?: boolean; variant?: number }
+export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden = false, variant = 0 }: SoundOptions = {}) {
   if (!ctx || ctx.state !== 'running' || !soundOn() || (document.hidden && !hidden)) return
   const now = ctx.currentTime
   for (let i = voices.length - 1; i >= 0; i--) if (voices[i]!.end < now) voices.splice(i, 1)
@@ -109,6 +117,39 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
   voices.push(voice)
 
   const context = ctx
+  if (name === 'drumroll') {
+    voice.end = at + DRUMROLL_MS / 1000
+    const source = context.createBufferSource()
+    const data = context.createBuffer(1, Math.ceil(context.sampleRate * DRUMROLL_MS / 1000), context.sampleRate)
+    const samples = data.getChannelData(0)
+    // Soft brush strokes, tightening toward the river. A filtered noise tail keeps it beside the casino foley.
+    for (let hit = 0; hit < DRUMROLL_MS - 40; hit += 78 - 43 * hit / DRUMROLL_MS) {
+      const first = Math.floor(hit * context.sampleRate / 1000)
+      const length = Math.ceil(context.sampleRate * 0.055)
+      const level = 0.12 + 0.1 * hit / DRUMROLL_MS
+      for (let i = 0; i < length && first + i < samples.length; i++) {
+        const envelope = Math.min(1, i / (context.sampleRate * 0.002)) * Math.exp(-6 * i / length)
+        samples[first + i]! += (Math.random() * 2 - 1) * envelope * level
+      }
+    }
+    const filter = context.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = 1100
+    filter.Q.value = 0.65
+    const gain = context.createGain()
+    gain.gain.value = MASTER * volume
+    source.buffer = data
+    source.connect(filter).connect(gain).connect(context.destination)
+    const stop = () => {
+      source.stop()
+      voice.end = 0
+      stoppable.delete(stop)
+    }
+    source.onended = () => stoppable.delete(stop)
+    stoppable.add(stop)
+    source.start(at)
+    return stop
+  }
   const blips: Blip[] | undefined = BLIPS[name as keyof typeof BLIPS]
   if (blips) {
     voice.end = at + Math.max(...blips.map(({ ms, at: offset = 0 }) => offset + ms)) / 1000
@@ -116,21 +157,39 @@ export function sound(name: SoundName, { delay = 0, volume = 1, rate = 1, hidden
   }
 
   const files = FILES[name as keyof typeof FILES]
+  const sequence = name === 'allin' || name === 'runoutEnd'
+  const take = sequence ? Math.max(0, Math.min(files.length - 1, Math.floor(variant))) : Math.floor(Math.random() * files.length)
   const tune = TUNE[name as keyof typeof FILES]
   volume *= tune?.volume ?? 1
   rate *= tune?.rate ?? 1
-  void buffer(files[Math.floor(Math.random() * files.length)]!).then((data) => {
-    if (!data) return (voice.end = 0)
-    const source = context.createBufferSource()
+  let source: AudioBufferSourceNode | null = null
+  let cancelled = false
+  const stop = () => {
+    cancelled = true
+    source?.stop()
+    voice.end = 0
+    stoppable.delete(stop)
+  }
+  if (sequence) stoppable.add(stop)
+  void buffer(files[take]!).then((data) => {
+    if (!data || cancelled || !soundOn() || (document.hidden && !hidden)) {
+      voice.end = 0
+      stoppable.delete(stop)
+      return
+    }
+    source = context.createBufferSource()
     const gain = context.createGain()
     source.buffer = data
-    source.playbackRate.value = rate * (0.94 + Math.random() * 0.12)
-    gain.gain.value = MASTER * volume * (0.85 + Math.random() * 0.15)
+    // The combo clips already climb in pitch. Jitter could make a later shove sound lower than the last.
+    source.playbackRate.value = rate * (sequence ? 1 : 0.94 + Math.random() * 0.12)
+    gain.gain.value = MASTER * volume * (sequence ? 1 : 0.85 + Math.random() * 0.15)
+    source.onended = () => stoppable.delete(stop)
     source.connect(gain).connect(context.destination)
     const start = Math.max(at, context.currentTime)
     voice.end = start + data.duration / source.playbackRate.value
     source.start(start)
   })
+  return sequence ? stop : undefined
 }
 
 function blip(context: AudioContext, parts: Blip[], at: number, volume: number) {

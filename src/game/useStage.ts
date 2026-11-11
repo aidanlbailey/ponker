@@ -11,9 +11,9 @@ import { liveOpponents } from './bot'
 import { MAX_STACK, payOrder, plan, potLayout, ready, settle, splitKept, total, type Piles, type Trip } from './piles'
 import { chipMoves, payouts, winnings, type Move, type Spot, type WorkerRequest } from './solo'
 import { bankOut, DROP_HIT_MS, SWEEP_LAND_MS } from './Pieces'
+import { allInLevel, CARD_FLIP_MS, isRunout, revealedSeats, REVEAL_MS, RUN_OUT_MS, runoutPause } from './runout'
 
 const STREET_MS = 550
-const RUN_OUT_MS = 1100 // an all-in is the good bit, so let each card land
 const PAY_MS = 900
 const STAGGER_MS = 40
 const MAX_STAGGER_MS = 420
@@ -49,12 +49,19 @@ export function ask<T>(worker: Worker | null, request: WorkerRequest) {
 }
 
 // me is null for someone watching. startPaid is whether a reload landed after the payout already ran
-export function useStage(table: TableState, me: number | null, startPaid: boolean, onPaid: () => void) {
+export function useStage(table: TableState, me: number | null, startPaid: boolean, onPaid: () => void, runoutEffects = true) {
   const view = useMemo(() => viewFor(table, me), [table, me])
 
   const [hand, setHand] = useState(0)
   const [shown, setShown] = useState(table.board.length)
   const [paid, setPaid] = useState(startPaid)
+  const [finale, setFinale] = useState(false)
+  const [reveal, setReveal] = useState({ table, seats: [] as number[], key: 0 })
+  if (reveal.table !== table) {
+    const seats = runoutEffects ? revealedSeats(reveal.table, table) : []
+    setReveal({ table, seats: seats.length ? seats : reveal.seats, key: reveal.key + (seats.length ? 1 : 0) })
+  }
+  const revealing = reveal.seats.length > 0
   // n so the same words twice still count as saying it again. A check on the flop and another on the turn used
   // to look like nothing changed, so the second one played its sound with no pill
   const [said, setSaid] = useState<Record<number, { text: string; n: number }>>({})
@@ -77,7 +84,8 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
 
   const dealing = shown < table.board.length
   const over = table.street === 'complete'
-  const idle = table.street === 'waiting' || (over && paid)
+  const runout = runoutEffects && isRunout(table, shown)
+  const idle = !revealing && (table.street === 'waiting' || (over && paid))
   const board = view.board.slice(0, shown)
   const mine = me === null ? null : view.seats[me]
   const inHand = !!mine && mine.cards.length > 0 && !mine.folded
@@ -144,6 +152,7 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
     // the fold borrows the deal's card sound for now, lower so it doesn't read as a card arriving
     if (kind === 'fold') sound('fold', { rate: 0.8, volume: 0.8 })
     if (kind === 'check') sound('check')
+    if (kind === 'allin' && runoutEffects) sound('allin', { variant: allInLevel(table) })
     const moves = chipMoves(table, next)
     fly(moves.now, { from })
     if (moves.sweep.length) setSweep((prev) => [...prev, ...moves.sweep])
@@ -155,6 +164,8 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   }
 
   const dealt = (next: TableState) => {
+    setFinale(false)
+    setReveal((prev) => ({ table: next, seats: runoutEffects ? revealedSeats(table, next) : [], key: prev.key + 1 }))
     arrived(next)
     setHand((n) => n + 1)
     setShown(0)
@@ -171,6 +182,8 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
 
   // straight to a state with nothing staged, for a reconnect. Cards and piles just are where they are
   const reset = (next: TableState) => {
+    setFinale(false)
+    setReveal((prev) => ({ table: next, seats: [], key: prev.key + 1 }))
     setFlights([])
     setPiles({})
     setSweep([])
@@ -187,10 +200,33 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   }, [])
 
   useEffect(() => {
-    if (!dealing) return
-    const timer = setTimeout(() => setShown((n) => (n ? n + 1 : 3)), over ? RUN_OUT_MS : STREET_MS)
+    if (!dealing || revealing) return
+    const pause = runout ? runoutPause(shown) : over ? RUN_OUT_MS : STREET_MS
+    const timer = setTimeout(() => {
+      setShown((n) => (n ? n + 1 : 3))
+      if (runout && shown === 4) setFinale(true)
+    }, pause)
+    let stop: (() => void) | void
+    const roll = runout && shown === 4 ? setTimeout(() => { stop = sound('drumroll') }, RUN_OUT_MS) : undefined
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(roll)
+      stop?.()
+    }
+  }, [dealing, shown, over, runout, revealing])
+
+  useEffect(() => {
+    if (!finale) return
+    let stop: (() => void) | void
+    const timer = setTimeout(() => { stop = sound('runoutEnd') }, CARD_FLIP_MS)
+    return () => { clearTimeout(timer); stop?.() }
+  }, [finale])
+
+  useEffect(() => {
+    if (!revealing) return
+    const timer = setTimeout(() => setReveal((prev) => ({ ...prev, seats: [] })), REVEAL_MS)
     return () => clearTimeout(timer)
-  }, [dealing, shown, over])
+  }, [revealing, reveal.key])
 
   // the bets go in once everything in the air is down. Which chips of an uncalled bet stay put is only known now,
   // with the closing call on its pile
@@ -246,10 +282,10 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
   })
 
   useEffect(() => {
-    if (!over || dealing || paid || moving) return
+    if (!over || dealing || paid || moving || revealing) return
     const timer = setTimeout(onSettled, PAY_MS)
     return () => clearTimeout(timer)
-  }, [over, dealing, paid, moving])
+  }, [over, dealing, paid, moving, revealing])
 
   // from what's on screen, or the helper would give away a run out. Stops once the hand's
   // over too, a number against a random hand is nonsense with both hands face up
@@ -282,11 +318,13 @@ export function useStage(table: TableState, me: number | null, startPaid: boolea
     over,
     idle,
     dealing,
+    runout,
+    reveal: revealing ? reveal : null,
     moving,
     arrivals,
     // nothing new should start while this is true, every move picks up the chips that are sitting
     // somewhere, so one that starts before the last lands would miss the late ones
-    busy: dealing || moving || (over && !paid),
+    busy: revealing || dealing || moving || (over && !paid),
     worker,
     chance: odds?.key === oddsKey ? (odds?.chance ?? null) : null,
     // nothing counts at its destination until the flight has landed it there, and winnings only once they're banked

@@ -4,7 +4,7 @@ import { Dialog } from '../components/Dialog'
 import { BotSheet, PlayerSheet } from '../profile/Profile'
 import { cachedMe, call, session, type Me } from '../lib/account'
 import { botById, type Bot } from './roster'
-import { legalActions, type TableState } from '../engine/engine'
+import { HIDDEN, legalActions, type TableState } from '../engine/engine'
 import { useStoredState } from '../hooks/useStoredState'
 import { setSound, sound, soundOn } from '../lib/sound'
 import { BetControls, useFlick } from './BetControls'
@@ -16,6 +16,7 @@ import { busted, BUY_IN, winnings } from './solo'
 import { MAX_STACK, total } from './piles'
 import { useSoloTable } from './useSoloTable'
 import type { TableGame } from './useStage'
+import { HandReveal, useBoardCamera } from './Reveal'
 import '@fontsource-variable/manrope'
 import './game.css'
 
@@ -232,6 +233,8 @@ type TableProps = {
 
 export function Table({ game, name, bar, dock, side, canHint, children }: TableProps) {
   const { view, board, over, paid, idle } = game
+  const felt = useRef<HTMLDivElement>(null)
+  useBoardCamera(felt, game.runout && !game.reveal)
   const [hintsOn, setHints] = useStoredState('ponker-hints', true)
   const hints = !!canHint && hintsOn
   // saved straight away rather than through useStoredState, so the toggle's own click hears the new setting
@@ -300,7 +303,7 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
   }, [clock?.key])
 
   return (
-    <div className="poker" style={PILE_LOOK}>
+    <div className={cx('poker', !!game.reveal && 'revealing')} style={PILE_LOOK}>
       <header className="poker-bar">
         {/* the way out, straight away even mid hand. A room plays your seat out without you */}
         <button className="poker-toggle poker-link" aria-label="Leave" onClick={game.leave}>
@@ -339,7 +342,7 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
       </header>
 
       <main className="table-wrap">
-        <div className={cx('felt', seats > 2 && 'ring')}>
+        <div ref={felt} className={cx('felt', seats > 2 && 'ring', game.runout && !game.reveal && 'runout')} inert={!!game.reveal} aria-hidden={!!game.reveal || undefined}>
           <ChipShadows />
           <div className="felt-center">
             <output
@@ -356,11 +359,14 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
               <Fade show={shownPot > 0} className="pile-label">
                 Pot {shownPot.toLocaleString('en-US')}
               </Fade>
+              {/* The live label waits for chips to land. Reserve its full width before the camera moves. */}
+              <span className="pile-label pot-fit" aria-hidden="true">Pot {pot.toLocaleString('en-US')}</span>
             </output>
             <div className="board">
-              {board.map((card, i) => (
-                <PlayingCard key={`${game.hand}-${i}`} card={card} delay={i < 3 ? i * 110 : 0} />
-              ))}
+              {Array.from({ length: game.runout ? 5 : board.length }, (_, i) => {
+                const card = board[i] ?? HIDDEN
+                return <PlayingCard key={`${game.hand}-${i}-${card}`} card={card} delay={i < 3 ? i * 110 : 0} silent={card === HIDDEN} />
+              })}
             </div>
           </div>
 
@@ -446,7 +452,7 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
                     onPointerLeave={isMe ? () => performance.now() >= landsAt.current && setNoPeek(null) : undefined}
                   >
                     {seat.cards.map((card, k) => (
-                      <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} />
+                      <PlayingCard key={`${game.hand}-${k}-${card}`} card={card} delay={k * 140 + (isMe ? 0 : 70)} silent={!!game.reveal?.seats.includes(i)} />
                     ))}
                   </div>
                   <Plate fit={stack}>
@@ -497,8 +503,9 @@ export function Table({ game, name, bar, dock, side, canHint, children }: TableP
           <div ref={setOverSeats} className="over-seats" />
         </div>
       </main>
+      {game.reveal && <HandReveal game={game} nameOf={nameOf} />}
 
-      <aside className={cx('dock', hints && 'hinted')}>
+      <aside className={cx('dock', hints && 'hinted')} inert={!!game.reveal} aria-hidden={!!game.reveal || undefined}>
         {side && <div className="dock-side">{side}</div>}
         <Fade show={showHint} className="hint">
           {showHint && (

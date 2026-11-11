@@ -91,6 +91,6 @@ attached to the HTML report, and failures retain a trace of the primary browser
 context. Reports and traces stay in ignored `playwright-report/` and `test-results/`
 directories. The PONKER title gestures and final animation feel are checked by hand.
 
-Sounds are from [Kenney](https://kenney.nl)'s Casino Audio pack (CC0).
+Table foley is from [Kenney](https://kenney.nl)'s Casino Audio pack (CC0). The rising all-in cues and runout ending are short excerpts from [Combo Sound Effect](https://www.youtube.com/watch?v=pwba_5aPbE4).
 
 Built by Aidan Bailey. [Buy me a coffee](https://ko-fi.com/aidanlbailey) if it saved you at the table.

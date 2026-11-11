@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { ChipParts, ChipStack, SHADOW_ALPHA, SHADOW_WIDTH, STRIPE_STAGGER, TILT, chipLook, sideStyle } from '../components/Chip'
 import { LANDING } from '../components/ChipCard'
 import { PixelArt } from '../components/PixelArt'
@@ -11,6 +11,7 @@ import type { At } from './piles'
 import { BOTS } from './roster'
 import type { Spot } from './solo'
 import type { Flight } from './useStage'
+import { CARD_FLIP_MS } from './runout'
 
 const THROW_MS = 850
 const SWEEP_MS = 700 // a bet pile tossed into the pot, a little quicker since every seat takes its turn
@@ -75,12 +76,13 @@ export function Avatar({ id, art, onTap, label = 'See their profile' }: { id: st
   )
 }
 
-export function PlayingCard({ card, delay = 0 }: { card: Card; delay?: number }) {
+export function PlayingCard({ card, delay = 0, silent = false }: { card: Card; delay?: number; silent?: boolean }) {
   const hidden = card === HIDDEN
-  const style = { '--delay': `${delay}ms` } as CSSProperties
+  const style = { '--delay': `${delay}ms`, '--flip-ms': `${CARD_FLIP_MS}ms` } as CSSProperties
 
   // cards are keyed by hand and face, so a mount is a deal, a turn or a show
-  useEffect(() => sound('card', { delay }), [delay])
+  const play = useEffectEvent(() => { if (!silent) sound('card', { delay }) })
+  useEffect(() => play(), [delay])
 
   return (
     <span
